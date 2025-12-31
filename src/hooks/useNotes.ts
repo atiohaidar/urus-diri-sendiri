@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
-import { getNotes, saveNote as saveNoteStorage, updateNote as updateNoteStorage, deleteNote as deleteNoteStorage, type Note } from '@/lib/storage';
+import { getNotes, saveNote as saveNoteStorage, updateNote as updateNoteStorage, deleteNote as deleteNoteStorage, initializeStorage, type Note } from '@/lib/storage';
 
 export const useNotes = () => {
     const [notes, setNotes] = useState<Note[]>([]);
 
     useEffect(() => {
-        setNotes(getNotes());
+        initializeStorage().then(() => {
+            setNotes(getNotes());
+        });
     }, []);
 
     const saveNote = (title: string, content: string) => {
