@@ -46,7 +46,7 @@ function processImages(payload, folderId) {
         
         // Upload Base64 ke Drive
         try {
-          const fileName = "UrusDiri_" + r.id + "_" + idx + ".jpg";
+          const fileName = "UrusDiriSendiri_" + r.id + "_" + idx + ".jpg";
           const base64Data = img.split(",")[1];
           const contentType = img.split(":")[1].split(";")[0];
           const blob = Utilities.newBlob(Utilities.base64Decode(base64Data), contentType, fileName);

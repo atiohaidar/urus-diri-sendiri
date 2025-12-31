@@ -57,9 +57,6 @@ const HomeScreen = () => {
                 {currentDate.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} • {currentDate.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', hour12: false })}
               </p>
             </div>
-            <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-primary/20 flex items-center justify-center">
-              <Sparkles className="w-5 h-5 md:w-6 md:h-6 text-primary" />
-            </div>
           </div>
         </div>
       </header>

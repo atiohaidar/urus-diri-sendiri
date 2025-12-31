@@ -33,9 +33,6 @@ const MainLayout = ({
                                         {currentDate.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
                                     </p>
                                 </div>
-                                <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
-                                    <Sparkles className="w-5 h-5 text-primary" />
-                                </div>
                             </div>
                         )}
                     </div>

@@ -74,5 +74,26 @@ export interface Translation {
         cloud_success_push: string;
         cloud_success_pull: string;
         cloud_error_permission: string;
+        go_to_about: string;
+    };
+    about: {
+        title: string;
+        description: string;
+        developed_by: string;
+        credits_title: string;
+        credits_content: string;
+        version: string;
+        mission_title: string;
+        mission_content: string;
+        contact_title: string;
+        portfolio_label: string;
+        github_label: string;
+        linkedin_label: string;
+        social_links_title: string;
+        workflow_title: string;
+        workflow_design: string;
+        workflow_prompts: string;
+        workflow_frontend: string;
+        workflow_refinement: string;
     };
 }

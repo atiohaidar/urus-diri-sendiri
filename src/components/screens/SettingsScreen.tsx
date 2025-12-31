@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Moon, Sun, Download, Upload, Monitor, Settings as SettingsIcon, Cloud, CloudUpload, CloudDownload, Key, Link as LinkIcon } from 'lucide-react';
+import { ArrowLeft, Moon, Sun, Download, Upload, Monitor, Settings as SettingsIcon, Cloud, CloudUpload, CloudDownload, Key, Link as LinkIcon, Sparkles, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { exportData, importData } from '@/lib/backup';
@@ -206,7 +206,7 @@ const SettingsScreen = () => {
                             <Button
                                 variant="outline"
                                 onClick={handlePull}
-                                disabled={isSyncing}
+                                disabled={isSyncing || !import.meta.env.VITE_CENTRAL_PROXY_URL}
                                 className="h-12 rounded-xl border-dashed border-2 gap-2"
                             >
                                 <CloudDownload className="w-4 h-4" />
@@ -214,13 +214,21 @@ const SettingsScreen = () => {
                             </Button>
                             <Button
                                 onClick={handlePush}
-                                disabled={isSyncing}
+                                disabled={isSyncing || !import.meta.env.VITE_CENTRAL_PROXY_URL}
                                 className="h-12 rounded-xl shadow-lg shadow-primary/20 gap-2"
                             >
                                 <CloudUpload className="w-4 h-4" />
                                 {t.settings.cloud_push}
                             </Button>
                         </div>
+
+                        {!import.meta.env.VITE_CENTRAL_PROXY_URL && (
+                            <div className="bg-destructive/10 border border-destructive/20 rounded-xl p-3">
+                                <p className="text-[10px] text-destructive font-semibold flex items-center gap-1.5">
+                                    ⚠️ Belum bisa dipake, soalnya ENV nya belum di setting
+                                </p>
+                            </div>
+                        )}
 
                         <Button
                             variant="ghost"
@@ -272,8 +280,27 @@ const SettingsScreen = () => {
                     </div>
                 </section>
 
-                <div className="text-center text-xs text-muted-foreground pt-8">
-                    <p>UrusDiri v1.0.0</p>
+                <div className="flex flex-col items-center gap-4 py-10">
+                    <button
+                        onClick={() => navigate('/about')}
+                        className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-all group scale-95 hover:scale-100"
+                    >
+                        <div className="w-8 h-8 rounded-full border-2 border-current flex items-center justify-center font-serif italic font-black text-lg">
+                            !
+                        </div>
+                        <span className="text-sm font-bold tracking-tight uppercase">
+                            {t.about.title}
+                        </span>
+                    </button>
+
+                    <div className="text-center space-y-1">
+                        <p className="text-[10px] font-bold text-muted-foreground/40 tracking-widest uppercase">
+                            UrusDiriSendiri v1.1.0
+                        </p>
+                        <p className="text-[10px] text-muted-foreground/30">
+                            © 2025 • Made with Vibe Coding
+                        </p>
+                    </div>
                 </div>
             </main>
         </div>

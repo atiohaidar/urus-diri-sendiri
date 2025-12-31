@@ -15,6 +15,7 @@ import HistoryScreen from "./components/screens/HistoryScreen";
 import SettingsScreen from "./components/screens/SettingsScreen";
 import EditSchedule from "./pages/EditSchedule";
 import MaghribCheckinPage from "./pages/MaghribCheckinPage";
+import AboutPage from "./pages/AboutPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -44,6 +45,7 @@ const App = () => (
 
                 <Route path="/schedule-editor" element={<EditSchedule />} />
                 <Route path="/maghrib-checkin" element={<MaghribCheckinPage />} />
+                <Route path="/about" element={<AboutPage />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </BrowserRouter>
