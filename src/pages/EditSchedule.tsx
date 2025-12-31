@@ -149,31 +149,31 @@ const EditSchedule = () => {
     };
 
     return (
-        <MainLayout showMobileHeader={false} className="pt-0 md:pt-0">
+        <MainLayout showMobileHeader={false} className="pt-0 md:pt-4 md:px-8 max-w-7xl">
             {/* Header */}
-            <div className="sticky top-0 z-40 bg-background/80 backdrop-blur-lg border-b border-border/50 -mx-4 px-4 py-4 mb-6 md:-mx-4 md:px-4">
+            <div className="sticky top-0 z-40 bg-background/80 backdrop-blur-lg border-b border-border/50 -mx-4 px-4 py-4 mb-6 md:mx-0 md:px-0 md:bg-transparent md:border-0 md:static md:mb-8">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="-ml-2">
+                        <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="-ml-2 md:hidden">
                             <ArrowLeft className="w-5 h-5" />
                         </Button>
-                        <h1 className="text-xl font-bold">Edit Schedule</h1>
+                        <h1 className="text-xl md:text-2xl font-bold">Edit Schedule</h1>
                     </div>
                     <div className="flex gap-2">
                         <Button onClick={() => setShowBulkAdd(true)} variant="outline" size="sm" className="gap-1 rounded-xl">
                             <GripVertical className="w-4 h-4" />
-                            Import
+                            <span className="hidden sm:inline">Import</span>
                         </Button>
                         <Button onClick={startAdd} size="sm" className="gap-1 rounded-xl">
                             <Plus className="w-4 h-4" />
-                            Add
+                            Add Routine
                         </Button>
                     </div>
                 </div>
             </div>
 
             {items.length === 0 && (
-                <div className="text-center py-20 text-muted-foreground border-2 border-dashed rounded-3xl">
+                <div className="text-center py-20 text-muted-foreground border-2 border-dashed rounded-3xl mx-auto max-w-md">
                     <p>No routines found.</p>
                     <p className="text-sm mt-1">Start by adding one!</p>
                 </div>

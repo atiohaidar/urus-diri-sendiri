@@ -29,6 +29,7 @@ export interface RoutineItem {
   endTime: string;   // "HH:mm" 24h format
   activity: string;
   category: string;
+  completedAt?: string | null; // ISO date string of TODAY if completed today
 }
 
 const KEYS = {
@@ -129,8 +130,9 @@ export const deleteNote = (id: string) => {
 // Routines (default data)
 export const getRoutines = (): RoutineItem[] => {
   const data = localStorage.getItem(KEYS.ROUTINES);
+  let routines: RoutineItem[] = [];
+
   if (!data) {
-    // Return default routines
     const defaults: RoutineItem[] = [
       { id: '1', startTime: '06:00', endTime: '06:15', activity: 'Morning Meditation', category: 'Mindfulness' },
       { id: '2', startTime: '06:30', endTime: '07:00', activity: 'Light Exercise', category: 'Fitness' },
@@ -141,19 +143,58 @@ export const getRoutines = (): RoutineItem[] => {
     ];
     localStorage.setItem(KEYS.ROUTINES, JSON.stringify(defaults));
     return defaults;
+  } else {
+    routines = JSON.parse(data);
   }
 
-  // Migration check: if old data exists (has 'time' prop), clear it effectively or migrate?
-  // For simplicity in this session, if we detect old format, we might want to reset or migrate.
-  // Let's just return parsed data, but components might break if mixed.
-  // Ideally we should migrate on the fly.
-  const parsed = JSON.parse(data);
-  if (parsed.length > 0 && typeof parsed[0].startTime === 'undefined') {
-    // Detected old data, force defaults for safety
-    localStorage.removeItem(KEYS.ROUTINES);
-    return getRoutines(); // recursive call to get defaults
+  // Check and Reset Daily Completions
+  const today = new Date().toDateString();
+  const lastOpen = localStorage.getItem('last_open_date');
+
+  if (lastOpen !== today) {
+    // New day, reset completions? OR Keep them but strictly check date?
+    // Let's rely on completedAt date string. If completedAt is NOT today, it is NOT completed for today.
+    // But we might want to clear old dates to keep JSON size small slightly? No need complex logic yet.
+    localStorage.setItem('last_open_date', today);
   }
-  return parsed;
+
+  return routines;
+};
+
+// Check if routine is completed TODAY
+export const isRoutineCompletedToday = (item: RoutineItem): boolean => {
+  if (!item.completedAt) return false;
+  const completedDate = new Date(item.completedAt).toDateString();
+  const today = new Date().toDateString();
+  return completedDate === today;
+};
+
+// Toggle completion
+export const toggleRoutineCompletion = (id: string, routines: RoutineItem[]) => {
+  const updated = routines.map(r => {
+    if (r.id === id) {
+      const isCompleted = isRoutineCompletedToday(r);
+      return {
+        ...r,
+        completedAt: isCompleted ? null : new Date().toISOString()
+      };
+    }
+    return r;
+  });
+  saveRoutines(updated);
+  return updated;
+};
+
+// Get stats
+export const getCompletionStats = (routines: RoutineItem[]) => {
+  const total = routines.length;
+  if (total === 0) return { total: 0, completed: 0, percent: 0 };
+  const completed = routines.filter(isRoutineCompletedToday).length;
+  return {
+    total,
+    completed,
+    percent: Math.round((completed / total) * 100)
+  };
 };
 
 export const saveRoutines = (routines: RoutineItem[]) => {

@@ -11,18 +11,17 @@ const Index = () => {
   const [activeTab, setActiveTab] = useState<Tab>('home');
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* App Container - Mobile First */}
-      <div className="max-w-md mx-auto min-h-screen bg-background relative shadow-2xl shadow-foreground/5">
-        {/* Screen Content */}
+    <div className="min-h-screen bg-background md:pl-64 transition-all duration-300">
+      {/* Screen Content */}
+      <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
         {activeTab === 'home' && <HomeScreen />}
         {activeTab === 'parking' && <ParkingLotScreen />}
         {activeTab === 'history' && <HistoryScreen />}
-
-        {/* Bottom Navigation */}
-        <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
       </div>
-      
+
+      {/* Bottom Navigation */}
+      <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
+
       <Toaster />
     </div>
   );
