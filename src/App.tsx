@@ -14,6 +14,7 @@ import ParkingLotScreen from "./components/screens/ParkingLotScreen";
 import HistoryScreen from "./components/screens/HistoryScreen";
 import SettingsScreen from "./components/screens/SettingsScreen";
 import EditSchedule from "./pages/EditSchedule";
+import NoteEditorPage from "./pages/NoteEditorPage";
 import MaghribCheckinPage from "./pages/MaghribCheckinPage";
 import AboutPage from "./pages/AboutPage";
 import NotFound from "./pages/NotFound";
@@ -44,6 +45,7 @@ const App = () => (
                 </Route>
 
                 <Route path="/schedule-editor" element={<EditSchedule />} />
+                <Route path="/note-editor/:id" element={<NoteEditorPage />} />
                 <Route path="/maghrib-checkin" element={<MaghribCheckinPage />} />
                 <Route path="/about" element={<AboutPage />} />
                 <Route path="*" element={<NotFound />} />

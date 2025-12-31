@@ -22,15 +22,17 @@ export const openDB = (): Promise<IDBDatabase> => {
     });
 };
 
-export const saveImage = async (id: string, base64: string): Promise<void> => {
+export const saveImage = async (base64: string): Promise<string> => {
     const db = await openDB();
+    const id = `img-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
     return new Promise((resolve, reject) => {
         const transaction = db.transaction(STORE_NAME, 'readwrite');
         const store = transaction.objectStore(STORE_NAME);
         const request = store.put(base64, id);
 
         request.onerror = () => reject(request.error);
-        request.onsuccess = () => resolve();
+        request.onsuccess = () => resolve(id);
     });
 };
 

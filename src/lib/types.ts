@@ -41,3 +41,12 @@ export interface RoutineItem {
     updatedAt?: string; // Timestamp of when it was checked
     description?: string; // Optional detailed description
 }
+
+export interface ActivityLog {
+    id: string;
+    timestamp: string; // ISO string
+    type: 'text' | 'photo';
+    content: string; // Caption or text body
+    mediaId?: string; // ID for IndexedDB image if type is 'photo'
+    category?: string; // Optional tag like 'Work', 'Chill', 'Ibadah'
+}

@@ -1,4 +1,4 @@
-import { PriorityTask, Reflection, Note, RoutineItem } from './types';
+import { PriorityTask, Reflection, Note, RoutineItem, ActivityLog } from './types';
 import { toggleRoutineCompletion as toggleRoutineHelper } from './routine-helpers';
 import { getImage } from './idb';
 import { STORAGE_KEYS } from './constants';
@@ -14,11 +14,13 @@ const cache: {
   reflections: Reflection[] | null;
   notes: Note[] | null;
   routines: RoutineItem[] | null;
+  logs: ActivityLog[] | null;
 } = {
   priorities: null,
   reflections: null,
   notes: null,
   routines: null,
+  logs: null,
 };
 
 // --- Priorities ---
@@ -194,12 +196,7 @@ export const getRoutines = (): RoutineItem[] => {
 
   if (!data) {
     const defaults: RoutineItem[] = [
-      { id: '1', startTime: '06:00', endTime: '06:15', activity: 'Morning Meditation', category: 'Mindfulness' },
-      { id: '2', startTime: '06:30', endTime: '07:00', activity: 'Light Exercise', category: 'Fitness' },
-      { id: '3', startTime: '07:30', endTime: '07:50', activity: 'Healthy Breakfast', category: 'Nutrition' },
-      { id: '4', startTime: '12:00', endTime: '14:00', activity: 'Focused Work Block', category: 'Productivity' },
-      { id: '5', startTime: '18:30', endTime: '18:40', activity: 'Maghrib Prayer', category: 'Spiritual' },
-      { id: '6', startTime: '21:00', endTime: '21:30', activity: 'Reading Time', category: 'Learning' },
+
     ];
     cache.routines = defaults;
     localStorage.setItem(STORAGE_KEYS.ROUTINES, JSON.stringify(defaults));
@@ -232,6 +229,47 @@ export const getRoutines = (): RoutineItem[] => {
 export const saveRoutines = (routines: RoutineItem[]) => {
   cache.routines = routines;
   localStorage.setItem(STORAGE_KEYS.ROUTINES, JSON.stringify(routines));
+};
+
+// --- Activity Logs ---
+export const getLogs = (): ActivityLog[] => {
+  if (cache.logs) return cache.logs;
+
+  const data = localStorage.getItem(STORAGE_KEYS.LOGS);
+  if (!data) return [];
+  const logs = JSON.parse(data);
+
+  // Sort by timestamp descending (newest first)
+  logs.sort((a: ActivityLog, b: ActivityLog) =>
+    new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+  );
+
+  cache.logs = logs;
+  return logs;
+};
+
+export const saveLog = (log: Omit<ActivityLog, 'id' | 'timestamp'>) => {
+  const logs = getLogs();
+  const now = new Date().toISOString();
+
+  const newLog: ActivityLog = {
+    ...log,
+    id: Date.now().toString(),
+    timestamp: now,
+  };
+
+  const updatedLogs = [newLog, ...logs];
+  cache.logs = updatedLogs;
+  localStorage.setItem(STORAGE_KEYS.LOGS, JSON.stringify(updatedLogs));
+  return newLog;
+};
+
+export const deleteLog = (id: string) => {
+  const logs = getLogs();
+  const filtered = logs.filter(l => l.id !== id);
+  cache.logs = filtered;
+  localStorage.setItem(STORAGE_KEYS.LOGS, JSON.stringify(filtered));
+  return filtered;
 };
 
 // Wrapper for toggleRoutineCompletion to include side-effect (save)
@@ -310,6 +348,7 @@ export const getAllAppData = () => {
     reflections: getReflections(),
     notes: getNotes(),
     routines: getRoutines(),
+    logs: getLogs(),
   };
 };
 
@@ -384,6 +423,7 @@ export const pullFromCloud = async (overrideSheetUrl?: string) => {
     if (data.reflections) localStorage.setItem(STORAGE_KEYS.REFLECTIONS, JSON.stringify(data.reflections));
     if (data.notes) localStorage.setItem(STORAGE_KEYS.NOTES, JSON.stringify(data.notes));
     if (data.routines) saveRoutines(data.routines);
+    if (data.logs) localStorage.setItem(STORAGE_KEYS.LOGS, JSON.stringify(data.logs));
     return true;
   }
 

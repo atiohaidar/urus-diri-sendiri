@@ -1,16 +1,15 @@
 import { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Search, Plus, Lightbulb } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import NoteCard from '@/components/NoteCard';
-import NoteEditor from '@/components/NoteEditor';
 import { useNotes } from '@/hooks/useNotes';
 import { type Note } from '@/lib/storage';
 
 const ParkingLotScreen = () => {
-  const { notes, saveNote, updateNote, deleteNote } = useNotes();
+  const navigate = useNavigate();
+  const { notes } = useNotes();
   const [searchQuery, setSearchQuery] = useState('');
-  const [showEditor, setShowEditor] = useState(false);
-  const [editingNote, setEditingNote] = useState<Note | null>(null);
 
   const filteredNotes = useMemo(() => {
     if (!searchQuery.trim()) return notes;
@@ -22,28 +21,12 @@ const ParkingLotScreen = () => {
     );
   }, [notes, searchQuery]);
 
-  const handleSaveNote = (title: string, content: string) => {
-    if (editingNote) {
-      updateNote(editingNote.id, { title, content });
-    } else {
-      saveNote(title, content);
-    }
-    setEditingNote(null);
-  };
-
-  const handleDeleteNote = (id: string) => {
-    deleteNote(id);
-    setEditingNote(null);
-  };
-
   const openNewNote = () => {
-    setEditingNote(null);
-    setShowEditor(true);
+    navigate('/note-editor/new');
   };
 
   const openEditNote = (note: Note) => {
-    setEditingNote(note);
-    setShowEditor(true);
+    navigate(`/note-editor/${note.id}`);
   };
 
   return (
@@ -113,18 +96,6 @@ const ParkingLotScreen = () => {
         <Plus className="w-6 h-6 md:w-8 md:h-8 text-primary-foreground" />
       </button>
 
-      {/* Note Editor */}
-      {showEditor && (
-        <NoteEditor
-          note={editingNote}
-          onClose={() => {
-            setShowEditor(false);
-            setEditingNote(null);
-          }}
-          onSave={handleSaveNote}
-          onDelete={handleDeleteNote}
-        />
-      )}
     </div>
   );
 };

@@ -225,8 +225,20 @@ const MaghribCheckinPage = () => {
                                 value={hurdle}
                                 onChange={(e) => setHurdle(e.target.value)}
                                 placeholder={t.checkin.hurdle_placeholder}
-                                className="min-h-[120px] bg-card rounded-2xl border-0 resize-none card-elevated focus-visible:ring-primary"
+                                className="min-h-[120px] bg-card rounded-2xl border-0 resize-none card-elevated focus-visible:ring-primary mb-2"
                             />
+                            <div className="flex flex-wrap gap-2 px-1">
+                                {['Malas', 'Lelah', 'Sakit', 'Sibuk', 'Distraksi'].map((chip) => (
+                                    <button
+                                        key={chip}
+                                        type="button"
+                                        onClick={() => setHurdle(prev => prev ? `${prev}, ${chip}` : chip)}
+                                        className="px-3 py-1 bg-secondary hover:bg-secondary/70 text-secondary-foreground text-xs rounded-full transition-colors font-medium"
+                                    >
+                                        + {chip}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
                     </div>
 

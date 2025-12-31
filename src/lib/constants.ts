@@ -7,6 +7,7 @@ export const STORAGE_KEYS = {
     LANGUAGE: 'urus-diri-language',
     GOOGLE_SHEET_URL: 'urus-diri-sheet-url',
     CLOUD_SYNC_TOKEN: 'urus-diri-cloud-token',
+    LOGS: 'urus-diri-logs',
 } as const;
 
 export const CATEGORY_LIST = [

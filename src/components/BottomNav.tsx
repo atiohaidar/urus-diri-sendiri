@@ -1,4 +1,5 @@
-import { Home, Lightbulb, Clock, Settings, Sparkles } from 'lucide-react';
+import { Home, Lightbulb, Clock, Settings, Sparkles, Plus } from 'lucide-react';
+import LogCreator from '@/components/LogCreator';
 import { cn } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '@/i18n/LanguageContext';
@@ -34,7 +35,46 @@ const BottomNav = ({ activeTab }: BottomNavProps) => {
         </div>
 
         <div className="flex items-center justify-around py-2 md:flex-col md:space-y-2 md:justify-start">
-          {tabs.map(({ id, icon: Icon, label, path }) => (
+          {tabs.slice(0, 2).map(({ id, icon: Icon, label, path }) => (
+            <button
+              key={id}
+              onClick={() => navigate(path)}
+              className={cn(
+                "flex flex-col items-center gap-1 px-6 py-2 rounded-2xl transition-all duration-200 md:flex-row md:w-full md:px-4 md:py-3.5 md:gap-3",
+                activeTab === id
+                  ? "text-primary bg-secondary/50"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+              )}
+            >
+              <Icon
+                className={cn(
+                  "w-6 h-6 transition-transform duration-200",
+                  activeTab === id && "scale-110 md:scale-100"
+                )}
+                strokeWidth={activeTab === id ? 2.5 : 2}
+              />
+              <span className={cn(
+                "text-xs font-medium md:text-sm",
+                activeTab === id ? "font-semibold" : "font-medium"
+              )}>{label}</span>
+            </button>
+          ))}
+
+          {/* Central Log Button (Mobile) */}
+          <div className="md:hidden -mt-8">
+            <LogCreator>
+              <button className="h-14 w-14 rounded-full bg-gradient-to-tr from-primary to-lime-400 shadow-lg shadow-primary/40 flex items-center justify-center text-primary-foreground transform active:scale-95 transition-transform">
+                <Plus className="w-7 h-7" strokeWidth={3} />
+              </button>
+            </LogCreator>
+          </div>
+
+          {/* Desktop Log Button (Hidden in flex map above, added here specific for Desktop sidebar layout if needed, 
+              but since we slice 0,2 and then need rest, let's just do standard mapping for desktop and special layout for mobile)
+           */}
+
+          {/* Right Tabs */}
+          {tabs.slice(2).map(({ id, icon: Icon, label, path }) => (
             <button
               key={id}
               onClick={() => navigate(path)}
