@@ -247,15 +247,18 @@ export const updateDailySnapshot = () => {
 
 // --- Cloud Sync ---
 
+// CENTRAL PROXY URL (dikonfigurasi via .env)
+const CENTRAL_PROXY_URL = import.meta.env.VITE_CENTRAL_PROXY_URL;
+
 export const getCloudConfig = () => {
   return {
-    url: localStorage.getItem(STORAGE_KEYS.CLOUD_SYNC_URL) || '',
+    sheetUrl: localStorage.getItem(STORAGE_KEYS.GOOGLE_SHEET_URL) || '',
     token: localStorage.getItem(STORAGE_KEYS.CLOUD_SYNC_TOKEN) || '',
   };
 };
 
-export const saveCloudConfig = (url: string, token: string) => {
-  localStorage.setItem(STORAGE_KEYS.CLOUD_SYNC_URL, url);
+export const saveCloudConfig = (sheetUrl: string, token: string) => {
+  localStorage.setItem(STORAGE_KEYS.GOOGLE_SHEET_URL, sheetUrl);
   localStorage.setItem(STORAGE_KEYS.CLOUD_SYNC_TOKEN, token);
 };
 
@@ -268,36 +271,47 @@ export const getAllAppData = () => {
   };
 };
 
-export const pushToCloud = async (overrideUrl?: string, overrideToken?: string) => {
-  const { url, token } = getCloudConfig();
-  const finalUrl = overrideUrl || url;
+export const pushToCloud = async (overrideSheetUrl?: string, overrideToken?: string) => {
+  const { sheetUrl, token } = getCloudConfig();
+  const finalSheetUrl = overrideSheetUrl || sheetUrl;
   const finalToken = overrideToken || token;
 
-  if (!finalUrl || !finalToken) throw new Error("Cloud Sync URL or Token not configured");
+  if (!finalSheetUrl || !finalToken) throw new Error("Google Sheet URL or Token not configured");
 
   const payload = getAllAppData();
 
-  const response = await fetch(finalUrl, {
+  const response = await fetch(CENTRAL_PROXY_URL, {
     method: 'POST',
-    // Removed no-cors to allow GAS to handle the redirect and for us to check response.ok
     body: JSON.stringify({
       action: 'push',
+      sheetUrl: finalSheetUrl,
       token: finalToken,
       payload
     }),
   });
 
+  const result = await response.json();
+  if (result.status === "error") throw new Error(result.message);
+
   return response.ok;
 };
 
-export const pullFromCloud = async (overrideUrl?: string, overrideToken?: string) => {
-  const { url, token } = getCloudConfig();
-  const finalUrl = overrideUrl || url;
+export const pullFromCloud = async (overrideSheetUrl?: string, overrideToken?: string) => {
+  const { sheetUrl, token } = getCloudConfig();
+  const finalSheetUrl = overrideSheetUrl || sheetUrl;
   const finalToken = overrideToken || token;
 
-  if (!finalUrl || !finalToken) throw new Error("Cloud Sync URL or Token not configured");
+  if (!finalSheetUrl || !finalToken) throw new Error("Google Sheet URL or Token not configured");
 
-  const response = await fetch(`${finalUrl}?token=${finalToken}&action=pull`);
+  // For PULL, we still use POST because we need to send the Sheet URL safely in the body
+  const response = await fetch(CENTRAL_PROXY_URL, {
+    method: 'POST',
+    body: JSON.stringify({
+      action: 'pull',
+      sheetUrl: finalSheetUrl,
+      token: finalToken
+    }),
+  });
   const result = await response.json();
 
   if (result.status === "success" && result.payload) {

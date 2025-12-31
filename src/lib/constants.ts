@@ -5,7 +5,7 @@ export const STORAGE_KEYS = {
     ROUTINES: 'urus-diri-routines',
     LAST_OPEN_DATE: 'last_open_date',
     LANGUAGE: 'urus-diri-language',
-    CLOUD_SYNC_URL: 'urus-diri-cloud-url',
+    GOOGLE_SHEET_URL: 'urus-diri-sheet-url',
     CLOUD_SYNC_TOKEN: 'urus-diri-cloud-token',
 } as const;
 

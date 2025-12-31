@@ -14,7 +14,7 @@ const SettingsScreen = () => {
     const { setTheme, theme } = useTheme();
     const { language, setLanguage, t } = useLanguage();
     const [importing, setImporting] = useState(false);
-    const [cloudUrl, setCloudUrl] = useState(getCloudConfig().url);
+    const [sheetUrl, setSheetUrl] = useState(getCloudConfig().sheetUrl);
     const [cloudToken, setCloudToken] = useState(getCloudConfig().token);
     const [isSyncing, setIsSyncing] = useState(false);
 
@@ -44,20 +44,20 @@ const SettingsScreen = () => {
     };
 
     const handleCloudSave = () => {
-        saveCloudConfig(cloudUrl, cloudToken);
+        saveCloudConfig(sheetUrl, cloudToken);
         toast.success("Konfigurasi Cloud disimpan!");
     };
 
     const handlePush = async () => {
-        if (!cloudUrl || !cloudToken) {
+        if (!sheetUrl || !cloudToken) {
             toast.error("Isi URL dan Token terlebih dahulu!");
             return;
         }
         setIsSyncing(true);
         try {
             // Save first, then push with current values
-            saveCloudConfig(cloudUrl, cloudToken);
-            const success = await pushToCloud(cloudUrl, cloudToken);
+            saveCloudConfig(sheetUrl, cloudToken);
+            const success = await pushToCloud(sheetUrl, cloudToken);
             if (success) {
                 toast.success("Berhasil sinkronisasi ke Cloud! 🚀");
             } else {
@@ -71,15 +71,15 @@ const SettingsScreen = () => {
     };
 
     const handlePull = async () => {
-        if (!cloudUrl || !cloudToken) {
+        if (!sheetUrl || !cloudToken) {
             toast.error("Isi URL dan Token terlebih dahulu!");
             return;
         }
         setIsSyncing(true);
         try {
             // Save first, then pull with current values
-            saveCloudConfig(cloudUrl, cloudToken);
-            await pullFromCloud(cloudUrl, cloudToken);
+            saveCloudConfig(sheetUrl, cloudToken);
+            await pullFromCloud(sheetUrl, cloudToken);
             toast.success("Data berhasil diunduh dari Cloud! Memuat ulang...");
             setTimeout(() => window.location.reload(), 1500);
         } catch (error: any) {
@@ -172,12 +172,12 @@ const SettingsScreen = () => {
                         <div className="space-y-2">
                             <label className="text-xs font-bold text-muted-foreground uppercase flex items-center gap-1.5">
                                 <LinkIcon className="w-3 h-3" />
-                                Google Web App URL
+                                Google Sheet URL
                             </label>
                             <Input
-                                value={cloudUrl}
-                                onChange={(e) => setCloudUrl(e.target.value)}
-                                placeholder="https://script.google.com/macros/s/.../exec"
+                                value={sheetUrl}
+                                onChange={(e) => setSheetUrl(e.target.value)}
+                                placeholder="https://docs.google.com/spreadsheets/d/..."
                                 className="h-11 rounded-xl bg-muted/30 border-0 focus-visible:ring-primary/30"
                             />
                         </div>
