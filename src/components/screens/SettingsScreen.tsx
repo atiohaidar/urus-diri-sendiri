@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Moon, Sun, Download, Upload, Monitor, Settings as SettingsIcon } from 'lucide-react';
+import { ArrowLeft, Moon, Sun, Download, Upload, Monitor, Settings as SettingsIcon, Cloud, CloudUpload, CloudDownload, Key, Link as LinkIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { exportData, importData } from '@/lib/backup';
+import { getCloudConfig, saveCloudConfig, pushToCloud, pullFromCloud } from '@/lib/storage';
 import { useTheme } from '@/components/theme-provider';
 import { useLanguage } from '@/i18n/LanguageContext';
 import { toast } from 'sonner';
@@ -12,6 +14,9 @@ const SettingsScreen = () => {
     const { setTheme, theme } = useTheme();
     const { language, setLanguage, t } = useLanguage();
     const [importing, setImporting] = useState(false);
+    const [cloudUrl, setCloudUrl] = useState(getCloudConfig().url);
+    const [cloudToken, setCloudToken] = useState(getCloudConfig().token);
+    const [isSyncing, setIsSyncing] = useState(false);
 
     const handleExport = () => {
         if (exportData()) {
@@ -35,6 +40,52 @@ const SettingsScreen = () => {
         } catch (error) {
             toast.error(t.settings.import_error);
             setImporting(false);
+        }
+    };
+
+    const handleCloudSave = () => {
+        saveCloudConfig(cloudUrl, cloudToken);
+        toast.success("Konfigurasi Cloud disimpan!");
+    };
+
+    const handlePush = async () => {
+        if (!cloudUrl || !cloudToken) {
+            toast.error("Isi URL dan Token terlebih dahulu!");
+            return;
+        }
+        setIsSyncing(true);
+        try {
+            // Save first, then push with current values
+            saveCloudConfig(cloudUrl, cloudToken);
+            const success = await pushToCloud(cloudUrl, cloudToken);
+            if (success) {
+                toast.success("Berhasil sinkronisasi ke Cloud! 🚀");
+            } else {
+                throw new Error("Gagal mengirim data (Cek URL atau Token)");
+            }
+        } catch (error: any) {
+            toast.error(error.message || "Gagal sinkron ke Cloud");
+        } finally {
+            setIsSyncing(false);
+        }
+    };
+
+    const handlePull = async () => {
+        if (!cloudUrl || !cloudToken) {
+            toast.error("Isi URL dan Token terlebih dahulu!");
+            return;
+        }
+        setIsSyncing(true);
+        try {
+            // Save first, then pull with current values
+            saveCloudConfig(cloudUrl, cloudToken);
+            await pullFromCloud(cloudUrl, cloudToken);
+            toast.success("Data berhasil diunduh dari Cloud! Memuat ulang...");
+            setTimeout(() => window.location.reload(), 1500);
+        } catch (error: any) {
+            toast.error(error.message || "Gagal mengunduh dari Cloud");
+        } finally {
+            setIsSyncing(false);
         }
     };
 
@@ -107,6 +158,72 @@ const SettingsScreen = () => {
                             <Monitor className="w-6 h-6" />
                             <span className="text-xs font-medium">{t.settings.system}</span>
                         </button>
+                    </div>
+                </section>
+
+                {/* Cloud Sync Section */}
+                <section className="bg-card rounded-3xl p-6 border border-border/50 shadow-sm">
+                    <div className="flex items-center gap-2 mb-4">
+                        <Cloud className="w-5 h-5 text-primary" />
+                        <h2 className="text-lg font-semibold">Cloud Sync (Google Sheets)</h2>
+                    </div>
+
+                    <div className="space-y-4">
+                        <div className="space-y-2">
+                            <label className="text-xs font-bold text-muted-foreground uppercase flex items-center gap-1.5">
+                                <LinkIcon className="w-3 h-3" />
+                                Google Web App URL
+                            </label>
+                            <Input
+                                value={cloudUrl}
+                                onChange={(e) => setCloudUrl(e.target.value)}
+                                placeholder="https://script.google.com/macros/s/.../exec"
+                                className="h-11 rounded-xl bg-muted/30 border-0 focus-visible:ring-primary/30"
+                            />
+                        </div>
+
+                        <div className="space-y-2">
+                            <label className="text-xs font-bold text-muted-foreground uppercase flex items-center gap-1.5">
+                                <Key className="w-3 h-3" />
+                                Sync Token (Password)
+                            </label>
+                            <Input
+                                type="password"
+                                value={cloudToken}
+                                onChange={(e) => setCloudToken(e.target.value)}
+                                placeholder="Token yang kamu buat di script"
+                                className="h-11 rounded-xl bg-muted/30 border-0 focus-visible:ring-primary/30"
+                            />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3 pt-2">
+                            <Button
+                                variant="outline"
+                                onClick={handlePull}
+                                disabled={isSyncing}
+                                className="h-12 rounded-xl border-dashed border-2 gap-2"
+                            >
+                                <CloudDownload className="w-4 h-4" />
+                                Pull Data
+                            </Button>
+                            <Button
+                                onClick={handlePush}
+                                disabled={isSyncing}
+                                className="h-12 rounded-xl shadow-lg shadow-primary/20 gap-2"
+                            >
+                                <CloudUpload className="w-4 h-4" />
+                                Push Data
+                            </Button>
+                        </div>
+
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="w-full text-xs text-muted-foreground hover:text-primary"
+                            onClick={handleCloudSave}
+                        >
+                            Save Configuration Only
+                        </Button>
                     </div>
                 </section>
 

@@ -5,6 +5,8 @@ export const STORAGE_KEYS = {
     ROUTINES: 'urus-diri-routines',
     LAST_OPEN_DATE: 'last_open_date',
     LANGUAGE: 'urus-diri-language',
+    CLOUD_SYNC_URL: 'urus-diri-cloud-url',
+    CLOUD_SYNC_TOKEN: 'urus-diri-cloud-token',
 } as const;
 
 export const CATEGORY_LIST = [

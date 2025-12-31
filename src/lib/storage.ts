@@ -244,3 +244,70 @@ export const updateDailySnapshot = () => {
     }
   }
 };
+
+// --- Cloud Sync ---
+
+export const getCloudConfig = () => {
+  return {
+    url: localStorage.getItem(STORAGE_KEYS.CLOUD_SYNC_URL) || '',
+    token: localStorage.getItem(STORAGE_KEYS.CLOUD_SYNC_TOKEN) || '',
+  };
+};
+
+export const saveCloudConfig = (url: string, token: string) => {
+  localStorage.setItem(STORAGE_KEYS.CLOUD_SYNC_URL, url);
+  localStorage.setItem(STORAGE_KEYS.CLOUD_SYNC_TOKEN, token);
+};
+
+export const getAllAppData = () => {
+  return {
+    priorities: getPriorities(),
+    reflections: getReflections(),
+    notes: getNotes(),
+    routines: getRoutines(),
+  };
+};
+
+export const pushToCloud = async (overrideUrl?: string, overrideToken?: string) => {
+  const { url, token } = getCloudConfig();
+  const finalUrl = overrideUrl || url;
+  const finalToken = overrideToken || token;
+
+  if (!finalUrl || !finalToken) throw new Error("Cloud Sync URL or Token not configured");
+
+  const payload = getAllAppData();
+
+  const response = await fetch(finalUrl, {
+    method: 'POST',
+    // Removed no-cors to allow GAS to handle the redirect and for us to check response.ok
+    body: JSON.stringify({
+      action: 'push',
+      token: finalToken,
+      payload
+    }),
+  });
+
+  return response.ok;
+};
+
+export const pullFromCloud = async (overrideUrl?: string, overrideToken?: string) => {
+  const { url, token } = getCloudConfig();
+  const finalUrl = overrideUrl || url;
+  const finalToken = overrideToken || token;
+
+  if (!finalUrl || !finalToken) throw new Error("Cloud Sync URL or Token not configured");
+
+  const response = await fetch(`${finalUrl}?token=${finalToken}&action=pull`);
+  const result = await response.json();
+
+  if (result.status === "success" && result.payload) {
+    const data = result.payload;
+    if (data.priorities) savePriorities(data.priorities);
+    if (data.reflections) localStorage.setItem(STORAGE_KEYS.REFLECTIONS, JSON.stringify(data.reflections));
+    if (data.notes) localStorage.setItem(STORAGE_KEYS.NOTES, JSON.stringify(data.notes));
+    if (data.routines) saveRoutines(data.routines);
+    return true;
+  }
+
+  throw new Error(result.message || "Failed to pull data");
+};
