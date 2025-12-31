@@ -1,7 +1,8 @@
 import { useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Moon, Sparkles, Settings2 } from 'lucide-react';
+import { Moon, Sparkles, Settings2, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import RoutineCard from '@/components/RoutineCard';
 import PriorityItem from '@/components/PriorityItem';
 import { useRoutines } from '@/hooks/useRoutines';
@@ -17,7 +18,8 @@ const HomeScreen = () => {
     activeIndex,
     currentDate,
     handleCheckIn,
-    handleTogglePriority
+    handleTogglePriority,
+    handleAddPriority
   } = useRoutines();
 
   const navigate = useNavigate();
@@ -87,22 +89,71 @@ const HomeScreen = () => {
             </div>
 
             {priorities.length > 0 ? (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-                {priorities.map((priority, index) => (
-                  <PriorityItem
-                    key={priority.id}
-                    priority={priority}
-                    index={index}
-                    onToggle={handleTogglePriority}
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                  {priorities.map((priority, index) => (
+                    <PriorityItem
+                      key={priority.id}
+                      priority={priority}
+                      index={index}
+                      onToggle={handleTogglePriority}
+                    />
+                  ))}
+                </div>
+
+                {/* Add Priority Input */}
+                <div className="flex gap-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                  <Input
+                    placeholder="Apa lagi yang ingin diselesaikan hari ini?"
+                    className="h-12 bg-card rounded-xl border-dashed border-2 border-border/50 focus-visible:ring-primary/30"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        const val = e.currentTarget.value.trim();
+                        if (val) {
+                          handleAddPriority(val);
+                          e.currentTarget.value = '';
+                        }
+                      }
+                    }}
                   />
-                ))}
+                  <Button
+                    variant="outline"
+                    className="h-12 w-12 rounded-xl border-dashed border-2"
+                    onClick={() => {
+                      const input = document.querySelector('input[placeholder="Apa lagi yang ingin diselesaikan hari ini?"]') as HTMLInputElement;
+                      if (input && input.value.trim()) {
+                        handleAddPriority(input.value.trim());
+                        input.value = '';
+                      }
+                    }}
+                  >
+                    <Plus className="w-5 h-5" />
+                  </Button>
+                </div>
               </div>
             ) : (
-              <div className="bg-card rounded-3xl p-8 text-center card-elevated border-2 border-dashed border-border/50">
-                <p className="text-muted-foreground mb-2 text-lg font-medium">No priorities set yet</p>
-                <p className="text-sm text-muted-foreground/70">
-                  Complete your Maghrib Check-in to set tomorrow's priorities
-                </p>
+              <div className="space-y-4">
+                <div className="bg-card rounded-3xl p-8 text-center card-elevated border-2 border-dashed border-border/50">
+                  <p className="text-muted-foreground mb-2 text-lg font-medium">No priorities set yet</p>
+                  <p className="text-sm text-muted-foreground/70">
+                    Complete your Maghrib Check-in to set tomorrow's priorities
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Set priority pertama hari ini..."
+                    className="h-12 bg-card rounded-xl border-dashed border-2 border-border/50"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        const val = e.currentTarget.value.trim();
+                        if (val) {
+                          handleAddPriority(val);
+                          e.currentTarget.value = '';
+                        }
+                      }
+                    }}
+                  />
+                </div>
               </div>
             )}
           </section>
@@ -155,6 +206,7 @@ const HomeScreen = () => {
                     index={index}
                     status={status}
                     isOverlapping={isOverlapping}
+                    onToggle={() => handleCheckIn(routine.id)}
                   />
                 );
               })}

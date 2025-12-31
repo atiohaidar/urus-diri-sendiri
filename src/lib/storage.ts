@@ -20,10 +20,26 @@ export const savePriorities = (priorities: PriorityTask[]) => {
 
 export const updatePriorityCompletion = (id: string, completed: boolean) => {
   const priorities = getPriorities();
+  const now = new Date().toISOString();
   const updated = priorities.map(p =>
-    p.id === id ? { ...p, completed } : p
+    p.id === id ? { ...p, completed, updatedAt: now } : p
   );
   savePriorities(updated);
+  updateDailySnapshot(); // Auto-update snapshot
+  return updated;
+};
+
+export const addPriority = (text: string) => {
+  const priorities = getPriorities();
+  const newPriority: PriorityTask = {
+    id: `priority-${Date.now()}`,
+    text,
+    completed: false,
+    updatedAt: new Date().toISOString(),
+  };
+  const updated = [...priorities, newPriority];
+  savePriorities(updated);
+  updateDailySnapshot(); // Auto-update snapshot
   return updated;
 };
 
@@ -50,6 +66,7 @@ export const saveReflection = (reflection: Omit<Reflection, 'id'>) => {
       id: `priority-${Date.now()}-${index}`,
       text,
       completed: false,
+      updatedAt: new Date().toISOString(),
     }));
   savePriorities(newPriorities);
 
@@ -135,5 +152,23 @@ export const saveRoutines = (routines: RoutineItem[]) => {
 export const toggleRoutineCompletion = (id: string, routines: RoutineItem[]) => {
   const updated = toggleRoutineHelper(id, routines);
   saveRoutines(updated);
+  updateDailySnapshot(); // Auto-update snapshot
   return updated;
+};
+
+// Helper to update reflection snapshot for TODAY if it exists
+export const updateDailySnapshot = () => {
+  const reflections = getReflections();
+  const today = new Date().toDateString();
+  const todayIndex = reflections.findIndex(r => new Date(r.date).toDateString() === today);
+
+  if (todayIndex !== -1) {
+    const updatedReflections = [...reflections];
+    updatedReflections[todayIndex] = {
+      ...updatedReflections[todayIndex],
+      todayRoutines: getRoutines(),
+      todayPriorities: getPriorities(),
+    };
+    localStorage.setItem(STORAGE_KEYS.REFLECTIONS, JSON.stringify(updatedReflections));
+  }
 };

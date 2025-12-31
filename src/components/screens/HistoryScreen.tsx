@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Clock, Trophy, Construction, Rocket, Sprout, ChevronDown, ChevronUp } from 'lucide-react';
+import { Clock, Trophy, Construction, Rocket, Sprout, ChevronDown, ChevronUp, CheckCircle2, Circle } from 'lucide-react';
 import { useReflections } from '@/hooks/useReflections';
 import { formatDate } from '@/lib/time-utils';
 import { useLanguage } from '@/i18n/LanguageContext';
+import { cn } from '@/lib/utils';
 
 const HistoryScreen = () => {
   const { reflections } = useReflections();
@@ -44,19 +45,40 @@ const HistoryScreen = () => {
                   onClick={() => toggleExpand(reflection.id)}
                   className="w-full p-4 flex items-center justify-between text-left"
                 >
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">
-                      {formatDate(reflection.date)}
-                    </p>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="text-xs text-muted-foreground">
+                        {formatDate(reflection.date)}
+                      </p>
+                      {/* Achievement Badge (Summary) */}
+                      {(reflection.todayRoutines || reflection.todayPriorities) && (
+                        <div className="flex items-center gap-2">
+                          {reflection.todayPriorities && (
+                            <span className="flex items-center gap-1 text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-md font-bold">
+                              <Rocket className="w-2.5 h-2.5" />
+                              {reflection.todayPriorities.filter(p => p.completed).length}/{reflection.todayPriorities.length}
+                            </span>
+                          )}
+                          {reflection.todayRoutines && (
+                            <span className="flex items-center gap-1 text-[10px] bg-emerald-500/10 text-emerald-600 px-1.5 py-0.5 rounded-md font-bold">
+                              <CheckCircle2 className="w-2.5 h-2.5" />
+                              {reflection.todayRoutines.filter(r => r.completedAt).length}/{reflection.todayRoutines.length}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
                     <p className="font-semibold text-foreground line-clamp-1">
                       {reflection.winOfDay || t.history.evening_reflection}
                     </p>
                   </div>
-                  {expandedId === reflection.id ? (
-                    <ChevronUp className="w-5 h-5 text-muted-foreground" />
-                  ) : (
-                    <ChevronDown className="w-5 h-5 text-muted-foreground" />
-                  )}
+                  <div className="ml-2">
+                    {expandedId === reflection.id ? (
+                      <ChevronUp className="w-5 h-5 text-muted-foreground" />
+                    ) : (
+                      <ChevronDown className="w-5 h-5 text-muted-foreground" />
+                    )}
+                  </div>
                 </button>
 
                 {/* Expanded Content */}
@@ -110,6 +132,72 @@ const HistoryScreen = () => {
                         <p className="text-sm text-foreground">{reflection.smallChange}</p>
                       </div>
                     )}
+
+                    {/* Snapshot: Today's Achievement */}
+                    <div className="pt-4 border-t border-border space-y-4">
+                      {reflection.todayPriorities && reflection.todayPriorities.length > 0 && (
+                        <div>
+                          <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground mb-2">
+                            Status Prioritas Hari Ini
+                          </p>
+                          <div className="space-y-1.5">
+                            {reflection.todayPriorities.map((p) => (
+                              <div key={p.id} className="flex items-center justify-between p-2 rounded-xl bg-secondary/20 text-xs">
+                                <span className={cn(p.completed ? "text-foreground font-medium" : "text-muted-foreground/70")}>
+                                  {p.text}
+                                </span>
+                                <div className="flex items-center gap-2">
+                                  {p.updatedAt && p.completed && (
+                                    <span className="text-[9px] text-muted-foreground">
+                                      {new Date(p.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    </span>
+                                  )}
+                                  {p.completed ? (
+                                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                                  ) : (
+                                    <Circle className="w-3.5 h-3.5 text-muted-foreground/30" />
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {reflection.todayRoutines && reflection.todayRoutines.length > 0 && (
+                        <div>
+                          <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground mb-2">
+                            Log Rutinitas Harian
+                          </p>
+                          <div className="grid grid-cols-1 gap-1.5">
+                            {reflection.todayRoutines.map((r) => (
+                              <div key={r.id} className="flex items-center justify-between p-2 rounded-xl bg-muted/30 text-xs">
+                                <div className="flex flex-col">
+                                  <span className={cn(r.completedAt ? "text-foreground font-medium" : "text-muted-foreground/70")}>
+                                    {r.activity}
+                                  </span>
+                                  <span className="text-[9px] text-muted-foreground">
+                                    {r.startTime} - {r.endTime}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  {r.updatedAt && r.completedAt && (
+                                    <span className="text-[9px] text-muted-foreground">
+                                      {new Date(r.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    </span>
+                                  )}
+                                  {r.completedAt ? (
+                                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                                  ) : (
+                                    <Circle className="w-3.5 h-3.5 text-muted-foreground/30" />
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>

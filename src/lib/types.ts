@@ -6,6 +6,7 @@ export interface PriorityTask {
     id: string;
     text: string;
     completed: boolean;
+    updatedAt?: string; // ISO date string
 }
 
 export interface Reflection {
@@ -13,8 +14,11 @@ export interface Reflection {
     date: string;
     winOfDay: string;
     hurdle: string;
-    priorities: string[];
+    priorities: string[]; // This is for tomorrow's plan
     smallChange: string;
+    // Snapshots of today's progress
+    todayRoutines?: RoutineItem[];
+    todayPriorities?: PriorityTask[];
 }
 
 export interface Note {
@@ -32,4 +36,5 @@ export interface RoutineItem {
     activity: string;
     category: Category | string; // Allow string for backward compatibility or custom categories
     completedAt?: string | null; // ISO date string of TODAY if completed today
+    updatedAt?: string; // Timestamp of when it was checked
 }

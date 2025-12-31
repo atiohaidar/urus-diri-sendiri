@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Trophy, Construction, Rocket, Sprout, ArrowRight, Leaf } from 'lucide-react';
+import { ArrowLeft, Trophy, Construction, Rocket, Sprout, ArrowRight, Leaf, Plus, Trash2, CheckCircle2, Circle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
-import { saveReflection } from '@/lib/storage';
+import { saveReflection, getRoutines, getPriorities } from '@/lib/storage';
 import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/i18n/LanguageContext';
+import { cn } from '@/lib/utils';
 
 const MaghribCheckinPage = () => {
     const navigate = useNavigate();
@@ -23,13 +24,29 @@ const MaghribCheckinPage = () => {
         setPriorities(updated);
     };
 
+    const addPriorityRow = () => {
+        setPriorities([...priorities, '']);
+    };
+
+    const removePriorityRow = (index: number) => {
+        const updated = [...priorities];
+        updated.splice(index, 1);
+        setPriorities(updated);
+    };
+
     const handleSave = () => {
+        // Capture snapshots of today
+        const todayRoutines = getRoutines();
+        const todayPriorities = getPriorities();
+
         saveReflection({
             date: new Date().toISOString(),
             winOfDay,
             hurdle,
-            priorities,
+            priorities: priorities.filter(p => p.trim()),
             smallChange,
+            todayRoutines,
+            todayPriorities
         });
 
         toast({
@@ -111,8 +128,8 @@ const MaghribCheckinPage = () => {
                             </label>
                             <div className="space-y-3">
                                 {priorities.map((priority, index) => (
-                                    <div key={index} className="flex items-center gap-3">
-                                        <span className="w-6 h-6 rounded-full bg-secondary flex items-center justify-center text-sm font-semibold text-primary shrink-0">
+                                    <div key={index} className="flex items-center gap-3 group">
+                                        <span className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-sm font-semibold text-primary shrink-0">
                                             {index + 1}
                                         </span>
                                         <Input
@@ -121,8 +138,48 @@ const MaghribCheckinPage = () => {
                                             placeholder={index === 0 ? t.checkin.priority_1_placeholder : index === 1 ? t.checkin.priority_2_placeholder : t.checkin.priority_3_placeholder}
                                             className="bg-card rounded-xl border-0 h-11 card-elevated focus-visible:ring-primary"
                                         />
+                                        {priorities.length > 1 && (
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="opacity-0 group-hover:opacity-100 transition-opacity rounded-full hover:bg-destructive/10 hover:text-destructive"
+                                                onClick={() => removePriorityRow(index)}
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </Button>
+                                        )}
                                     </div>
                                 ))}
+                                <Button
+                                    variant="outline"
+                                    onClick={addPriorityRow}
+                                    className="w-full h-11 rounded-xl border-dashed border-2 bg-transparent hover:bg-secondary/50 gap-2 border-primary/30 text-primary"
+                                >
+                                    <Plus className="w-4 h-4" />
+                                    Tambah Prioritas
+                                </Button>
+                            </div>
+                        </div>
+
+                        {/* Today's Review Snapshot */}
+                        <div className="animate-fade-in" style={{ animationDelay: '250ms' }}>
+                            <label className="flex items-center gap-2 text-sm font-semibold mb-3">
+                                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                                Review Capaian Hari Ini
+                            </label>
+                            <div className="bg-card rounded-2xl p-4 card-elevated space-y-3">
+                                <div className="flex justify-between items-center text-sm">
+                                    <span className="text-muted-foreground font-medium">Rutinitas Selesai</span>
+                                    <span className="text-primary font-bold">
+                                        {getRoutines().filter(r => r.completedAt).length}/{getRoutines().length}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between items-center text-sm">
+                                    <span className="text-muted-foreground font-medium">Prioritas Tercapai</span>
+                                    <span className="text-primary font-bold">
+                                        {getPriorities().filter(p => p.completed).length}/{getPriorities().length}
+                                    </span>
+                                </div>
                             </div>
                         </div>
 
