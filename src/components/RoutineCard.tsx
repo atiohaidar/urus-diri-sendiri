@@ -1,9 +1,12 @@
+import { forwardRef } from 'react';
 import type { RoutineItem } from '@/lib/storage';
 import { Clock, Sparkles, Dumbbell, Apple, Target, Moon, BookOpen } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface RoutineCardProps {
   routine: RoutineItem;
   index: number;
+  isActive?: boolean;
 }
 
 const categoryIcons: Record<string, React.ReactNode> = {
@@ -24,29 +27,42 @@ const categoryColors: Record<string, string> = {
   Learning: 'bg-pink-100 text-pink-700',
 };
 
-const RoutineCard = ({ routine, index }: RoutineCardProps) => {
-  return (
-    <div 
-      className="bg-card rounded-3xl p-4 card-elevated animate-fade-in"
-      style={{ animationDelay: `${index * 50}ms` }}
-    >
-      <div className="flex items-start justify-between">
-        <div className="flex-1">
-          <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
-            <Clock className="w-3.5 h-3.5" />
-            <span>{routine.time}</span>
-            <span className="text-muted-foreground/50">•</span>
-            <span>{routine.duration}</span>
+const RoutineCard = forwardRef<HTMLDivElement, RoutineCardProps>(
+  ({ routine, index, isActive = false }, ref) => {
+    return (
+      <div
+        ref={ref}
+        className={cn(
+          "bg-card rounded-3xl p-4 card-elevated animate-fade-in transition-all duration-300",
+          isActive && "ring-2 ring-primary shadow-lg shadow-primary/20"
+        )}
+        style={{ animationDelay: `${index * 50}ms` }}
+      >
+        <div className="flex items-start justify-between">
+          <div className="flex-1">
+            <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
+              <Clock className="w-3.5 h-3.5" />
+              <span>{routine.time}</span>
+              <span className="text-muted-foreground/50">•</span>
+              <span>{routine.duration}</span>
+              {isActive && (
+                <span className="ml-1 px-2 py-0.5 rounded-full bg-primary/20 text-primary text-xs font-medium">
+                  Now
+                </span>
+              )}
+            </div>
+            <h3 className="font-semibold text-foreground">{routine.activity}</h3>
           </div>
-          <h3 className="font-semibold text-foreground">{routine.activity}</h3>
+          <span className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${categoryColors[routine.category] || 'bg-muted text-muted-foreground'}`}>
+            {categoryIcons[routine.category]}
+            {routine.category}
+          </span>
         </div>
-        <span className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${categoryColors[routine.category] || 'bg-muted text-muted-foreground'}`}>
-          {categoryIcons[routine.category]}
-          {routine.category}
-        </span>
       </div>
-    </div>
-  );
-};
+    );
+  }
+);
+
+RoutineCard.displayName = 'RoutineCard';
 
 export default RoutineCard;
