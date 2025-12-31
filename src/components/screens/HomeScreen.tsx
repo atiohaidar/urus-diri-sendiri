@@ -12,6 +12,7 @@ import {
   saveRoutines,
   findCurrentRoutineIndex,
   checkOverlap,
+  parseTimeToMinutes,
   type RoutineItem,
   type PriorityTask
 } from '@/lib/storage';
@@ -21,6 +22,7 @@ const HomeScreen = () => {
   const [priorities, setPriorities] = useState<PriorityTask[]>([]);
   const [showCheckin, setShowCheckin] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [currentDate, setCurrentDate] = useState(new Date());
   const navigate = useNavigate();
 
   const routineRefs = useRef<(HTMLDivElement | null)[]>([]);
@@ -58,11 +60,18 @@ const HomeScreen = () => {
   };
 
   const greeting = () => {
-    const hour = new Date().getHours();
+    const hour = currentDate.getHours();
     if (hour < 12) return 'Good morning';
     if (hour < 17) return 'Good afternoon';
     return 'Good evening';
   };
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentDate(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   return (
     <div className="min-h-screen pb-24">
@@ -72,7 +81,9 @@ const HomeScreen = () => {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-xl font-bold text-foreground">{greeting()} 👋</h1>
-              <p className="text-sm text-muted-foreground">Focus on yourself today</p>
+              <p className="text-sm font-medium text-muted-foreground/90 mt-1">
+                {currentDate.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} • {currentDate.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', hour12: false })}
+              </p>
             </div>
             <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
               <Sparkles className="w-5 h-5 text-primary" />
@@ -145,13 +156,27 @@ const HomeScreen = () => {
               // Check if this routine overlaps with any other
               const isOverlapping = routines.some(other => checkOverlap(routine, other));
 
+              // Determine status
+              let status: 'active' | 'upcoming' | 'default' = 'default';
+              if (index === activeIndex) {
+                const nowMinutes = currentDate.getHours() * 60 + currentDate.getMinutes();
+                const startMinutes = parseTimeToMinutes(routine.startTime);
+                // If we are at the active index, it's either running NOW or it's the NEXT one.
+                // strict check: if now >= start, it's active. else upcoming.
+                if (nowMinutes >= startMinutes) {
+                  status = 'active';
+                } else {
+                  status = 'upcoming';
+                }
+              }
+
               return (
                 <RoutineCard
                   key={routine.id}
                   ref={(el) => (routineRefs.current[index] = el)}
                   routine={routine}
                   index={index}
-                  isActive={index === activeIndex}
+                  status={status}
                   isOverlapping={isOverlapping}
                 />
               );

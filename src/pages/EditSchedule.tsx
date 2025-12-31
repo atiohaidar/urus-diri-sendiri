@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { ArrowLeft, Plus, Clock, Trash2, Save, GripVertical, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Plus, Clock, Trash2, Save, GripVertical, AlertTriangle, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -11,7 +11,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { getRoutines, saveRoutines, checkOverlap, type RoutineItem } from '@/lib/storage';
+import { getRoutines, saveRoutines, checkOverlap, calculateDuration, parseTimeToMinutes, type RoutineItem } from '@/lib/storage';
 import { toast } from 'sonner';
 import BulkAddDialog from '@/components/BulkAddDialog';
 
@@ -33,10 +33,9 @@ const EditSchedule = () => {
     // Edit Form State
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editForm, setEditForm] = useState({
-        time: '',
+        startTime: '',
+        endTime: '',
         activity: '',
-        durationVal: '',
-        durationUnit: 'mins',
         category: '',
     });
 
@@ -44,49 +43,16 @@ const EditSchedule = () => {
         setItems(getRoutines());
     }, []);
 
-    // Helper to parse "06:00 AM" -> "06:00" (24h format for input)
-    const toInputTime = (timeStr: string) => {
-        if (!timeStr) return '';
-        const match = timeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
-        if (!match) return '';
-        let [_, h, m, p] = match;
-        let hour = parseInt(h);
-        if (p.toUpperCase() === 'PM' && hour !== 12) hour += 12;
-        if (p.toUpperCase() === 'AM' && hour === 12) hour = 0;
-        return `${hour.toString().padStart(2, '0')}:${m}`;
-    };
-
-    // Helper to parse "06:00" -> "06:00 AM"
-    const fromInputTime = (timeStr: string) => {
-        if (!timeStr) return '';
-        const [h, m] = timeStr.split(':');
-        let hour = parseInt(h);
-        const period = hour >= 12 ? 'PM' : 'AM';
-        if (hour > 12) hour -= 12;
-        if (hour === 0) hour = 12;
-        return `${hour.toString().padStart(2, '0')}:${m} ${period}`;
-    };
-
-    // Helper to parse duration string "30 mins" -> {val: 30, unit: 'mins'}
-    const parseDuration = (durStr: string) => {
-        const match = durStr.match(/(\d+)\s*(mins|hours|hr|min)/i);
-        if (!match) return { val: '', unit: 'mins' };
-        return { val: match[1], unit: match[2].startsWith('h') ? 'hours' : 'mins' };
-    };
-
     const startEdit = (item: RoutineItem) => {
-        // If clicking the same item, cancel edit
         if (editingId === item.id) {
             cancelEdit();
             return;
         }
 
-        const { val, unit } = parseDuration(item.duration);
         setEditForm({
-            time: toInputTime(item.time),
+            startTime: item.startTime,
+            endTime: item.endTime,
             activity: item.activity,
-            durationVal: val,
-            durationUnit: unit,
             category: item.category,
         });
         setEditingId(item.id);
@@ -94,29 +60,28 @@ const EditSchedule = () => {
 
     const startAdd = () => {
         const newId = Date.now().toString();
+        // Default new item
         const newItem: RoutineItem = {
             id: newId,
-            time: '09:00 AM',
+            startTime: '09:00',
+            endTime: '09:30',
             activity: '',
-            duration: '30 mins',
             category: 'Productivity',
         };
-        // Add to top of list momentarily or bottom? Let's add top so user sees it.
+
         setItems([newItem, ...items]);
 
         // Immediately start editing
         setEditForm({
-            time: '09:00',
+            startTime: '09:00',
+            endTime: '09:30',
             activity: '',
-            durationVal: '30',
-            durationUnit: 'mins',
             category: 'Productivity',
         });
         setEditingId(newId);
     };
 
     const cancelEdit = () => {
-        // If it was a new item (empty activity), remove it
         const item = items.find(i => i.id === editingId);
         if (item && !item.activity.trim()) {
             setItems(items.filter(i => i.id !== editingId));
@@ -130,16 +95,18 @@ const EditSchedule = () => {
             return;
         }
 
-        const durationStr = `${editForm.durationVal} ${editForm.durationUnit}`;
-        const timeStr = fromInputTime(editForm.time);
+        if (editForm.endTime <= editForm.startTime) {
+            toast.error('End time must be after start time');
+            return;
+        }
 
         const updatedItems = items.map(item => {
             if (item.id === editingId) {
                 return {
                     ...item,
-                    time: timeStr,
+                    startTime: editForm.startTime,
+                    endTime: editForm.endTime,
                     activity: editForm.activity,
-                    duration: durationStr,
                     category: editForm.category
                 };
             }
@@ -148,8 +115,8 @@ const EditSchedule = () => {
 
         // Auto sort by time
         updatedItems.sort((a, b) => {
-            const timeA = parseTimeValue(a.time);
-            const timeB = parseTimeValue(b.time);
+            const timeA = parseTimeToMinutes(a.startTime);
+            const timeB = parseTimeToMinutes(b.startTime);
             return timeA - timeB;
         });
 
@@ -168,27 +135,15 @@ const EditSchedule = () => {
         toast.success('Deleted');
     };
 
-    const parseTimeValue = (timeStr: string): number => {
-        const match = timeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
-        if (!match) return 0;
-        let hours = parseInt(match[1]);
-        const minutes = parseInt(match[2]);
-        const period = match[3].toUpperCase();
-        if (period === 'PM' && hours !== 12) hours += 12;
-        if (period === 'AM' && hours === 12) hours = 0;
-        return hours * 60 + minutes;
-    };
-
     const handleBulkSave = (newItems: RoutineItem[]) => {
-        const updated = [...items, ...newItems]; // Add to end or sort?
-        // Sort
+        const updated = [...items, ...newItems];
         updated.sort((a, b) => {
-            const timeA = parseTimeValue(a.time);
-            const timeB = parseTimeValue(b.time);
+            const timeA = parseTimeToMinutes(a.startTime);
+            const timeB = parseTimeToMinutes(b.startTime);
             return timeA - timeB;
         });
         setItems(updated);
-        saveRoutines(updated); // Persist
+        saveRoutines(updated);
         toast.success(`Added ${newItems.length} items!`);
     };
 
@@ -226,25 +181,25 @@ const EditSchedule = () => {
                 {items.map((item) => {
                     const isEditing = editingId === item.id;
 
+                    // Calculate overlap for display
+                    // NOTE: Pass the item itself if not editing, or the form values if editing (for real-time check)
+                    const checkItem = isEditing ? {
+                        ...item,
+                        startTime: editForm.startTime,
+                        endTime: editForm.endTime,
+                        // temporary duration doesn't matter for overlap check as we use start/end in storage.ts now
+                    } : item;
+
+                    const isOverlap = items.some(other => other.id !== item.id && checkOverlap(checkItem, other));
+
                     if (isEditing) {
-                        // Create temp item for validation
-                        const tempItem: RoutineItem = {
-                            id: item.id,
-                            time: fromInputTime(editForm.time),
-                            activity: editForm.activity,
-                            duration: `${editForm.durationVal} ${editForm.durationUnit}`,
-                            category: editForm.category
-                        };
-
-                        const isOverlap = items.some(other => other.id !== item.id && checkOverlap(tempItem, other));
-
                         return (
                             <div key={item.id} className={cn("bg-card border-2 rounded-3xl p-4 shadow-lg animate-in fade-in zoom-in-95 duration-200", isOverlap ? "border-destructive" : "border-primary/20")}>
                                 <div className="space-y-4">
                                     {isOverlap && (
                                         <div className="flex items-center gap-2 text-destructive bg-destructive/10 p-2 rounded-lg text-sm font-medium">
                                             <AlertTriangle className="w-4 h-4" />
-                                            <span>This time overlaps with another schedule!</span>
+                                            <span>Overlaps with another schedule!</span>
                                         </div>
                                     )}
                                     <div>
@@ -264,53 +219,40 @@ const EditSchedule = () => {
                                             <div className="relative mt-1.5">
                                                 <Input
                                                     type="time"
-                                                    value={editForm.time}
-                                                    onChange={(e) => setEditForm({ ...editForm, time: e.target.value })}
+                                                    value={editForm.startTime}
+                                                    onChange={(e) => setEditForm({ ...editForm, startTime: e.target.value })}
                                                     className="bg-background h-11 rounded-xl"
                                                 />
                                             </div>
                                         </div>
                                         <div>
-                                            <label className="text-xs font-semibold text-muted-foreground ml-1">Category</label>
-                                            <Select
-                                                value={editForm.category}
-                                                onValueChange={(val) => setEditForm({ ...editForm, category: val })}
-                                            >
-                                                <SelectTrigger className="mt-1.5 h-11 rounded-xl bg-background">
-                                                    <SelectValue placeholder="Category" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {CATEGORIES.map(c => (
-                                                        <SelectItem key={c} value={c}>{c}</SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
+                                            <label className="text-xs font-semibold text-muted-foreground ml-1">End Time</label>
+                                            <div className="relative mt-1.5">
+                                                <Input
+                                                    type="time"
+                                                    value={editForm.endTime}
+                                                    onChange={(e) => setEditForm({ ...editForm, endTime: e.target.value })}
+                                                    className="bg-background h-11 rounded-xl"
+                                                />
+                                            </div>
                                         </div>
                                     </div>
 
                                     <div>
-                                        <label className="text-xs font-semibold text-muted-foreground ml-1">Duration</label>
-                                        <div className="flex gap-2 mt-1.5">
-                                            <Input
-                                                type="number"
-                                                value={editForm.durationVal}
-                                                onChange={(e) => setEditForm({ ...editForm, durationVal: e.target.value })}
-                                                placeholder="30"
-                                                className="bg-background h-11 rounded-xl flex-1"
-                                            />
-                                            <Select
-                                                value={editForm.durationUnit}
-                                                onValueChange={(val) => setEditForm({ ...editForm, durationUnit: val })}
-                                            >
-                                                <SelectTrigger className="w-28 h-11 rounded-xl bg-background">
-                                                    <SelectValue />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="mins">Mins</SelectItem>
-                                                    <SelectItem value="hours">Hours</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
+                                        <label className="text-xs font-semibold text-muted-foreground ml-1">Category</label>
+                                        <Select
+                                            value={editForm.category}
+                                            onValueChange={(val) => setEditForm({ ...editForm, category: val })}
+                                        >
+                                            <SelectTrigger className="mt-1.5 h-11 rounded-xl bg-background">
+                                                <SelectValue placeholder="Category" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {CATEGORIES.map(c => (
+                                                    <SelectItem key={c} value={c}>{c}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
                                     </div>
 
                                     <div className="flex gap-2 pt-2">
@@ -326,8 +268,6 @@ const EditSchedule = () => {
                         );
                     }
 
-                    const isOverlap = items.some(other => other.id !== item.id && checkOverlap(item, other));
-
                     return (
                         <div
                             key={item.id}
@@ -337,9 +277,10 @@ const EditSchedule = () => {
                                 isOverlap && "border-destructive/50 bg-destructive/5"
                             )}
                         >
-                            <div className="flex flex-col items-center justify-center w-12 h-12 rounded-2xl bg-primary/10 text-primary font-bold text-xs shrink-0">
-                                <span>{item.time.split(' ')[0]}</span>
-                                <span className="text-[10px] opacity-80">{item.time.split(' ')[1]}</span>
+                            <div className="flex flex-col items-center justify-center w-14 h-14 rounded-2xl bg-primary/10 text-primary font-bold text-xs shrink-0 leading-tight">
+                                <span>{item.startTime}</span>
+                                <ArrowRight className="w-3 h-3 opacity-50 my-px rotate-90" />
+                                <span className="opacity-80">{item.endTime}</span>
                             </div>
 
                             <div className="flex-1 min-w-0">
@@ -347,7 +288,7 @@ const EditSchedule = () => {
                                 <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
                                     <span className="bg-muted px-2 py-0.5 rounded-full">{item.category}</span>
                                     <span>•</span>
-                                    <span>{item.duration}</span>
+                                    <span>{calculateDuration(item.startTime, item.endTime)}</span>
                                     {isOverlap && (
                                         <span className="flex items-center gap-1 text-destructive font-medium">
                                             <AlertTriangle className="w-3 h-3" />

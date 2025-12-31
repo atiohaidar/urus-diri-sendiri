@@ -25,9 +25,9 @@ export interface Note {
 
 export interface RoutineItem {
   id: string;
-  time: string;
+  startTime: string; // "HH:mm" 24h format
+  endTime: string;   // "HH:mm" 24h format
   activity: string;
-  duration: string;
   category: string;
 }
 
@@ -132,33 +132,53 @@ export const getRoutines = (): RoutineItem[] => {
   if (!data) {
     // Return default routines
     const defaults: RoutineItem[] = [
-      { id: '1', time: '06:00 AM', activity: 'Morning Meditation', duration: '15 mins', category: 'Mindfulness' },
-      { id: '2', time: '06:30 AM', activity: 'Light Exercise', duration: '30 mins', category: 'Fitness' },
-      { id: '3', time: '07:30 AM', activity: 'Healthy Breakfast', duration: '20 mins', category: 'Nutrition' },
-      { id: '4', time: '12:00 PM', activity: 'Focused Work Block', duration: '2 hours', category: 'Productivity' },
-      { id: '5', time: '06:30 PM', activity: 'Maghrib Prayer', duration: '10 mins', category: 'Spiritual' },
-      { id: '6', time: '09:00 PM', activity: 'Reading Time', duration: '30 mins', category: 'Learning' },
+      { id: '1', startTime: '06:00', endTime: '06:15', activity: 'Morning Meditation', category: 'Mindfulness' },
+      { id: '2', startTime: '06:30', endTime: '07:00', activity: 'Light Exercise', category: 'Fitness' },
+      { id: '3', startTime: '07:30', endTime: '07:50', activity: 'Healthy Breakfast', category: 'Nutrition' },
+      { id: '4', startTime: '12:00', endTime: '14:00', activity: 'Focused Work Block', category: 'Productivity' },
+      { id: '5', startTime: '18:30', endTime: '18:40', activity: 'Maghrib Prayer', category: 'Spiritual' },
+      { id: '6', startTime: '21:00', endTime: '21:30', activity: 'Reading Time', category: 'Learning' },
     ];
     localStorage.setItem(KEYS.ROUTINES, JSON.stringify(defaults));
     return defaults;
   }
-  return JSON.parse(data);
+
+  // Migration check: if old data exists (has 'time' prop), clear it effectively or migrate?
+  // For simplicity in this session, if we detect old format, we might want to reset or migrate.
+  // Let's just return parsed data, but components might break if mixed.
+  // Ideally we should migrate on the fly.
+  const parsed = JSON.parse(data);
+  if (parsed.length > 0 && typeof parsed[0].startTime === 'undefined') {
+    // Detected old data, force defaults for safety
+    localStorage.removeItem(KEYS.ROUTINES);
+    return getRoutines(); // recursive call to get defaults
+  }
+  return parsed;
 };
 
 export const saveRoutines = (routines: RoutineItem[]) => {
   localStorage.setItem(KEYS.ROUTINES, JSON.stringify(routines));
 };
 
-// Parse time string to minutes since midnight
+// Parse "HH:mm" to minutes
 export const parseTimeToMinutes = (timeStr: string): number => {
-  const match = timeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
-  if (!match) return 0;
-  let hours = parseInt(match[1]);
-  const minutes = parseInt(match[2]);
-  const period = match[3].toUpperCase();
-  if (period === 'PM' && hours !== 12) hours += 12;
-  if (period === 'AM' && hours === 12) hours = 0;
+  const [hours, minutes] = timeStr.split(':').map(Number);
   return hours * 60 + minutes;
+};
+
+// Calculate duration string between two times
+export const calculateDuration = (start: string, end: string): string => {
+  const startMins = parseTimeToMinutes(start);
+  let endMins = parseTimeToMinutes(end);
+  if (endMins < startMins) endMins += 24 * 60; // Handle overnight
+
+  const diff = endMins - startMins;
+  const hours = Math.floor(diff / 60);
+  const mins = diff % 60;
+
+  if (hours > 0 && mins > 0) return `${hours} hr ${mins} min`;
+  if (hours > 0) return `${hours} hr`;
+  return `${mins} min`;
 };
 
 // Parse duration string to minutes
@@ -176,17 +196,16 @@ export const parseDurationToMinutes = (durationStr: string): number => {
 
 // Check if two routine items overlap
 export const checkOverlap = (item1: RoutineItem, item2: RoutineItem): boolean => {
-  if (item1.id === item2.id) return false; // Don't compare with self
+  if (item1.id === item2.id) return false;
 
-  const start1 = parseTimeToMinutes(item1.time);
-  const duration1 = parseDurationToMinutes(item1.duration);
-  const end1 = start1 + duration1;
+  const start1 = parseTimeToMinutes(item1.startTime);
+  const end1 = parseTimeToMinutes(item1.endTime);
 
-  const start2 = parseTimeToMinutes(item2.time);
-  const duration2 = parseDurationToMinutes(item2.duration);
-  const end2 = start2 + duration2;
+  const start2 = parseTimeToMinutes(item2.startTime);
+  const end2 = parseTimeToMinutes(item2.endTime);
 
-  // Check for overlap: Start1 < End2 AND Start2 < End1
+  // Handle overnight check if end < start? Assuming simplified day schedule for now
+  // For standard overlap: Start1 < End2 && Start2 < End1
   return start1 < end2 && start2 < end1;
 };
 
@@ -200,20 +219,30 @@ export const getCurrentTimeInMinutes = (): number => {
 export const findCurrentRoutineIndex = (routines: RoutineItem[]): number => {
   const currentMinutes = getCurrentTimeInMinutes();
 
-  // Find the first routine that's at or after current time
   for (let i = 0; i < routines.length; i++) {
-    const routineMinutes = parseTimeToMinutes(routines[i].time);
-    if (routineMinutes >= currentMinutes) {
+    const start = parseTimeToMinutes(routines[i].startTime);
+    const end = parseTimeToMinutes(routines[i].endTime);
+
+    // Check if current time is WITHIN this routine
+    if (currentMinutes >= start && currentMinutes < end) {
+      return i;
+    }
+
+    // Check if current time is BEFORE this routine (next upcoming)
+    if (currentMinutes < start) {
+      // If i is 0, then this is the first one coming up.
+      // If i > 0, we already passed previous ones (since we didn't return), so this is the next one.
+      // Wait, let's refine:
+      // We want to highlight the Active one OR the Next one.
+      // If we are between routines, maybe highlight the next one?
       return i;
     }
   }
 
-  // If all routines have passed, check if we're within the last routine's timeframe
+  // If we're past all routines, maybe show the last one properly or none?
+  // Let's return the last one if past end of day, or 0 for next day loop
   if (routines.length > 0) {
-    const lastRoutineMinutes = parseTimeToMinutes(routines[routines.length - 1].time);
-    if (currentMinutes >= lastRoutineMinutes) {
-      return routines.length - 1;
-    }
+    return 0; // Wrap around
   }
 
   return 0;
