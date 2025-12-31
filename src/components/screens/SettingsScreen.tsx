@@ -1,14 +1,13 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Moon, Sun, Download, Upload, Monitor, Languages } from 'lucide-react';
+import { ArrowLeft, Moon, Sun, Download, Upload, Monitor, Settings as SettingsIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { exportData, importData } from '@/lib/backup';
 import { useTheme } from '@/components/theme-provider';
 import { useLanguage } from '@/i18n/LanguageContext';
-import MainLayout from '@/components/layout/MainLayout';
 import { toast } from 'sonner';
 
-const Settings = () => {
+const SettingsScreen = () => {
     const navigate = useNavigate();
     const { setTheme, theme } = useTheme();
     const { language, setLanguage, t } = useLanguage();
@@ -40,18 +39,23 @@ const Settings = () => {
     };
 
     return (
-        <MainLayout showMobileHeader={false} className="pt-0 md:pt-0">
+        <div className="min-h-screen pb-24 md:pb-8">
             {/* Header */}
-            <div className="sticky top-0 z-40 bg-background/80 backdrop-blur-lg border-b border-border/50 -mx-4 px-4 py-4 mb-6 md:-mx-4 md:px-4">
-                <div className="flex items-center gap-3">
-                    <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="-ml-2">
-                        <ArrowLeft className="w-5 h-5" />
-                    </Button>
-                    <h1 className="text-xl font-bold">{t.settings.title}</h1>
+            <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-lg border-b border-border/50">
+                <div className="container max-w-md md:max-w-5xl mx-auto px-4 py-4">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-xl bg-primary/10">
+                            <SettingsIcon className="w-6 h-6 text-primary" />
+                        </div>
+                        <div>
+                            <h1 className="text-xl font-bold text-foreground">{t.settings.title}</h1>
+                            <p className="text-sm text-muted-foreground hidden md:block">{t.settings.data_management}</p>
+                        </div>
+                    </div>
                 </div>
-            </div>
+            </header>
 
-            <div className="space-y-6">
+            <main className="container max-w-md md:max-w-5xl mx-auto px-4 py-6 space-y-6">
                 {/* Language Section */}
                 <section className="bg-card rounded-3xl p-6 border border-border/50 shadow-sm">
                     <h2 className="text-lg font-semibold mb-4">{t.settings.language}</h2>
@@ -116,7 +120,7 @@ const Settings = () => {
                             onClick={handleExport}
                         >
                             <Download className="w-5 h-5 text-muted-foreground" />
-                            <div className="flex flex-col items-start">
+                            <div className="flex flex-col items-start text-left">
                                 <span className="font-medium">{t.settings.backup_title}</span>
                                 <span className="text-xs text-muted-foreground">{t.settings.backup_desc}</span>
                             </div>
@@ -129,7 +133,7 @@ const Settings = () => {
                                 disabled={importing}
                             >
                                 <Upload className="w-5 h-5 text-muted-foreground" />
-                                <div className="flex flex-col items-start">
+                                <div className="flex flex-col items-start text-left">
                                     <span className="font-medium">{t.settings.restore_title}</span>
                                     <span className="text-xs text-muted-foreground">{t.settings.restore_desc}</span>
                                 </div>
@@ -148,9 +152,9 @@ const Settings = () => {
                 <div className="text-center text-xs text-muted-foreground pt-8">
                     <p>UrusDiri v1.0.0</p>
                 </div>
-            </div>
-        </MainLayout>
+            </main>
+        </div>
     );
 };
 
-export default Settings;
+export default SettingsScreen;

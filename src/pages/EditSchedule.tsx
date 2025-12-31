@@ -5,19 +5,13 @@ import { ArrowLeft, Plus, Clock, Trash2, Save, GripVertical, AlertTriangle, Arro
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { TimePicker } from '@/components/ui/time-picker';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
-import { getRoutines, saveRoutines, checkOverlap, calculateDuration, parseTimeToMinutes, type RoutineItem } from '@/lib/storage';
+import { ScheduleCard } from '@/components/routine/ScheduleCard';
+import { ScheduleForm } from '@/components/routine/ScheduleForm';
+import { getRoutines, saveRoutines, checkOverlap, parseTimeToMinutes, type RoutineItem } from '@/lib/storage';
 import { toast } from 'sonner';
-import BulkAddDialog from '@/components/BulkAddDialog';
+import BulkAddDialog from '@/components/routine/BulkAddDialog';
 import MainLayout from '@/components/layout/MainLayout';
 
-import { CATEGORY_LIST } from '@/lib/constants';
 
 const EditSchedule = () => {
     const navigate = useNavigate();
@@ -178,129 +172,35 @@ const EditSchedule = () => {
                 {items.map((item) => {
                     const isEditing = editingId === item.id;
 
-                    // Calculate overlap for display
-                    // NOTE: Pass the item itself if not editing, or the form values if editing (for real-time check)
                     const checkItem = isEditing ? {
                         ...item,
                         startTime: editForm.startTime,
                         endTime: editForm.endTime,
-                        // temporary duration doesn't matter for overlap check as we use start/end in storage.ts now
                     } : item;
 
                     const isOverlap = items.some(other => other.id !== item.id && checkOverlap(checkItem, other));
 
                     if (isEditing) {
                         return (
-                            <div key={item.id} className={cn("bg-card border-2 rounded-3xl p-4 shadow-lg animate-in fade-in zoom-in-95 duration-200", isOverlap ? "border-destructive" : "border-primary/20")}>
-                                <div className="space-y-4">
-                                    {isOverlap && (
-                                        <div className="flex items-center gap-2 text-destructive bg-destructive/10 p-2 rounded-lg text-sm font-medium">
-                                            <AlertTriangle className="w-4 h-4" />
-                                            <span>Overlaps with another schedule!</span>
-                                        </div>
-                                    )}
-                                    <div>
-                                        <label className="text-xs font-semibold text-muted-foreground ml-1">Activity Name</label>
-                                        <Input
-                                            autoFocus
-                                            value={editForm.activity}
-                                            onChange={(e) => setEditForm({ ...editForm, activity: e.target.value })}
-                                            placeholder="e.g. Morning Jog"
-                                            className="bg-background mt-1.5 h-11 rounded-xl"
-                                        />
-                                    </div>
-
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <div>
-                                            <label className="text-xs font-semibold text-muted-foreground ml-1">Start Time</label>
-                                            <div className="relative mt-1.5">
-                                                <TimePicker
-                                                    value={editForm.startTime}
-                                                    onChange={(val) => setEditForm({ ...editForm, startTime: val })}
-                                                />
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <label className="text-xs font-semibold text-muted-foreground ml-1">End Time</label>
-                                            <div className="relative mt-1.5">
-                                                <TimePicker
-                                                    value={editForm.endTime}
-                                                    onChange={(val) => setEditForm({ ...editForm, endTime: val })}
-                                                />
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div>
-                                        <label className="text-xs font-semibold text-muted-foreground ml-1">Category</label>
-                                        <Select
-                                            value={editForm.category}
-                                            onValueChange={(val) => setEditForm({ ...editForm, category: val })}
-                                        >
-                                            <SelectTrigger className="mt-1.5 h-11 rounded-xl bg-background">
-                                                <SelectValue placeholder="Category" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {CATEGORY_LIST.map(c => (
-                                                    <SelectItem key={c} value={c}>{c}</SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-
-                                    <div className="flex gap-2 pt-2">
-                                        <Button variant="outline" className="flex-1 rounded-xl" onClick={cancelEdit}>
-                                            Cancel
-                                        </Button>
-                                        <Button className="flex-1 rounded-xl gap-2" onClick={saveItem}>
-                                            <Save className="w-4 h-4" /> Save
-                                        </Button>
-                                    </div>
-                                </div>
-                            </div>
+                            <ScheduleForm
+                                key={item.id}
+                                editForm={editForm}
+                                isOverlap={isOverlap}
+                                onFormChange={(updates) => setEditForm(prev => ({ ...prev, ...updates }))}
+                                onSave={saveItem}
+                                onCancel={cancelEdit}
+                            />
                         );
                     }
 
                     return (
-                        <div
+                        <ScheduleCard
                             key={item.id}
-                            onClick={() => startEdit(item)}
-                            className={cn(
-                                "group bg-card hover:bg-muted/50 transition-colors p-4 rounded-3xl border border-border/50 flex items-center gap-4 cursor-pointer active:scale-[0.98] duration-200 h-full",
-                                "border-primary/20",
-                                isOverlap && "border-destructive/50 bg-destructive/5"
-                            )}
-                        >
-                            <div className="flex flex-col items-center justify-center w-14 h-14 rounded-2xl bg-primary/10 text-primary font-bold text-xs shrink-0 leading-tight">
-                                <span>{item.startTime}</span>
-                                <ArrowRight className="w-3 h-3 opacity-50 my-px rotate-90" />
-                                <span className="opacity-80">{item.endTime}</span>
-                            </div>
-
-                            <div className="flex-1 min-w-0">
-                                <h3 className="font-semibold text-foreground truncate">{item.activity}</h3>
-                                <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
-                                    <span className="bg-muted px-2 py-0.5 rounded-full">{item.category}</span>
-                                    <span>•</span>
-                                    <span>{calculateDuration(item.startTime, item.endTime)}</span>
-                                    {isOverlap && (
-                                        <span className="flex items-center gap-1 text-destructive font-medium">
-                                            <AlertTriangle className="w-3 h-3" />
-                                            Overlap
-                                        </span>
-                                    )}
-                                </div>
-                            </div>
-
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                className="text-muted-foreground/30 group-hover:text-destructive transition-colors -mr-2"
-                                onClick={(e) => deleteItem(e, item.id)}
-                            >
-                                <Trash2 className="w-5 h-5" />
-                            </Button>
-                        </div>
+                            item={item}
+                            isOverlap={isOverlap}
+                            onEdit={startEdit}
+                            onDelete={deleteItem}
+                        />
                     );
                 })}
             </div>

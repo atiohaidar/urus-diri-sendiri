@@ -12,7 +12,7 @@ import AppLayout from "./components/layout/AppLayout";
 import HomeScreen from "./components/screens/HomeScreen";
 import ParkingLotScreen from "./components/screens/ParkingLotScreen";
 import HistoryScreen from "./components/screens/HistoryScreen";
-import Settings from "./pages/Settings";
+import SettingsScreen from "./components/screens/SettingsScreen";
 import EditSchedule from "./pages/EditSchedule";
 import MaghribCheckinPage from "./pages/MaghribCheckinPage";
 import NotFound from "./pages/NotFound";
@@ -39,7 +39,7 @@ const App = () => (
                   <Route path="/" element={<HomeScreen />} />
                   <Route path="/ideas" element={<ParkingLotScreen />} />
                   <Route path="/history" element={<HistoryScreen />} />
-                  <Route path="/settings" element={<Settings />} />
+                  <Route path="/settings" element={<SettingsScreen />} />
                 </Route>
 
                 <Route path="/schedule-editor" element={<EditSchedule />} />
