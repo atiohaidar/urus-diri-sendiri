@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/select';
 import { getRoutines, saveRoutines, checkOverlap, type RoutineItem } from '@/lib/storage';
 import { toast } from 'sonner';
+import BulkAddDialog from '@/components/BulkAddDialog';
 
 const CATEGORIES = [
     'Mindfulness',
@@ -27,6 +28,7 @@ const CATEGORIES = [
 const EditSchedule = () => {
     const navigate = useNavigate();
     const [items, setItems] = useState<RoutineItem[]>([]);
+    const [showBulkAdd, setShowBulkAdd] = useState(false);
 
     // Edit Form State
     const [editingId, setEditingId] = useState<string | null>(null);
@@ -177,6 +179,19 @@ const EditSchedule = () => {
         return hours * 60 + minutes;
     };
 
+    const handleBulkSave = (newItems: RoutineItem[]) => {
+        const updated = [...items, ...newItems]; // Add to end or sort?
+        // Sort
+        updated.sort((a, b) => {
+            const timeA = parseTimeValue(a.time);
+            const timeB = parseTimeValue(b.time);
+            return timeA - timeB;
+        });
+        setItems(updated);
+        saveRoutines(updated); // Persist
+        toast.success(`Added ${newItems.length} items!`);
+    };
+
     return (
         <div className="min-h-screen bg-background pb-20">
             {/* Header */}
@@ -188,10 +203,16 @@ const EditSchedule = () => {
                         </Button>
                         <h1 className="text-xl font-bold">Edit Schedule</h1>
                     </div>
-                    <Button onClick={startAdd} size="sm" className="gap-1 rounded-xl">
-                        <Plus className="w-4 h-4" />
-                        Add
-                    </Button>
+                    <div className="flex gap-2">
+                        <Button onClick={() => setShowBulkAdd(true)} variant="outline" size="sm" className="gap-1 rounded-xl">
+                            <GripVertical className="w-4 h-4" />
+                            Import
+                        </Button>
+                        <Button onClick={startAdd} size="sm" className="gap-1 rounded-xl">
+                            <Plus className="w-4 h-4" />
+                            Add
+                        </Button>
+                    </div>
                 </div>
             </div>
 
@@ -348,6 +369,13 @@ const EditSchedule = () => {
                     );
                 })}
             </div>
+
+            {/* Bulk Add Dialog */}
+            <BulkAddDialog
+                open={showBulkAdd}
+                onClose={() => setShowBulkAdd(false)}
+                onSave={handleBulkSave}
+            />
         </div>
     );
 };
