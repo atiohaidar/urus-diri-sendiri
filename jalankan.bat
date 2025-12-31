@@ -1,1 +1,1 @@
- npm run build; npx cap sync ; npx cap run android --target 3466762590000MN
+npm run build && npx cap sync && npx cap run android --target 3466762590000MN
