@@ -1,13 +1,16 @@
-import { useState, useEffect } from 'react';
-import { Moon, Sparkles } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { Moon, Sparkles, Settings2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import RoutineCard from '@/components/RoutineCard';
+import RoutineEditor from '@/components/RoutineEditor';
 import PriorityItem from '@/components/PriorityItem';
 import MaghribCheckin from '@/components/MaghribCheckin';
 import { 
   getRoutines, 
   getPriorities, 
   updatePriorityCompletion,
+  saveRoutines,
+  findCurrentRoutineIndex,
   type RoutineItem,
   type PriorityTask 
 } from '@/lib/storage';
@@ -16,19 +19,48 @@ const HomeScreen = () => {
   const [routines, setRoutines] = useState<RoutineItem[]>([]);
   const [priorities, setPriorities] = useState<PriorityTask[]>([]);
   const [showCheckin, setShowCheckin] = useState(false);
+  const [showEditor, setShowEditor] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(0);
+  
+  const routineRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  const loadData = () => {
-    setRoutines(getRoutines());
+  const loadData = useCallback(() => {
+    const loadedRoutines = getRoutines();
+    setRoutines(loadedRoutines);
     setPriorities(getPriorities());
-  };
+    
+    // Find current routine index
+    const currentIndex = findCurrentRoutineIndex(loadedRoutines);
+    setActiveIndex(currentIndex);
+  }, []);
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [loadData]);
+
+  // Auto-scroll to active routine
+  useEffect(() => {
+    if (routines.length > 0 && routineRefs.current[activeIndex] && scrollContainerRef.current) {
+      setTimeout(() => {
+        routineRefs.current[activeIndex]?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start',
+        });
+      }, 100);
+    }
+  }, [routines, activeIndex]);
 
   const handleTogglePriority = (id: string, completed: boolean) => {
     const updated = updatePriorityCompletion(id, completed);
     setPriorities(updated);
+  };
+
+  const handleSaveRoutines = (newRoutines: RoutineItem[]) => {
+    saveRoutines(newRoutines);
+    setRoutines(newRoutines);
+    const currentIndex = findCurrentRoutineIndex(newRoutines);
+    setActiveIndex(currentIndex);
   };
 
   const greeting = () => {
@@ -97,11 +129,38 @@ const HomeScreen = () => {
 
         {/* Daily Routine */}
         <section>
-          <h2 className="text-lg font-bold text-foreground mb-4">Daily Routine</h2>
-          <div className="space-y-3">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-bold text-foreground">Daily Routine</h2>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowEditor(true)}
+              className="gap-1.5 text-muted-foreground hover:text-foreground"
+            >
+              <Settings2 className="w-4 h-4" />
+              Edit
+            </Button>
+          </div>
+          
+          {/* Fixed height scrollable container */}
+          <div 
+            ref={scrollContainerRef}
+            className="h-[380px] overflow-y-auto rounded-3xl bg-muted/30 p-3 space-y-3 scroll-smooth"
+          >
             {routines.map((routine, index) => (
-              <RoutineCard key={routine.id} routine={routine} index={index} />
+              <RoutineCard
+                key={routine.id}
+                ref={(el) => (routineRefs.current[index] = el)}
+                routine={routine}
+                index={index}
+                isActive={index === activeIndex}
+              />
             ))}
+            {routines.length === 0 && (
+              <div className="flex items-center justify-center h-full">
+                <p className="text-muted-foreground">No routines yet. Add some!</p>
+              </div>
+            )}
           </div>
         </section>
       </main>
@@ -113,6 +172,14 @@ const HomeScreen = () => {
           onSave={loadData}
         />
       )}
+
+      {/* Routine Editor Modal */}
+      <RoutineEditor
+        open={showEditor}
+        onClose={() => setShowEditor(false)}
+        routines={routines}
+        onSave={handleSaveRoutines}
+      />
     </div>
   );
 };

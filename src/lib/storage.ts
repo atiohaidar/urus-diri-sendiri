@@ -145,6 +145,51 @@ export const getRoutines = (): RoutineItem[] => {
   return JSON.parse(data);
 };
 
+export const saveRoutines = (routines: RoutineItem[]) => {
+  localStorage.setItem(KEYS.ROUTINES, JSON.stringify(routines));
+};
+
+// Parse time string to minutes since midnight
+export const parseTimeToMinutes = (timeStr: string): number => {
+  const match = timeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+  if (!match) return 0;
+  let hours = parseInt(match[1]);
+  const minutes = parseInt(match[2]);
+  const period = match[3].toUpperCase();
+  if (period === 'PM' && hours !== 12) hours += 12;
+  if (period === 'AM' && hours === 12) hours = 0;
+  return hours * 60 + minutes;
+};
+
+// Get current time in minutes since midnight
+export const getCurrentTimeInMinutes = (): number => {
+  const now = new Date();
+  return now.getHours() * 60 + now.getMinutes();
+};
+
+// Find the current or next routine item index
+export const findCurrentRoutineIndex = (routines: RoutineItem[]): number => {
+  const currentMinutes = getCurrentTimeInMinutes();
+  
+  // Find the first routine that's at or after current time
+  for (let i = 0; i < routines.length; i++) {
+    const routineMinutes = parseTimeToMinutes(routines[i].time);
+    if (routineMinutes >= currentMinutes) {
+      return i;
+    }
+  }
+  
+  // If all routines have passed, check if we're within the last routine's timeframe
+  if (routines.length > 0) {
+    const lastRoutineMinutes = parseTimeToMinutes(routines[routines.length - 1].time);
+    if (currentMinutes >= lastRoutineMinutes) {
+      return routines.length - 1;
+    }
+  }
+  
+  return 0;
+};
+
 export const formatDate = (date: Date | string): string => {
   const d = typeof date === 'string' ? new Date(date) : date;
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
