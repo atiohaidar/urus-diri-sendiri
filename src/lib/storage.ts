@@ -253,13 +253,11 @@ const CENTRAL_PROXY_URL = import.meta.env.VITE_CENTRAL_PROXY_URL;
 export const getCloudConfig = () => {
   return {
     sheetUrl: localStorage.getItem(STORAGE_KEYS.GOOGLE_SHEET_URL) || '',
-    token: localStorage.getItem(STORAGE_KEYS.CLOUD_SYNC_TOKEN) || '',
   };
 };
 
-export const saveCloudConfig = (sheetUrl: string, token: string) => {
+export const saveCloudConfig = (sheetUrl: string) => {
   localStorage.setItem(STORAGE_KEYS.GOOGLE_SHEET_URL, sheetUrl);
-  localStorage.setItem(STORAGE_KEYS.CLOUD_SYNC_TOKEN, token);
 };
 
 export const getAllAppData = () => {
@@ -271,12 +269,11 @@ export const getAllAppData = () => {
   };
 };
 
-export const pushToCloud = async (overrideSheetUrl?: string, overrideToken?: string) => {
-  const { sheetUrl, token } = getCloudConfig();
+export const pushToCloud = async (overrideSheetUrl?: string) => {
+  const { sheetUrl } = getCloudConfig();
   const finalSheetUrl = overrideSheetUrl || sheetUrl;
-  const finalToken = overrideToken || token;
 
-  if (!finalSheetUrl || !finalToken) throw new Error("Google Sheet URL or Token not configured");
+  if (!finalSheetUrl) throw new Error("Google Sheet URL not configured");
 
   const payload = getAllAppData();
 
@@ -284,8 +281,8 @@ export const pushToCloud = async (overrideSheetUrl?: string, overrideToken?: str
     method: 'POST',
     body: JSON.stringify({
       action: 'push',
+      token: "PUBLIC", // Token internal di level script jika perlu, tapi di UI dihapus
       sheetUrl: finalSheetUrl,
-      token: finalToken,
       payload
     }),
   });
@@ -296,20 +293,18 @@ export const pushToCloud = async (overrideSheetUrl?: string, overrideToken?: str
   return response.ok;
 };
 
-export const pullFromCloud = async (overrideSheetUrl?: string, overrideToken?: string) => {
-  const { sheetUrl, token } = getCloudConfig();
+export const pullFromCloud = async (overrideSheetUrl?: string) => {
+  const { sheetUrl } = getCloudConfig();
   const finalSheetUrl = overrideSheetUrl || sheetUrl;
-  const finalToken = overrideToken || token;
 
-  if (!finalSheetUrl || !finalToken) throw new Error("Google Sheet URL or Token not configured");
+  if (!finalSheetUrl) throw new Error("Google Sheet URL not configured");
 
-  // For PULL, we still use POST because we need to send the Sheet URL safely in the body
   const response = await fetch(CENTRAL_PROXY_URL, {
     method: 'POST',
     body: JSON.stringify({
       action: 'pull',
-      sheetUrl: finalSheetUrl,
-      token: finalToken
+      token: "PUBLIC",
+      sheetUrl: finalSheetUrl
     }),
   });
   const result = await response.json();

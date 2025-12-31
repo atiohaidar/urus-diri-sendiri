@@ -59,5 +59,14 @@ export interface Translation {
         backup_error: string;
         import_success: string;
         import_error: string;
+        cloud_title: string;
+        cloud_sheet_url: string;
+        cloud_push: string;
+        cloud_pull: string;
+        cloud_save_config: string;
+        cloud_help: string;
+        cloud_success_push: string;
+        cloud_success_pull: string;
+        cloud_error_permission: string;
     };
 }

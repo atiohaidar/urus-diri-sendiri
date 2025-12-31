@@ -15,7 +15,6 @@ const SettingsScreen = () => {
     const { language, setLanguage, t } = useLanguage();
     const [importing, setImporting] = useState(false);
     const [sheetUrl, setSheetUrl] = useState(getCloudConfig().sheetUrl);
-    const [cloudToken, setCloudToken] = useState(getCloudConfig().token);
     const [isSyncing, setIsSyncing] = useState(false);
 
     const handleExport = () => {
@@ -44,46 +43,44 @@ const SettingsScreen = () => {
     };
 
     const handleCloudSave = () => {
-        saveCloudConfig(sheetUrl, cloudToken);
-        toast.success("Konfigurasi Cloud disimpan!");
+        saveCloudConfig(sheetUrl);
+        toast.success(t.settings.cloud_save_config);
     };
 
     const handlePush = async () => {
-        if (!sheetUrl || !cloudToken) {
-            toast.error("Isi URL dan Token terlebih dahulu!");
+        if (!sheetUrl) {
+            toast.error("Isi Link Spreadsheet terlebih dahulu!");
             return;
         }
         setIsSyncing(true);
         try {
-            // Save first, then push with current values
-            saveCloudConfig(sheetUrl, cloudToken);
-            const success = await pushToCloud(sheetUrl, cloudToken);
+            saveCloudConfig(sheetUrl);
+            const success = await pushToCloud(sheetUrl);
             if (success) {
-                toast.success("Berhasil sinkronisasi ke Cloud! 🚀");
+                toast.success(t.settings.cloud_success_push);
             } else {
-                throw new Error("Gagal mengirim data (Cek URL atau Token)");
+                throw new Error(t.settings.cloud_error_permission);
             }
         } catch (error: any) {
-            toast.error(error.message || "Gagal sinkron ke Cloud");
+            toast.error(error.message || t.settings.import_error);
         } finally {
             setIsSyncing(false);
         }
     };
 
     const handlePull = async () => {
-        if (!sheetUrl || !cloudToken) {
-            toast.error("Isi URL dan Token terlebih dahulu!");
+        if (!sheetUrl) {
+            toast.error("Isi Link Spreadsheet terlebih dahulu!");
             return;
         }
         setIsSyncing(true);
         try {
-            // Save first, then pull with current values
-            saveCloudConfig(sheetUrl, cloudToken);
-            await pullFromCloud(sheetUrl, cloudToken);
-            toast.success("Data berhasil diunduh dari Cloud! Memuat ulang...");
+            saveCloudConfig(sheetUrl);
+            await pullFromCloud(sheetUrl);
+            toast.success(t.settings.cloud_success_pull);
             setTimeout(() => window.location.reload(), 1500);
         } catch (error: any) {
-            toast.error(error.message || "Gagal mengunduh dari Cloud");
+            toast.error(error.message || t.settings.import_error);
         } finally {
             setIsSyncing(false);
         }
@@ -165,33 +162,25 @@ const SettingsScreen = () => {
                 <section className="bg-card rounded-3xl p-6 border border-border/50 shadow-sm">
                     <div className="flex items-center gap-2 mb-4">
                         <Cloud className="w-5 h-5 text-primary" />
-                        <h2 className="text-lg font-semibold">Cloud Sync (Google Sheets)</h2>
+                        <h2 className="text-lg font-semibold">{t.settings.cloud_title}</h2>
                     </div>
 
                     <div className="space-y-4">
+                        <div className="bg-primary/5 border border-primary/10 rounded-2xl p-4">
+                            <p className="text-xs text-primary font-medium leading-relaxed">
+                                {t.settings.cloud_help}
+                            </p>
+                        </div>
+
                         <div className="space-y-2">
                             <label className="text-xs font-bold text-muted-foreground uppercase flex items-center gap-1.5">
                                 <LinkIcon className="w-3 h-3" />
-                                Google Sheet URL
+                                {t.settings.cloud_sheet_url}
                             </label>
                             <Input
                                 value={sheetUrl}
                                 onChange={(e) => setSheetUrl(e.target.value)}
                                 placeholder="https://docs.google.com/spreadsheets/d/..."
-                                className="h-11 rounded-xl bg-muted/30 border-0 focus-visible:ring-primary/30"
-                            />
-                        </div>
-
-                        <div className="space-y-2">
-                            <label className="text-xs font-bold text-muted-foreground uppercase flex items-center gap-1.5">
-                                <Key className="w-3 h-3" />
-                                Sync Token (Password)
-                            </label>
-                            <Input
-                                type="password"
-                                value={cloudToken}
-                                onChange={(e) => setCloudToken(e.target.value)}
-                                placeholder="Token yang kamu buat di script"
                                 className="h-11 rounded-xl bg-muted/30 border-0 focus-visible:ring-primary/30"
                             />
                         </div>
@@ -204,7 +193,7 @@ const SettingsScreen = () => {
                                 className="h-12 rounded-xl border-dashed border-2 gap-2"
                             >
                                 <CloudDownload className="w-4 h-4" />
-                                Pull Data
+                                {t.settings.cloud_pull}
                             </Button>
                             <Button
                                 onClick={handlePush}
@@ -212,7 +201,7 @@ const SettingsScreen = () => {
                                 className="h-12 rounded-xl shadow-lg shadow-primary/20 gap-2"
                             >
                                 <CloudUpload className="w-4 h-4" />
-                                Push Data
+                                {t.settings.cloud_push}
                             </Button>
                         </div>
 
@@ -222,7 +211,7 @@ const SettingsScreen = () => {
                             className="w-full text-xs text-muted-foreground hover:text-primary"
                             onClick={handleCloudSave}
                         >
-                            Save Configuration Only
+                            {t.settings.cloud_save_config}
                         </Button>
                     </div>
                 </section>
