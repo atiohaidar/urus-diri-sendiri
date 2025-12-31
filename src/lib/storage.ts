@@ -11,7 +11,25 @@ export * from './routine-helpers';
 export const getPriorities = (): PriorityTask[] => {
   const data = localStorage.getItem(STORAGE_KEYS.PRIORITIES);
   if (!data) return [];
-  return JSON.parse(data);
+  const priorities: PriorityTask[] = JSON.parse(data);
+
+  // Check if these priorities are from a previous day
+  // If they are, we keep the text but reset completion status for the new day
+  // unless they are replaced by Maghrib Check-in.
+  const today = new Date().toDateString();
+  const needsReset = priorities.some(p => p.updatedAt && new Date(p.updatedAt).toDateString() !== today);
+
+  if (needsReset) {
+    const resetPriorities = priorities.map(p => ({
+      ...p,
+      completed: false, // Reset for the new day
+      updatedAt: new Date().toISOString()
+    }));
+    savePriorities(resetPriorities);
+    return resetPriorities;
+  }
+
+  return priorities;
 };
 
 export const savePriorities = (priorities: PriorityTask[]) => {
@@ -52,12 +70,33 @@ export const getReflections = (): Reflection[] => {
 
 export const saveReflection = (reflection: Omit<Reflection, 'id'>) => {
   const reflections = getReflections();
-  const newReflection: Reflection = {
-    ...reflection,
-    id: Date.now().toString(),
-  };
-  reflections.unshift(newReflection);
-  localStorage.setItem(STORAGE_KEYS.REFLECTIONS, JSON.stringify(reflections));
+  const today = new Date().toDateString();
+  const todayIndex = reflections.findIndex(r => new Date(r.date).toDateString() === today);
+
+  let updatedReflections: Reflection[];
+  let savedItem: Reflection;
+
+  if (todayIndex !== -1) {
+    // Update existing reflection for today
+    savedItem = {
+      ...reflections[todayIndex],
+      ...reflection,
+      // If todayRoutines/Priorities aren't provided in the call, keep existing ones
+      todayRoutines: reflection.todayRoutines || reflections[todayIndex].todayRoutines,
+      todayPriorities: reflection.todayPriorities || reflections[todayIndex].todayPriorities,
+    };
+    updatedReflections = [...reflections];
+    updatedReflections[todayIndex] = savedItem;
+  } else {
+    // Create new for today
+    savedItem = {
+      ...reflection,
+      id: Date.now().toString(),
+    };
+    updatedReflections = [savedItem, ...reflections];
+  }
+
+  localStorage.setItem(STORAGE_KEYS.REFLECTIONS, JSON.stringify(updatedReflections));
 
   // Update tomorrow's priorities based on reflection
   const newPriorities: PriorityTask[] = reflection.priorities
@@ -70,7 +109,7 @@ export const saveReflection = (reflection: Omit<Reflection, 'id'>) => {
     }));
   savePriorities(newPriorities);
 
-  return newReflection;
+  return savedItem;
 };
 
 // --- Notes ---
@@ -137,7 +176,16 @@ export const getRoutines = (): RoutineItem[] => {
   const lastOpen = localStorage.getItem(STORAGE_KEYS.LAST_OPEN_DATE);
 
   if (lastOpen !== today) {
+    // IT'S A NEW DAY! 
+    // Reset ALL completion statuses in the master routine list
+    const resetRoutines = routines.map(r => ({
+      ...r,
+      completedAt: null,
+      updatedAt: undefined
+    }));
+    localStorage.setItem(STORAGE_KEYS.ROUTINES, JSON.stringify(resetRoutines));
     localStorage.setItem(STORAGE_KEYS.LAST_OPEN_DATE, today);
+    return resetRoutines;
   }
 
   return routines;
@@ -156,19 +204,43 @@ export const toggleRoutineCompletion = (id: string, routines: RoutineItem[]) => 
   return updated;
 };
 
-// Helper to update reflection snapshot for TODAY if it exists
+// Helper to update reflection snapshot for TODAY
 export const updateDailySnapshot = () => {
   const reflections = getReflections();
-  const today = new Date().toDateString();
-  const todayIndex = reflections.findIndex(r => new Date(r.date).toDateString() === today);
+  const todayDate = new Date();
+  const todayStr = todayDate.toDateString();
+  const todayIndex = reflections.findIndex(r => new Date(r.date).toDateString() === todayStr);
+
+  const currentRoutines = getRoutines();
+  const currentPriorities = getPriorities();
 
   if (todayIndex !== -1) {
+    // Update existing reflection
     const updatedReflections = [...reflections];
     updatedReflections[todayIndex] = {
       ...updatedReflections[todayIndex],
-      todayRoutines: getRoutines(),
-      todayPriorities: getPriorities(),
+      todayRoutines: currentRoutines,
+      todayPriorities: currentPriorities,
     };
     localStorage.setItem(STORAGE_KEYS.REFLECTIONS, JSON.stringify(updatedReflections));
+  } else {
+    // Create a new "Passive" reflection entry if at least one thing is checked
+    // This ensures history is recorded even if the user forgets to do Maghrib Check-in
+    const hasProgress = currentRoutines.some(r => r.completedAt) || currentPriorities.some(p => p.completed);
+
+    if (hasProgress) {
+      const newReflection: Reflection = {
+        id: Date.now().toString(),
+        date: todayDate.toISOString(),
+        winOfDay: "",
+        hurdle: "",
+        priorities: [],
+        smallChange: "",
+        todayRoutines: currentRoutines,
+        todayPriorities: currentPriorities,
+      };
+      const updatedReflections = [newReflection, ...reflections];
+      localStorage.setItem(STORAGE_KEYS.REFLECTIONS, JSON.stringify(updatedReflections));
+    }
   }
 };
