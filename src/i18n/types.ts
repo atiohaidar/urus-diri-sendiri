@@ -25,6 +25,8 @@ export interface Translation {
         save: string;
         save_toast_title: string;
         save_toast_desc: string;
+        add_images: string;
+        image_limit: string;
     };
     navigation: {
         home: string;
@@ -42,6 +44,8 @@ export interface Translation {
         priorities_set: string;
         small_change: string;
         evening_reflection: string;
+        daily_photos: string;
+        load_more: string;
     };
     settings: {
         title: string;
@@ -61,10 +65,12 @@ export interface Translation {
         import_error: string;
         cloud_title: string;
         cloud_sheet_url: string;
+        cloud_folder_url: string;
         cloud_push: string;
         cloud_pull: string;
         cloud_save_config: string;
         cloud_help: string;
+        cloud_folder_help: string;
         cloud_success_push: string;
         cloud_success_pull: string;
         cloud_error_permission: string;

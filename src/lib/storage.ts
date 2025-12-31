@@ -1,5 +1,6 @@
 import { PriorityTask, Reflection, Note, RoutineItem } from './types';
 import { toggleRoutineCompletion as toggleRoutineHelper } from './routine-helpers';
+import { getImage } from './idb';
 import { STORAGE_KEYS } from './constants';
 
 // Re-export types and utils for backward compatibility
@@ -7,8 +8,23 @@ export * from './types';
 export * from './time-utils';
 export * from './routine-helpers';
 
+// In-memory cache to avoid excessive JSON.parse calls
+const cache: {
+  priorities: PriorityTask[] | null;
+  reflections: Reflection[] | null;
+  notes: Note[] | null;
+  routines: RoutineItem[] | null;
+} = {
+  priorities: null,
+  reflections: null,
+  notes: null,
+  routines: null,
+};
+
 // --- Priorities ---
 export const getPriorities = (): PriorityTask[] => {
+  if (cache.priorities) return cache.priorities;
+
   const data = localStorage.getItem(STORAGE_KEYS.PRIORITIES);
   if (!data) return [];
   const priorities: PriorityTask[] = JSON.parse(data);
@@ -33,6 +49,7 @@ export const getPriorities = (): PriorityTask[] => {
 };
 
 export const savePriorities = (priorities: PriorityTask[]) => {
+  cache.priorities = priorities;
   localStorage.setItem(STORAGE_KEYS.PRIORITIES, JSON.stringify(priorities));
 };
 
@@ -63,9 +80,13 @@ export const addPriority = (text: string) => {
 
 // --- Reflections ---
 export const getReflections = (): Reflection[] => {
+  if (cache.reflections) return cache.reflections;
+
   const data = localStorage.getItem(STORAGE_KEYS.REFLECTIONS);
   if (!data) return [];
-  return JSON.parse(data);
+  const reflections = JSON.parse(data);
+  cache.reflections = reflections;
+  return reflections;
 };
 
 export const saveReflection = (reflection: Omit<Reflection, 'id'>) => {
@@ -114,9 +135,13 @@ export const saveReflection = (reflection: Omit<Reflection, 'id'>) => {
 
 // --- Notes ---
 export const getNotes = (): Note[] => {
+  if (cache.notes) return cache.notes;
+
   const data = localStorage.getItem(STORAGE_KEYS.NOTES);
   if (!data) return [];
-  return JSON.parse(data);
+  const notes = JSON.parse(data);
+  cache.notes = notes;
+  return notes;
 };
 
 export const saveNote = (note: Omit<Note, 'id' | 'createdAt' | 'updatedAt'>) => {
@@ -129,6 +154,7 @@ export const saveNote = (note: Omit<Note, 'id' | 'createdAt' | 'updatedAt'>) => 
     updatedAt: now,
   };
   notes.unshift(newNote);
+  cache.notes = notes;
   localStorage.setItem(STORAGE_KEYS.NOTES, JSON.stringify(notes));
   return newNote;
 };
@@ -140,6 +166,7 @@ export const updateNote = (id: string, updates: Partial<Pick<Note, 'title' | 'co
       ? { ...n, ...updates, updatedAt: new Date().toISOString() }
       : n
   );
+  cache.notes = updated;
   localStorage.setItem(STORAGE_KEYS.NOTES, JSON.stringify(updated));
   return updated;
 };
@@ -147,12 +174,21 @@ export const updateNote = (id: string, updates: Partial<Pick<Note, 'title' | 'co
 export const deleteNote = (id: string) => {
   const notes = getNotes();
   const filtered = notes.filter(n => n.id !== id);
+  cache.notes = filtered;
   localStorage.setItem(STORAGE_KEYS.NOTES, JSON.stringify(filtered));
   return filtered;
 };
 
 // --- Routines ---
 export const getRoutines = (): RoutineItem[] => {
+  if (cache.routines) {
+    // We still need to check if it's a new day even if we have cache
+    const today = new Date().toDateString();
+    const lastOpen = localStorage.getItem(STORAGE_KEYS.LAST_OPEN_DATE);
+    if (lastOpen === today) return cache.routines;
+    // If not today, proceed to full logic
+  }
+
   const data = localStorage.getItem(STORAGE_KEYS.ROUTINES);
   let routines: RoutineItem[] = [];
 
@@ -165,6 +201,7 @@ export const getRoutines = (): RoutineItem[] => {
       { id: '5', startTime: '18:30', endTime: '18:40', activity: 'Maghrib Prayer', category: 'Spiritual' },
       { id: '6', startTime: '21:00', endTime: '21:30', activity: 'Reading Time', category: 'Learning' },
     ];
+    cache.routines = defaults;
     localStorage.setItem(STORAGE_KEYS.ROUTINES, JSON.stringify(defaults));
     return defaults;
   } else {
@@ -177,21 +214,23 @@ export const getRoutines = (): RoutineItem[] => {
 
   if (lastOpen !== today) {
     // IT'S A NEW DAY! 
-    // Reset ALL completion statuses in the master routine list
     const resetRoutines = routines.map(r => ({
       ...r,
       completedAt: null,
       updatedAt: undefined
     }));
+    cache.routines = resetRoutines;
     localStorage.setItem(STORAGE_KEYS.ROUTINES, JSON.stringify(resetRoutines));
     localStorage.setItem(STORAGE_KEYS.LAST_OPEN_DATE, today);
     return resetRoutines;
   }
 
+  cache.routines = routines;
   return routines;
 };
 
 export const saveRoutines = (routines: RoutineItem[]) => {
+  cache.routines = routines;
   localStorage.setItem(STORAGE_KEYS.ROUTINES, JSON.stringify(routines));
 };
 
@@ -222,10 +261,10 @@ export const updateDailySnapshot = () => {
       todayRoutines: currentRoutines,
       todayPriorities: currentPriorities,
     };
+    cache.reflections = updatedReflections;
     localStorage.setItem(STORAGE_KEYS.REFLECTIONS, JSON.stringify(updatedReflections));
   } else {
     // Create a new "Passive" reflection entry if at least one thing is checked
-    // This ensures history is recorded even if the user forgets to do Maghrib Check-in
     const hasProgress = currentRoutines.some(r => r.completedAt) || currentPriorities.some(p => p.completed);
 
     if (hasProgress) {
@@ -240,6 +279,7 @@ export const updateDailySnapshot = () => {
         todayPriorities: currentPriorities,
       };
       const updatedReflections = [newReflection, ...reflections];
+      cache.reflections = updatedReflections;
       localStorage.setItem(STORAGE_KEYS.REFLECTIONS, JSON.stringify(updatedReflections));
     }
   }
@@ -253,11 +293,15 @@ const CENTRAL_PROXY_URL = import.meta.env.VITE_CENTRAL_PROXY_URL;
 export const getCloudConfig = () => {
   return {
     sheetUrl: localStorage.getItem(STORAGE_KEYS.GOOGLE_SHEET_URL) || '',
+    folderUrl: localStorage.getItem('google_drive_folder_url') || '',
   };
 };
 
-export const saveCloudConfig = (sheetUrl: string) => {
+export const saveCloudConfig = (sheetUrl: string, folderUrl?: string) => {
   localStorage.setItem(STORAGE_KEYS.GOOGLE_SHEET_URL, sheetUrl);
+  if (folderUrl !== undefined) {
+    localStorage.setItem('google_drive_folder_url', folderUrl);
+  }
 };
 
 export const getAllAppData = () => {
@@ -269,20 +313,42 @@ export const getAllAppData = () => {
   };
 };
 
-export const pushToCloud = async (overrideSheetUrl?: string) => {
-  const { sheetUrl } = getCloudConfig();
+export const pushToCloud = async (overrideSheetUrl?: string, overrideFolderUrl?: string) => {
+  const { sheetUrl, folderUrl } = getCloudConfig();
   const finalSheetUrl = overrideSheetUrl || sheetUrl;
+  const finalFolderUrl = overrideFolderUrl || folderUrl;
 
   if (!finalSheetUrl) throw new Error("Google Sheet URL not configured");
 
-  const payload = getAllAppData();
+  // Hydrate reflections with images from IDB before pushing
+  const appData = getAllAppData();
+  const hydratedReflections = await Promise.all(appData.reflections.map(async (r) => {
+    if (r.imageIds && r.imageIds.length > 0) {
+      const idbImages: string[] = [];
+      for (const id of r.imageIds) {
+        const img = await getImage(id);
+        if (img) idbImages.push(img);
+      }
+      return { ...r, images: [...(r.images || []), ...idbImages] };
+    }
+    return r;
+  }));
 
-  const response = await fetch(CENTRAL_PROXY_URL, {
+  const payload = {
+    ...appData,
+    reflections: hydratedReflections
+  };
+
+  const response = await fetch(finalSheetUrl ? CENTRAL_PROXY_URL : '', {
     method: 'POST',
+    headers: {
+      'Content-Type': 'text/plain',
+    },
     body: JSON.stringify({
       action: 'push',
-      token: "PUBLIC", // Token internal di level script jika perlu, tapi di UI dihapus
+      token: "PUBLIC",
       sheetUrl: finalSheetUrl,
+      folderUrl: finalFolderUrl,
       payload
     }),
   });
@@ -299,8 +365,11 @@ export const pullFromCloud = async (overrideSheetUrl?: string) => {
 
   if (!finalSheetUrl) throw new Error("Google Sheet URL not configured");
 
-  const response = await fetch(CENTRAL_PROXY_URL, {
+  const response = await fetch(finalSheetUrl ? CENTRAL_PROXY_URL : '', {
     method: 'POST',
+    headers: {
+      'Content-Type': 'text/plain',
+    },
     body: JSON.stringify({
       action: 'pull',
       token: "PUBLIC",

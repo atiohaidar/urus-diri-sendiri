@@ -1,13 +1,16 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Trophy, Construction, Rocket, Sprout, ArrowRight, Leaf, Plus, Trash2, CheckCircle2, Circle } from 'lucide-react';
+import { ArrowLeft, Trophy, Construction, Rocket, Sprout, ArrowRight, Leaf, Plus, Trash2, CheckCircle2, Circle, Image as ImageIcon, X, Camera, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
-import { saveReflection, getRoutines, getPriorities } from '@/lib/storage';
+import { saveReflection, getRoutines, getPriorities, getReflections } from '@/lib/storage';
 import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/i18n/LanguageContext';
 import { cn } from '@/lib/utils';
+import { compressImage } from '@/lib/image-utils';
+import { saveImage, getImage, deleteImage } from '@/lib/idb';
+import { useEffect } from 'react';
 
 const MaghribCheckinPage = () => {
     const navigate = useNavigate();
@@ -17,6 +20,48 @@ const MaghribCheckinPage = () => {
     const [hurdle, setHurdle] = useState('');
     const [priorities, setPriorities] = useState(['', '', '']);
     const [smallChange, setSmallChange] = useState('');
+    const [images, setImages] = useState<string[]>([]);
+    const [linkInput, setLinkInput] = useState('');
+    const [showLinkInput, setShowLinkInput] = useState(false);
+
+    useEffect(() => {
+        const loadTodayData = async () => {
+            const reflections = getReflections();
+            const today = new Date().toDateString();
+            const todayReflection = reflections.find(r => new Date(r.date).toDateString() === today);
+
+            if (todayReflection) {
+                setWinOfDay(todayReflection.winOfDay || '');
+                setHurdle(todayReflection.hurdle || '');
+                setPriorities(todayReflection.priorities.length > 0 ? [...todayReflection.priorities] : ['', '', '']);
+                setSmallChange(todayReflection.smallChange || '');
+
+                // Load images from IDB (local) and cloud URLs (Google Drive)
+                const loadedImages: string[] = [];
+
+                // 1. Get local images
+                if (todayReflection.imageIds) {
+                    for (const id of todayReflection.imageIds) {
+                        const img = await getImage(id);
+                        if (img) loadedImages.push(img);
+                    }
+                }
+
+                // 2. Get cloud images (Google Drive links)
+                if (todayReflection.images) {
+                    todayReflection.images.forEach(url => {
+                        if (url && url.startsWith('http')) {
+                            loadedImages.push(url);
+                        }
+                    });
+                }
+
+                setImages(loadedImages);
+            }
+        };
+
+        loadTodayData();
+    }, []);
 
     const updatePriority = (index: number, value: string) => {
         const updated = [...priorities];
@@ -34,10 +79,75 @@ const MaghribCheckinPage = () => {
         setPriorities(updated);
     };
 
-    const handleSave = () => {
+    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = Array.from(e.target.files || []);
+        if (images.length + files.length > 3) {
+            toast({
+                title: t.checkin.image_limit,
+                variant: "destructive"
+            });
+            return;
+        }
+
+        files.forEach(file => {
+            const reader = new FileReader();
+            reader.onloadend = async () => {
+                const base64 = reader.result as string;
+                try {
+                    const compressed = await compressImage(base64, 800, 0.7);
+                    setImages(prev => [...prev, compressed]);
+                } catch (err) {
+                    console.error('Compression failed', err);
+                    setImages(prev => [...prev, base64]); // Fallback
+                }
+            };
+            reader.readAsDataURL(file);
+        });
+    };
+
+    const addLinkImage = () => {
+        if (!linkInput.trim()) return;
+        if (images.length >= 3) {
+            toast({ title: t.checkin.image_limit, variant: "destructive" });
+            return;
+        }
+        setImages(prev => [...prev, linkInput.trim()]);
+        setLinkInput('');
+        setShowLinkInput(false);
+    };
+
+    const removeImage = (index: number) => {
+        setImages(prev => prev.filter((_, i) => i !== index));
+    };
+
+    const handleSave = async () => {
         // Capture snapshots of today
         const todayRoutines = getRoutines();
         const todayPriorities = getPriorities();
+
+        // Clean up old images for TODAY if editing
+        const reflections = getReflections();
+        const todayStr = new Date().toDateString();
+        const existingToday = reflections.find(r => new Date(r.date).toDateString() === todayStr);
+        if (existingToday?.imageIds) {
+            for (const id of existingToday.imageIds) {
+                await deleteImage(id);
+            }
+        }
+
+        // Differentiate between local (base64) and cloud (URL) images
+        const imageIds: string[] = [];
+        const cloudUrls: string[] = [];
+
+        for (let i = 0; i < images.length; i++) {
+            if (images[i].startsWith('http')) {
+                cloudUrls.push(images[i]);
+            } else {
+                const id = `img-${Date.now()}-${i}`;
+                await saveImage(id, images[i]);
+                imageIds.push(id);
+            }
+        }
 
         saveReflection({
             date: new Date().toISOString(),
@@ -46,7 +156,9 @@ const MaghribCheckinPage = () => {
             priorities: priorities.filter(p => p.trim()),
             smallChange,
             todayRoutines,
-            todayPriorities
+            todayPriorities,
+            images: cloudUrls,
+            imageIds
         });
 
         toast({
@@ -195,6 +307,85 @@ const MaghribCheckinPage = () => {
                                 placeholder={t.checkin.small_change_placeholder}
                                 className="min-h-[80px] bg-card rounded-2xl border-0 resize-none card-elevated focus-visible:ring-primary"
                             />
+                        </div>
+
+                        {/* Image Upload */}
+                        <div className="animate-fade-in" style={{ animationDelay: '300ms' }}>
+                            <label className="flex items-center gap-2 text-sm font-semibold mb-3">
+                                <ImageIcon className="w-4 h-4 text-pink-500" />
+                                {t.checkin.add_images}
+                            </label>
+
+                            <div className="flex flex-wrap gap-3">
+                                {images.map((img, idx) => (
+                                    <div key={idx} className="relative w-20 h-20 rounded-2xl overflow-hidden shadow-sm animate-in zoom-in-50 duration-200 bg-secondary/30 border border-border/50">
+                                        {img.startsWith('http') ? (
+                                            <a
+                                                href={img}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="w-full h-full flex items-center justify-center bg-primary/10 hover:bg-primary/20 transition-colors"
+                                                title="View in Google Drive"
+                                            >
+                                                <ExternalLink className="w-6 h-6 text-primary" />
+                                            </a>
+                                        ) : (
+                                            <img src={img} alt="Preview" className="w-full h-full object-cover" />
+                                        )}
+                                        <button
+                                            onClick={() => removeImage(idx)}
+                                            className="absolute top-1 right-1 bg-background/80 backdrop-blur-sm p-1 rounded-full text-foreground hover:bg-destructive hover:text-destructive-foreground transition-colors"
+                                        >
+                                            <X className="w-3 h-3" />
+                                        </button>
+                                    </div>
+                                ))}
+
+                                {images.length < 3 && (
+                                    <div className="flex gap-3">
+                                        <label className="w-20 h-20 rounded-2xl border-2 border-dashed border-primary/20 bg-primary/5 flex flex-col items-center justify-center gap-1 cursor-pointer hover:bg-primary/10 transition-colors group">
+                                            <Camera className="w-5 h-5 text-primary/60 group-hover:text-primary" />
+                                            <span className="text-[10px] font-medium text-primary/60 group-hover:text-primary">Camera</span>
+                                            <input
+                                                type="file"
+                                                accept="image/*"
+                                                multiple
+                                                onChange={handleImageUpload}
+                                                className="hidden"
+                                            />
+                                        </label>
+
+                                        <button
+                                            onClick={() => setShowLinkInput(!showLinkInput)}
+                                            className="w-20 h-20 rounded-2xl border-2 border-dashed border-primary/20 bg-primary/5 flex flex-col items-center justify-center gap-1 hover:bg-primary/10 transition-colors group"
+                                        >
+                                            <ExternalLink className="w-5 h-5 text-primary/60 group-hover:text-primary" />
+                                            <span className="text-[10px] font-medium text-primary/60 group-hover:text-primary">URL</span>
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+
+                            {showLinkInput && (
+                                <div className="mt-3 flex gap-2 animate-in slide-in-from-top-2 duration-200">
+                                    <Input
+                                        value={linkInput}
+                                        onChange={(e) => setLinkInput(e.target.value)}
+                                        placeholder="Paste Google Drive link here..."
+                                        className="h-10 rounded-xl bg-card border-0 card-elevated"
+                                    />
+                                    <Button
+                                        onClick={addLinkImage}
+                                        className="h-10 rounded-xl px-4"
+                                    >
+                                        OK
+                                    </Button>
+                                </div>
+                            )}
+
+                            <p className="text-[10px] text-muted-foreground mt-2 px-1 italic">
+                                {t.checkin.image_limit}
+                            </p>
                         </div>
                     </div>
                 </div>

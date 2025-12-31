@@ -1,6 +1,6 @@
 /**
- * URUSDIRI CENTRAL PROXY - TABULAR VERSION (NO TOKEN)
- * Data disimpan dalam format tabel yang rapi.
+ * URUSDIRI CENTRAL PROXY - TABULAR VERSION + GOOGLE DRIVE STORAGE
+ * Data disimpan dalam format tabel. Gambar diupload ke Google Drive jika URL Folder btersedia.
  */
 
 function doPost(e) {
@@ -10,7 +10,9 @@ function doPost(e) {
     const ss = SpreadsheetApp.openByUrl(data.sheetUrl);
 
     if (data.action === "push") {
-      saveTabularData(ss, data.payload);
+      const folderId = extractFolderId(data.folderUrl);
+      const processedPayload = processImages(data.payload, folderId);
+      saveTabularData(ss, processedPayload);
       return res.setContent(JSON.stringify({ status: "success" }));
     } else if (data.action === "pull") {
       const payload = getTabularData(ss);
@@ -21,12 +23,66 @@ function doPost(e) {
   }
 }
 
+/**
+ * Ekstrak Folder ID dari URL Google Drive
+ */
+function extractFolderId(folderLink) {
+  if (!folderLink) return null;
+  const match = folderLink.match(/[-\w]{25,}/);
+  return match ? match[0] : null;
+}
+
+/**
+ * Proses upload gambar ke Google Drive dan ganti base64 dengan URL
+ */
+function processImages(payload, folderId) {
+  if (!folderId || !payload.reflections) return payload;
+
+  payload.reflections = payload.reflections.map(r => {
+    if (r.images && r.images.length > 0) {
+      r.images = r.images.map((img, idx) => {
+        // Jika sudah berupa URL (e.g. docs.google.com), jangan upload lagi
+        if (img.startsWith('http')) return img;
+        
+        // Upload Base64 ke Drive
+        try {
+          const fileName = "UrusDiri_" + r.id + "_" + idx + ".jpg";
+          const base64Data = img.split(",")[1];
+          const contentType = img.split(":")[1].split(";")[0];
+          const blob = Utilities.newBlob(Utilities.base64Decode(base64Data), contentType, fileName);
+          const folder = DriveApp.getFolderById(folderId);
+          const file = folder.createFile(blob);
+          file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+          return "https://drive.usercontent.google.com/download?id=" + file.getId() + "&export=download";
+        } catch (e) {
+          return "Error: " + e.toString();
+        }
+      });
+    }
+    return r;
+  });
+  
+  return payload;
+}
+
+/**
+ * Simpan data ke Spreadsheet dalam format tabel
+ */
 function saveTabularData(ss, data) {
-  // 1. Simpan Refleksi
   const refSheet = getOrCreateSheet(ss, "Refleksi");
-  refSheet.clearContents().appendRow(["ID", "Tanggal", "Hari Ini", "Hambatan", "Perubahan Kecil", "Rencana Besok"]);
-  data.reflections.forEach(r => {
-    refSheet.appendRow([r.id, r.date, r.winOfDay, r.hurdle, r.smallChange, (r.priorities || []).join(", ")]);
+  refSheet.clearContents();
+  refSheet.appendRow(["ID", "Tanggal", "Hari Ini", "Hambatan", "Perubahan Kecil", "Rencana Besok", "Links Foto"]);
+  
+  data.reflections.forEach((r) => {
+    refSheet.appendRow([
+      r.id, 
+      r.date, 
+      r.winOfDay, 
+      r.hurdle, 
+      r.smallChange, 
+      (r.priorities || []).join(", "),
+      (r.images || []).join("\n")
+    ]);
   });
 
   // 2. Simpan Prioritas (Master)
@@ -63,6 +119,9 @@ function saveTabularData(ss, data) {
   try { metaSheet.hideSheet(); } catch(e) {}
 }
 
+/**
+ * Ambil data JSON dari sheet tersembunyi
+ */
 function getTabularData(ss) {
   let metaSheet = ss.getSheetByName("_SYNC_METADATA_");
   if (!metaSheet) return null;
@@ -70,7 +129,19 @@ function getTabularData(ss) {
   return jsonStr ? JSON.parse(jsonStr) : null;
 }
 
+/**
+ * Utilitas helper untuk mendapatkan atau membuat sheet
+ */
 function getOrCreateSheet(ss, name) {
   let sheet = ss.getSheetByName(name) || ss.insertSheet(name);
   return sheet;
+}
+
+/**
+ * JALANKAN INI SEKALI SAJA DI EDITOR UNTUK MEMBERIKAN IZIN
+ */
+function initPermissions() {
+  DriveApp.getRootFolder();
+  SpreadsheetApp.getActiveSpreadsheet();
+  Logger.log("Izin Google Drive & Spreadsheet berhasil diberikan!");
 }

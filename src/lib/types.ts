@@ -19,6 +19,8 @@ export interface Reflection {
     // Snapshots of today's progress
     todayRoutines?: RoutineItem[];
     todayPriorities?: PriorityTask[];
+    images?: string[]; // Base64 strings (Legacy) or URLs
+    imageIds?: string[]; // IDs for IndexedDB
 }
 
 export interface Note {

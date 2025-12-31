@@ -15,6 +15,7 @@ const SettingsScreen = () => {
     const { language, setLanguage, t } = useLanguage();
     const [importing, setImporting] = useState(false);
     const [sheetUrl, setSheetUrl] = useState(getCloudConfig().sheetUrl);
+    const [folderUrl, setFolderUrl] = useState(getCloudConfig().folderUrl);
     const [isSyncing, setIsSyncing] = useState(false);
 
     const handleExport = () => {
@@ -43,7 +44,7 @@ const SettingsScreen = () => {
     };
 
     const handleCloudSave = () => {
-        saveCloudConfig(sheetUrl);
+        saveCloudConfig(sheetUrl, folderUrl);
         toast.success(t.settings.cloud_save_config);
     };
 
@@ -54,8 +55,8 @@ const SettingsScreen = () => {
         }
         setIsSyncing(true);
         try {
-            saveCloudConfig(sheetUrl);
-            const success = await pushToCloud(sheetUrl);
+            saveCloudConfig(sheetUrl, folderUrl);
+            const success = await pushToCloud(sheetUrl, folderUrl);
             if (success) {
                 toast.success(t.settings.cloud_success_push);
             } else {
@@ -75,7 +76,7 @@ const SettingsScreen = () => {
         }
         setIsSyncing(true);
         try {
-            saveCloudConfig(sheetUrl);
+            saveCloudConfig(sheetUrl, folderUrl);
             await pullFromCloud(sheetUrl);
             toast.success(t.settings.cloud_success_pull);
             setTimeout(() => window.location.reload(), 1500);
@@ -166,9 +167,12 @@ const SettingsScreen = () => {
                     </div>
 
                     <div className="space-y-4">
-                        <div className="bg-primary/5 border border-primary/10 rounded-2xl p-4">
+                        <div className="bg-primary/5 border border-primary/10 rounded-2xl p-4 space-y-2">
                             <p className="text-xs text-primary font-medium leading-relaxed">
                                 {t.settings.cloud_help}
+                            </p>
+                            <p className="text-[10px] text-primary/70 leading-relaxed italic">
+                                {t.settings.cloud_folder_help}
                             </p>
                         </div>
 
@@ -181,6 +185,19 @@ const SettingsScreen = () => {
                                 value={sheetUrl}
                                 onChange={(e) => setSheetUrl(e.target.value)}
                                 placeholder="https://docs.google.com/spreadsheets/d/..."
+                                className="h-11 rounded-xl bg-muted/30 border-0 focus-visible:ring-primary/30"
+                            />
+                        </div>
+
+                        <div className="space-y-2">
+                            <label className="text-xs font-bold text-muted-foreground uppercase flex items-center gap-1.5">
+                                <LinkIcon className="w-3 h-3" />
+                                {t.settings.cloud_folder_url}
+                            </label>
+                            <Input
+                                value={folderUrl}
+                                onChange={(e) => setFolderUrl(e.target.value)}
+                                placeholder="https://drive.google.com/drive/folders/..."
                                 className="h-11 rounded-xl bg-muted/30 border-0 focus-visible:ring-primary/30"
                             />
                         </div>
