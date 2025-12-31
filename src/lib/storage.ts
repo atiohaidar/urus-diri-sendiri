@@ -51,7 +51,7 @@ export const savePriorities = (priorities: PriorityTask[]) => {
 
 export const updatePriorityCompletion = (id: string, completed: boolean) => {
   const priorities = getPriorities();
-  const updated = priorities.map(p => 
+  const updated = priorities.map(p =>
     p.id === id ? { ...p, completed } : p
   );
   savePriorities(updated);
@@ -73,7 +73,7 @@ export const saveReflection = (reflection: Omit<Reflection, 'id'>) => {
   };
   reflections.unshift(newReflection);
   localStorage.setItem(KEYS.REFLECTIONS, JSON.stringify(reflections));
-  
+
   // Update tomorrow's priorities
   const newPriorities: PriorityTask[] = reflection.priorities
     .filter(p => p.trim())
@@ -83,7 +83,7 @@ export const saveReflection = (reflection: Omit<Reflection, 'id'>) => {
       completed: false,
     }));
   savePriorities(newPriorities);
-  
+
   return newReflection;
 };
 
@@ -110,9 +110,9 @@ export const saveNote = (note: Omit<Note, 'id' | 'createdAt' | 'updatedAt'>) => 
 
 export const updateNote = (id: string, updates: Partial<Pick<Note, 'title' | 'content'>>) => {
   const notes = getNotes();
-  const updated = notes.map(n => 
-    n.id === id 
-      ? { ...n, ...updates, updatedAt: new Date().toISOString() } 
+  const updated = notes.map(n =>
+    n.id === id
+      ? { ...n, ...updates, updatedAt: new Date().toISOString() }
       : n
   );
   localStorage.setItem(KEYS.NOTES, JSON.stringify(updated));
@@ -161,6 +161,35 @@ export const parseTimeToMinutes = (timeStr: string): number => {
   return hours * 60 + minutes;
 };
 
+// Parse duration string to minutes
+export const parseDurationToMinutes = (durationStr: string): number => {
+  const match = durationStr.match(/(\d+)\s*(mins|min|hours|hr|hour)/i);
+  if (!match) return 0;
+  const val = parseInt(match[1]);
+  const unit = match[2].toLowerCase();
+
+  if (unit.startsWith('h')) {
+    return val * 60;
+  }
+  return val;
+};
+
+// Check if two routine items overlap
+export const checkOverlap = (item1: RoutineItem, item2: RoutineItem): boolean => {
+  if (item1.id === item2.id) return false; // Don't compare with self
+
+  const start1 = parseTimeToMinutes(item1.time);
+  const duration1 = parseDurationToMinutes(item1.duration);
+  const end1 = start1 + duration1;
+
+  const start2 = parseTimeToMinutes(item2.time);
+  const duration2 = parseDurationToMinutes(item2.duration);
+  const end2 = start2 + duration2;
+
+  // Check for overlap: Start1 < End2 AND Start2 < End1
+  return start1 < end2 && start2 < end1;
+};
+
 // Get current time in minutes since midnight
 export const getCurrentTimeInMinutes = (): number => {
   const now = new Date();
@@ -170,7 +199,7 @@ export const getCurrentTimeInMinutes = (): number => {
 // Find the current or next routine item index
 export const findCurrentRoutineIndex = (routines: RoutineItem[]): number => {
   const currentMinutes = getCurrentTimeInMinutes();
-  
+
   // Find the first routine that's at or after current time
   for (let i = 0; i < routines.length; i++) {
     const routineMinutes = parseTimeToMinutes(routines[i].time);
@@ -178,7 +207,7 @@ export const findCurrentRoutineIndex = (routines: RoutineItem[]): number => {
       return i;
     }
   }
-  
+
   // If all routines have passed, check if we're within the last routine's timeframe
   if (routines.length > 0) {
     const lastRoutineMinutes = parseTimeToMinutes(routines[routines.length - 1].time);
@@ -186,7 +215,7 @@ export const findCurrentRoutineIndex = (routines: RoutineItem[]): number => {
       return routines.length - 1;
     }
   }
-  
+
   return 0;
 };
 

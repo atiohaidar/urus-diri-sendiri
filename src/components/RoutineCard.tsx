@@ -7,6 +7,7 @@ interface RoutineCardProps {
   routine: RoutineItem;
   index: number;
   isActive?: boolean;
+  isOverlapping?: boolean;
 }
 
 const categoryIcons: Record<string, React.ReactNode> = {
@@ -28,26 +29,34 @@ const categoryColors: Record<string, string> = {
 };
 
 const RoutineCard = forwardRef<HTMLDivElement, RoutineCardProps>(
-  ({ routine, index, isActive = false }, ref) => {
+  ({ routine, index, isActive = false, isOverlapping = false }, ref) => {
     return (
       <div
         ref={ref}
         className={cn(
-          "bg-card rounded-3xl p-4 card-elevated animate-fade-in transition-all duration-300",
-          isActive && "ring-2 ring-primary shadow-lg shadow-primary/20"
+          "bg-card rounded-3xl p-4 card-elevated animate-fade-in transition-all duration-300 border-2",
+          isActive ? "ring-2 ring-primary shadow-lg shadow-primary/20 border-transparent" : "border-transparent",
+          isOverlapping && "border-destructive/50 bg-destructive/5"
         )}
         style={{ animationDelay: `${index * 50}ms` }}
       >
         <div className="flex items-start justify-between">
           <div className="flex-1">
             <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
-              <Clock className="w-3.5 h-3.5" />
-              <span>{routine.time}</span>
+              <Clock className={cn("w-3.5 h-3.5", isOverlapping && "text-destructive")} />
+              <span className={cn(isOverlapping && "text-destructive font-medium")}>
+                {routine.time}
+              </span>
               <span className="text-muted-foreground/50">•</span>
               <span>{routine.duration}</span>
               {isActive && (
                 <span className="ml-1 px-2 py-0.5 rounded-full bg-primary/20 text-primary text-xs font-medium">
                   Now
+                </span>
+              )}
+              {isOverlapping && (
+                <span className="ml-1 px-2 py-0.5 rounded-full bg-destructive/10 text-destructive text-xs font-medium">
+                  Overlap
                 </span>
               )}
             </div>
