@@ -1,53 +1,21 @@
-// LocalStorage utilities for persistence
+import { PriorityTask, Reflection, Note, RoutineItem } from './types';
+import { toggleRoutineCompletion as toggleRoutineHelper } from './routine-helpers';
+import { STORAGE_KEYS } from './constants';
 
-export interface PriorityTask {
-  id: string;
-  text: string;
-  completed: boolean;
-}
+// Re-export types and utils for backward compatibility
+export * from './types';
+export * from './time-utils';
+export * from './routine-helpers';
 
-export interface Reflection {
-  id: string;
-  date: string;
-  winOfDay: string;
-  hurdle: string;
-  priorities: string[];
-  smallChange: string;
-}
-
-export interface Note {
-  id: string;
-  title: string;
-  content: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface RoutineItem {
-  id: string;
-  startTime: string; // "HH:mm" 24h format
-  endTime: string;   // "HH:mm" 24h format
-  activity: string;
-  category: string;
-  completedAt?: string | null; // ISO date string of TODAY if completed today
-}
-
-const KEYS = {
-  PRIORITIES: 'urus-diri-priorities',
-  REFLECTIONS: 'urus-diri-reflections',
-  NOTES: 'urus-diri-notes',
-  ROUTINES: 'urus-diri-routines',
-};
-
-// Priorities
+// --- Priorities ---
 export const getPriorities = (): PriorityTask[] => {
-  const data = localStorage.getItem(KEYS.PRIORITIES);
+  const data = localStorage.getItem(STORAGE_KEYS.PRIORITIES);
   if (!data) return [];
   return JSON.parse(data);
 };
 
 export const savePriorities = (priorities: PriorityTask[]) => {
-  localStorage.setItem(KEYS.PRIORITIES, JSON.stringify(priorities));
+  localStorage.setItem(STORAGE_KEYS.PRIORITIES, JSON.stringify(priorities));
 };
 
 export const updatePriorityCompletion = (id: string, completed: boolean) => {
@@ -59,9 +27,9 @@ export const updatePriorityCompletion = (id: string, completed: boolean) => {
   return updated;
 };
 
-// Reflections
+// --- Reflections ---
 export const getReflections = (): Reflection[] => {
-  const data = localStorage.getItem(KEYS.REFLECTIONS);
+  const data = localStorage.getItem(STORAGE_KEYS.REFLECTIONS);
   if (!data) return [];
   return JSON.parse(data);
 };
@@ -73,9 +41,9 @@ export const saveReflection = (reflection: Omit<Reflection, 'id'>) => {
     id: Date.now().toString(),
   };
   reflections.unshift(newReflection);
-  localStorage.setItem(KEYS.REFLECTIONS, JSON.stringify(reflections));
+  localStorage.setItem(STORAGE_KEYS.REFLECTIONS, JSON.stringify(reflections));
 
-  // Update tomorrow's priorities
+  // Update tomorrow's priorities based on reflection
   const newPriorities: PriorityTask[] = reflection.priorities
     .filter(p => p.trim())
     .map((text, index) => ({
@@ -88,9 +56,9 @@ export const saveReflection = (reflection: Omit<Reflection, 'id'>) => {
   return newReflection;
 };
 
-// Notes
+// --- Notes ---
 export const getNotes = (): Note[] => {
-  const data = localStorage.getItem(KEYS.NOTES);
+  const data = localStorage.getItem(STORAGE_KEYS.NOTES);
   if (!data) return [];
   return JSON.parse(data);
 };
@@ -105,7 +73,7 @@ export const saveNote = (note: Omit<Note, 'id' | 'createdAt' | 'updatedAt'>) => 
     updatedAt: now,
   };
   notes.unshift(newNote);
-  localStorage.setItem(KEYS.NOTES, JSON.stringify(notes));
+  localStorage.setItem(STORAGE_KEYS.NOTES, JSON.stringify(notes));
   return newNote;
 };
 
@@ -116,20 +84,20 @@ export const updateNote = (id: string, updates: Partial<Pick<Note, 'title' | 'co
       ? { ...n, ...updates, updatedAt: new Date().toISOString() }
       : n
   );
-  localStorage.setItem(KEYS.NOTES, JSON.stringify(updated));
+  localStorage.setItem(STORAGE_KEYS.NOTES, JSON.stringify(updated));
   return updated;
 };
 
 export const deleteNote = (id: string) => {
   const notes = getNotes();
   const filtered = notes.filter(n => n.id !== id);
-  localStorage.setItem(KEYS.NOTES, JSON.stringify(filtered));
+  localStorage.setItem(STORAGE_KEYS.NOTES, JSON.stringify(filtered));
   return filtered;
 };
 
-// Routines (default data)
+// --- Routines ---
 export const getRoutines = (): RoutineItem[] => {
-  const data = localStorage.getItem(KEYS.ROUTINES);
+  const data = localStorage.getItem(STORAGE_KEYS.ROUTINES);
   let routines: RoutineItem[] = [];
 
   if (!data) {
@@ -141,179 +109,31 @@ export const getRoutines = (): RoutineItem[] => {
       { id: '5', startTime: '18:30', endTime: '18:40', activity: 'Maghrib Prayer', category: 'Spiritual' },
       { id: '6', startTime: '21:00', endTime: '21:30', activity: 'Reading Time', category: 'Learning' },
     ];
-    localStorage.setItem(KEYS.ROUTINES, JSON.stringify(defaults));
+    localStorage.setItem(STORAGE_KEYS.ROUTINES, JSON.stringify(defaults));
     return defaults;
   } else {
     routines = JSON.parse(data);
   }
 
-  // Check and Reset Daily Completions
+  // Check last open date logic
   const today = new Date().toDateString();
-  const lastOpen = localStorage.getItem('last_open_date');
+  const lastOpen = localStorage.getItem(STORAGE_KEYS.LAST_OPEN_DATE);
 
   if (lastOpen !== today) {
-    // New day, reset completions? OR Keep them but strictly check date?
-    // Let's rely on completedAt date string. If completedAt is NOT today, it is NOT completed for today.
-    // But we might want to clear old dates to keep JSON size small slightly? No need complex logic yet.
-    localStorage.setItem('last_open_date', today);
+    localStorage.setItem(STORAGE_KEYS.LAST_OPEN_DATE, today);
   }
 
   return routines;
 };
 
-// Check if routine is completed TODAY
-export const isRoutineCompletedToday = (item: RoutineItem): boolean => {
-  if (!item.completedAt) return false;
-  const completedDate = new Date(item.completedAt).toDateString();
-  const today = new Date().toDateString();
-  return completedDate === today;
+export const saveRoutines = (routines: RoutineItem[]) => {
+  localStorage.setItem(STORAGE_KEYS.ROUTINES, JSON.stringify(routines));
 };
 
-// Toggle completion
+// Wrapper for toggleRoutineCompletion to include side-effect (save)
+// The original implementation had this side-effect.
 export const toggleRoutineCompletion = (id: string, routines: RoutineItem[]) => {
-  const updated = routines.map(r => {
-    if (r.id === id) {
-      const isCompleted = isRoutineCompletedToday(r);
-      return {
-        ...r,
-        completedAt: isCompleted ? null : new Date().toISOString()
-      };
-    }
-    return r;
-  });
+  const updated = toggleRoutineHelper(id, routines);
   saveRoutines(updated);
   return updated;
-};
-
-// Get stats
-export const getCompletionStats = (routines: RoutineItem[]) => {
-  const total = routines.length;
-  if (total === 0) return { total: 0, completed: 0, percent: 0 };
-  const completed = routines.filter(isRoutineCompletedToday).length;
-  return {
-    total,
-    completed,
-    percent: Math.round((completed / total) * 100)
-  };
-};
-
-export const saveRoutines = (routines: RoutineItem[]) => {
-  localStorage.setItem(KEYS.ROUTINES, JSON.stringify(routines));
-};
-
-// Parse "HH:mm" to minutes
-export const parseTimeToMinutes = (timeStr: string): number => {
-  const [hours, minutes] = timeStr.split(':').map(Number);
-  return hours * 60 + minutes;
-};
-
-// Calculate duration string between two times
-export const calculateDuration = (start: string, end: string): string => {
-  const startMins = parseTimeToMinutes(start);
-  let endMins = parseTimeToMinutes(end);
-  if (endMins < startMins) endMins += 24 * 60; // Handle overnight
-
-  const diff = endMins - startMins;
-  const hours = Math.floor(diff / 60);
-  const mins = diff % 60;
-
-  if (hours > 0 && mins > 0) return `${hours} hr ${mins} min`;
-  if (hours > 0) return `${hours} hr`;
-  return `${mins} min`;
-};
-
-// Parse duration string to minutes
-export const parseDurationToMinutes = (durationStr: string): number => {
-  const match = durationStr.match(/(\d+)\s*(mins|min|hours|hr|hour)/i);
-  if (!match) return 0;
-  const val = parseInt(match[1]);
-  const unit = match[2].toLowerCase();
-
-  if (unit.startsWith('h')) {
-    return val * 60;
-  }
-  return val;
-};
-
-// Check if two routine items overlap
-export const checkOverlap = (item1: RoutineItem, item2: RoutineItem): boolean => {
-  if (item1.id === item2.id) return false;
-
-  const start1 = parseTimeToMinutes(item1.startTime);
-  const end1 = parseTimeToMinutes(item1.endTime);
-
-  const start2 = parseTimeToMinutes(item2.startTime);
-  const end2 = parseTimeToMinutes(item2.endTime);
-
-  // Handle overnight check if end < start? Assuming simplified day schedule for now
-  // For standard overlap: Start1 < End2 && Start2 < End1
-  return start1 < end2 && start2 < end1;
-};
-
-// Get current time in minutes since midnight
-export const getCurrentTimeInMinutes = (): number => {
-  const now = new Date();
-  return now.getHours() * 60 + now.getMinutes();
-};
-
-// Find the current or next routine item index
-export const findCurrentRoutineIndex = (routines: RoutineItem[]): number => {
-  const currentMinutes = getCurrentTimeInMinutes();
-
-  for (let i = 0; i < routines.length; i++) {
-    const start = parseTimeToMinutes(routines[i].startTime);
-    const end = parseTimeToMinutes(routines[i].endTime);
-
-    // Check if current time is WITHIN this routine
-    if (currentMinutes >= start && currentMinutes < end) {
-      return i;
-    }
-
-    // Check if current time is BEFORE this routine (next upcoming)
-    if (currentMinutes < start) {
-      // If i is 0, then this is the first one coming up.
-      // If i > 0, we already passed previous ones (since we didn't return), so this is the next one.
-      // Wait, let's refine:
-      // We want to highlight the Active one OR the Next one.
-      // If we are between routines, maybe highlight the next one?
-      return i;
-    }
-  }
-
-  // If we're past all routines, maybe show the last one properly or none?
-  // Let's return the last one if past end of day, or 0 for next day loop
-  if (routines.length > 0) {
-    return 0; // Wrap around
-  }
-
-  return 0;
-};
-
-export const formatDate = (date: Date | string): string => {
-  const d = typeof date === 'string' ? new Date(date) : date;
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-};
-
-export const formatTime = (date: Date | string): string => {
-  const d = typeof date === 'string' ? new Date(date) : date;
-  return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-};
-
-export const isToday = (date: Date | string): boolean => {
-  const d = typeof date === 'string' ? new Date(date) : date;
-  const today = new Date();
-  return d.toDateString() === today.toDateString();
-};
-
-export const isYesterday = (date: Date | string): boolean => {
-  const d = typeof date === 'string' ? new Date(date) : date;
-  const yesterday = new Date();
-  yesterday.setDate(yesterday.getDate() - 1);
-  return d.toDateString() === yesterday.toDateString();
-};
-
-export const getRelativeDate = (date: Date | string): string => {
-  if (isToday(date)) return formatTime(date);
-  if (isYesterday(date)) return 'Yesterday';
-  return formatDate(date);
 };

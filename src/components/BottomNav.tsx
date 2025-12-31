@@ -1,16 +1,21 @@
-import { Home, Lightbulb, Clock } from 'lucide-react';
+import { Home, Lightbulb, Clock, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useNavigate } from 'react-router-dom';
+import { useLanguage } from '@/i18n/LanguageContext';
 
 interface BottomNavProps {
-  activeTab: 'home' | 'parking' | 'history';
-  onTabChange: (tab: 'home' | 'parking' | 'history') => void;
+  activeTab: 'home' | 'parking' | 'history' | 'settings';
 }
 
-const BottomNav = ({ activeTab, onTabChange }: BottomNavProps) => {
+const BottomNav = ({ activeTab }: BottomNavProps) => {
+  const navigate = useNavigate();
+  const { t } = useLanguage();
+
   const tabs = [
-    { id: 'home' as const, icon: Home, label: 'Home' },
-    { id: 'parking' as const, icon: Lightbulb, label: 'Ideas' },
-    { id: 'history' as const, icon: Clock, label: 'History' },
+    { id: 'home' as const, icon: Home, label: t.navigation.home, path: '/' },
+    { id: 'parking' as const, icon: Lightbulb, label: t.navigation.ideas, path: '/ideas' },
+    { id: 'history' as const, icon: Clock, label: t.navigation.history, path: '/history' },
+    { id: 'settings' as const, icon: Settings, label: t.navigation.settings, path: '/settings' },
   ];
 
   return (
@@ -25,10 +30,10 @@ const BottomNav = ({ activeTab, onTabChange }: BottomNavProps) => {
         </div>
 
         <div className="flex items-center justify-around py-2 md:flex-col md:space-y-2 md:justify-start">
-          {tabs.map(({ id, icon: Icon, label }) => (
+          {tabs.map(({ id, icon: Icon, label, path }) => (
             <button
               key={id}
-              onClick={() => onTabChange(id)}
+              onClick={() => navigate(path)}
               className={cn(
                 "flex flex-col items-center gap-1 px-6 py-2 rounded-2xl transition-all duration-200 md:flex-row md:w-full md:px-4 md:py-3.5 md:gap-3",
                 activeTab === id

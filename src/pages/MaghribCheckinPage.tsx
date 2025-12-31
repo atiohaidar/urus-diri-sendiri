@@ -6,10 +6,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { saveReflection } from '@/lib/storage';
 import { useToast } from '@/hooks/use-toast';
+import { useLanguage } from '@/i18n/LanguageContext';
 
 const MaghribCheckinPage = () => {
     const navigate = useNavigate();
     const { toast } = useToast();
+    const { t, language } = useLanguage();
     const [winOfDay, setWinOfDay] = useState('');
     const [hurdle, setHurdle] = useState('');
     const [priorities, setPriorities] = useState(['', '', '']);
@@ -31,14 +33,14 @@ const MaghribCheckinPage = () => {
         });
 
         toast({
-            title: "Reflection saved! 🌙",
-            description: "Your priorities for tomorrow are set.",
+            title: t.checkin.save_toast_title,
+            description: t.checkin.save_toast_desc,
         });
 
         navigate('/');
     };
 
-    const today = new Date().toLocaleDateString('en-US', {
+    const today = new Date().toLocaleDateString(language === 'id' ? 'id-ID' : 'en-US', {
         weekday: 'long',
         day: 'numeric',
         month: 'short'
@@ -57,14 +59,14 @@ const MaghribCheckinPage = () => {
                     >
                         <ArrowLeft className="w-5 h-5" />
                     </Button>
-                    <span className="font-medium">Evening Reflection</span>
+                    <span className="font-medium">{t.checkin.title}</span>
                     <span className="text-sm text-primary font-medium">{today}</span>
                 </div>
 
                 {/* Title */}
                 <div className="mb-8 text-center md:text-left">
-                    <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-2">Maghrib Check-in</h1>
-                    <p className="text-muted-foreground">Take a moment to close your day.</p>
+                    <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-2">{t.checkin.title}</h1>
+                    <p className="text-muted-foreground">{t.checkin.subtitle}</p>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
@@ -74,12 +76,12 @@ const MaghribCheckinPage = () => {
                         <div className="animate-fade-in" style={{ animationDelay: '50ms' }}>
                             <label className="flex items-center gap-2 text-sm font-semibold mb-3">
                                 <Trophy className="w-4 h-4 text-amber-500" />
-                                Win of the Day
+                                {t.checkin.win_of_day}
                             </label>
                             <Textarea
                                 value={winOfDay}
                                 onChange={(e) => setWinOfDay(e.target.value)}
-                                placeholder="What went well today? What are you grateful for?"
+                                placeholder={t.checkin.win_placeholder}
                                 className="min-h-[120px] bg-card rounded-2xl border-0 resize-none card-elevated focus-visible:ring-primary"
                             />
                         </div>
@@ -88,12 +90,12 @@ const MaghribCheckinPage = () => {
                         <div className="animate-fade-in" style={{ animationDelay: '100ms' }}>
                             <label className="flex items-center gap-2 text-sm font-semibold mb-3">
                                 <Construction className="w-4 h-4 text-orange-500" />
-                                The Hurdle
+                                {t.checkin.hurdle}
                             </label>
                             <Textarea
                                 value={hurdle}
                                 onChange={(e) => setHurdle(e.target.value)}
-                                placeholder="What was challenging? What held you back?"
+                                placeholder={t.checkin.hurdle_placeholder}
                                 className="min-h-[120px] bg-card rounded-2xl border-0 resize-none card-elevated focus-visible:ring-primary"
                             />
                         </div>
@@ -105,7 +107,7 @@ const MaghribCheckinPage = () => {
                         <div className="animate-fade-in" style={{ animationDelay: '150ms' }}>
                             <label className="flex items-center gap-2 text-sm font-semibold mb-3">
                                 <Rocket className="w-4 h-4 text-primary" />
-                                Top 3 Priorities Tomorrow
+                                {t.checkin.priorities}
                             </label>
                             <div className="space-y-3">
                                 {priorities.map((priority, index) => (
@@ -116,7 +118,7 @@ const MaghribCheckinPage = () => {
                                         <Input
                                             value={priority}
                                             onChange={(e) => updatePriority(index, e.target.value)}
-                                            placeholder={index === 0 ? 'Most important task' : index === 1 ? 'Secondary task' : 'Final priority'}
+                                            placeholder={index === 0 ? t.checkin.priority_1_placeholder : index === 1 ? t.checkin.priority_2_placeholder : t.checkin.priority_3_placeholder}
                                             className="bg-card rounded-xl border-0 h-11 card-elevated focus-visible:ring-primary"
                                         />
                                     </div>
@@ -128,12 +130,12 @@ const MaghribCheckinPage = () => {
                         <div className="animate-fade-in" style={{ animationDelay: '200ms' }}>
                             <label className="flex items-center gap-2 text-sm font-semibold mb-3">
                                 <Sprout className="w-4 h-4 text-emerald-500" />
-                                One Small Change
+                                {t.checkin.small_change}
                             </label>
                             <Textarea
                                 value={smallChange}
                                 onChange={(e) => setSmallChange(e.target.value)}
-                                placeholder="What can I do 1% better tomorrow?"
+                                placeholder={t.checkin.small_change_placeholder}
                                 className="min-h-[80px] bg-card rounded-2xl border-0 resize-none card-elevated focus-visible:ring-primary"
                             />
                         </div>
@@ -153,7 +155,7 @@ const MaghribCheckinPage = () => {
                         onClick={handleSave}
                         className="w-full h-14 rounded-2xl text-base font-semibold gap-2 shadow-lg shadow-primary/20 md:w-auto md:px-8 md:float-right"
                     >
-                        Save Reflection
+                        {t.checkin.save}
                         <ArrowRight className="w-5 h-5" />
                     </Button>
                 </div>

@@ -11,7 +11,7 @@ import {
     DialogDescription,
 } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { type RoutineItem, calculateDuration } from '@/lib/storage';
+import { type RoutineItem, calculateDuration, parseScheduleText } from '@/lib/storage';
 import { toast } from 'sonner';
 
 interface BulkAddDialogProps {
@@ -35,55 +35,9 @@ const BulkAddDialog = ({ open, onClose, onSave }: BulkAddDialogProps) => {
     ]);
 
     // --- TEXT PARSING LOGIC ---
+    // --- TEXT PARSING LOGIC ---
     const parseText = (text: string) => {
-        const lines = text.split('\n').filter(l => l.trim());
-        const parsed: RoutineItem[] = [];
-
-        lines.forEach((line, i) => {
-            // Regex to find "HH:mm - HH:mm Activity"
-            // Supports H:mm, HH:mm, with or without AM/PM
-            // But let's assume simplified 24h or 12h for now.
-            // Example: "06:00 - 07:00 Breakfast"
-            // or "6am - 7am Gym"
-
-            const timeRangeMatch = line.match(/(\d{1,2}(?::\d{2})?(?:\s*[ap]m)?)\s*[-–to]\s*(\d{1,2}(?::\d{2})?(?:\s*[ap]m)?)/i);
-
-            if (timeRangeMatch) {
-                const startStrRaw = timeRangeMatch[1];
-                const endStrRaw = timeRangeMatch[2];
-
-                let content = line.substring(timeRangeMatch.index! + timeRangeMatch[0].length).trim();
-
-                // Helper to normalize to HH:mm 24h
-                const normalizeTime = (t: string) => {
-                    t = t.toLowerCase().replace('.', ':');
-                    let [timePart, period] = t.split(/(?=[ap]m)/);
-                    if (!timePart.includes(':')) timePart += ":00";
-                    let [h, m] = timePart.split(':').map(Number);
-
-                    if (period === 'pm' && h !== 12) h += 12;
-                    if (period === 'am' && h === 12) h = 0;
-                    // If no period, assume 24h? Or smart guess?
-                    // Let's assume 24h if no period.
-                    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
-                };
-
-                const startTime = normalizeTime(startStrRaw);
-                const endTime = normalizeTime(endStrRaw);
-
-                // Clean activity
-                let activity = content.replace(/^[-–: ]+/, '').trim();
-
-                parsed.push({
-                    id: `preview-${i}`,
-                    startTime,
-                    endTime,
-                    activity: activity || "New Item",
-                    category: 'Productivity' // Default
-                });
-            }
-        });
-
+        const parsed = parseScheduleText(text);
         setParsedPreview(parsed);
     };
 

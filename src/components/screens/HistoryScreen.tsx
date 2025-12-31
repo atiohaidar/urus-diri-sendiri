@@ -1,14 +1,13 @@
 import { useState, useEffect } from 'react';
 import { Clock, Trophy, Construction, Rocket, Sprout, ChevronDown, ChevronUp } from 'lucide-react';
-import { getReflections, formatDate, type Reflection } from '@/lib/storage';
+import { useReflections } from '@/hooks/useReflections';
+import { formatDate } from '@/lib/time-utils';
+import { useLanguage } from '@/i18n/LanguageContext';
 
 const HistoryScreen = () => {
-  const [reflections, setReflections] = useState<Reflection[]>([]);
+  const { reflections } = useReflections();
   const [expandedId, setExpandedId] = useState<string | null>(null);
-
-  useEffect(() => {
-    setReflections(getReflections());
-  }, []);
+  const { t } = useLanguage();
 
   const toggleExpand = (id: string) => {
     setExpandedId(expandedId === id ? null : id);
@@ -24,8 +23,8 @@ const HistoryScreen = () => {
               <Clock className="w-6 h-6 text-primary" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-foreground">Reflection History</h1>
-              <p className="text-sm text-muted-foreground hidden md:block">Track your daily progress</p>
+              <h1 className="text-xl font-bold text-foreground">{t.history.title}</h1>
+              <p className="text-sm text-muted-foreground hidden md:block">{t.history.subtitle}</p>
             </div>
           </div>
         </div>
@@ -50,7 +49,7 @@ const HistoryScreen = () => {
                       {formatDate(reflection.date)}
                     </p>
                     <p className="font-semibold text-foreground line-clamp-1">
-                      {reflection.winOfDay || 'Evening Reflection'}
+                      {reflection.winOfDay || t.history.evening_reflection}
                     </p>
                   </div>
                   {expandedId === reflection.id ? (
@@ -67,7 +66,7 @@ const HistoryScreen = () => {
                       <div>
                         <p className="flex items-center gap-2 text-xs font-semibold text-muted-foreground mb-1">
                           <Trophy className="w-3.5 h-3.5 text-amber-500" />
-                          Win of the Day
+                          {t.history.win_of_day}
                         </p>
                         <p className="text-sm text-foreground">{reflection.winOfDay}</p>
                       </div>
@@ -77,7 +76,7 @@ const HistoryScreen = () => {
                       <div>
                         <p className="flex items-center gap-2 text-xs font-semibold text-muted-foreground mb-1">
                           <Construction className="w-3.5 h-3.5 text-orange-500" />
-                          The Hurdle
+                          {t.history.hurdle}
                         </p>
                         <p className="text-sm text-foreground">{reflection.hurdle}</p>
                       </div>
@@ -87,7 +86,7 @@ const HistoryScreen = () => {
                       <div>
                         <p className="flex items-center gap-2 text-xs font-semibold text-muted-foreground mb-2">
                           <Rocket className="w-3.5 h-3.5 text-primary" />
-                          Priorities Set
+                          {t.history.priorities_set}
                         </p>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           {reflection.priorities.filter(p => p.trim()).map((priority, i) => (
@@ -106,7 +105,7 @@ const HistoryScreen = () => {
                       <div>
                         <p className="flex items-center gap-2 text-xs font-semibold text-muted-foreground mb-1">
                           <Sprout className="w-3.5 h-3.5 text-emerald-500" />
-                          Small Change
+                          {t.history.small_change}
                         </p>
                         <p className="text-sm text-foreground">{reflection.smallChange}</p>
                       </div>
@@ -121,9 +120,9 @@ const HistoryScreen = () => {
             <div className="w-16 h-16 md:w-24 md:h-24 rounded-full bg-secondary mx-auto mb-6 flex items-center justify-center">
               <Clock className="w-8 h-8 md:w-12 md:h-12 text-primary" />
             </div>
-            <h3 className="font-semibold text-lg md:text-xl text-foreground mb-2">No reflections yet</h3>
+            <h3 className="font-semibold text-lg md:text-xl text-foreground mb-2">{t.history.no_reflections_title}</h3>
             <p className="text-sm md:text-base text-muted-foreground">
-              Complete your first Maghrib Check-in to start tracking your journey
+              {t.history.no_reflections_desc}
             </p>
           </div>
         )}

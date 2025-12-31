@@ -1,19 +1,16 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { Search, Plus, Lightbulb } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import NoteCard from '@/components/NoteCard';
 import NoteEditor from '@/components/NoteEditor';
-import { getNotes, saveNote, updateNote, deleteNote, type Note } from '@/lib/storage';
+import { useNotes } from '@/hooks/useNotes';
+import { type Note } from '@/lib/storage';
 
 const ParkingLotScreen = () => {
-  const [notes, setNotes] = useState<Note[]>([]);
+  const { notes, saveNote, updateNote, deleteNote } = useNotes();
   const [searchQuery, setSearchQuery] = useState('');
   const [showEditor, setShowEditor] = useState(false);
   const [editingNote, setEditingNote] = useState<Note | null>(null);
-
-  useEffect(() => {
-    setNotes(getNotes());
-  }, []);
 
   const filteredNotes = useMemo(() => {
     if (!searchQuery.trim()) return notes;
@@ -27,18 +24,15 @@ const ParkingLotScreen = () => {
 
   const handleSaveNote = (title: string, content: string) => {
     if (editingNote) {
-      const updated = updateNote(editingNote.id, { title, content });
-      setNotes(updated);
+      updateNote(editingNote.id, { title, content });
     } else {
-      saveNote({ title, content });
-      setNotes(getNotes());
+      saveNote(title, content);
     }
     setEditingNote(null);
   };
 
   const handleDeleteNote = (id: string) => {
-    const updated = deleteNote(id);
-    setNotes(updated);
+    deleteNote(id);
     setEditingNote(null);
   };
 

@@ -1,50 +1,28 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowUpRight, Plus, Moon, Sparkles, Settings2 } from 'lucide-react';
+import { Moon, Sparkles, Settings2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import RoutineCard from '@/components/RoutineCard';
 import PriorityItem from '@/components/PriorityItem';
-import { toast } from 'sonner';
-import { motion } from 'framer-motion';
-
+import { useRoutines } from '@/hooks/useRoutines';
 import {
-  getRoutines,
-  getPriorities,
-  updatePriorityCompletion,
-  findCurrentRoutineIndex,
   checkOverlap,
   parseTimeToMinutes,
-  toggleRoutineCompletion,
-  getCompletionStats,
-  type RoutineItem,
-  type PriorityTask
 } from '@/lib/storage';
 
 const HomeScreen = () => {
-  const [routines, setRoutines] = useState<RoutineItem[]>([]);
-  const [priorities, setPriorities] = useState<PriorityTask[]>([]);
-  const [stats, setStats] = useState({ total: 0, completed: 0, percent: 0 }); // Added stats state
-  const [activeIndex, setActiveIndex] = useState(0);
-  const [currentDate, setCurrentDate] = useState(new Date());
-  const navigate = useNavigate();
+  const {
+    routines,
+    priorities,
+    activeIndex,
+    currentDate,
+    handleCheckIn,
+    handleTogglePriority
+  } = useRoutines();
 
+  const navigate = useNavigate();
   const routineRefs = useRef<(HTMLDivElement | null)[]>([]);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-
-  const loadData = useCallback(() => {
-    const loadedRoutines = getRoutines();
-    setRoutines(loadedRoutines);
-    setPriorities(getPriorities());
-    setStats(getCompletionStats(loadedRoutines)); // Update stats
-
-    // Find current routine index
-    const currentIndex = findCurrentRoutineIndex(loadedRoutines);
-    setActiveIndex(currentIndex);
-  }, []);
-
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
 
   // Auto-scroll to active routine
   useEffect(() => {
@@ -58,31 +36,11 @@ const HomeScreen = () => {
     }
   }, [routines, activeIndex]);
 
-  const handleTogglePriority = (id: string, completed: boolean) => {
-    const updated = updatePriorityCompletion(id, completed);
-    setPriorities(updated);
-  };
-
   const greeting = () => {
     const hour = currentDate.getHours();
     if (hour < 12) return 'Good morning';
     if (hour < 17) return 'Good afternoon';
     return 'Good evening';
-  };
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentDate(new Date());
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
-
-  // Handle check-in toggle
-  const handleCheckIn = (id: string) => {
-    const updated = toggleRoutineCompletion(id, routines);
-    setRoutines(updated);
-    setStats(getCompletionStats(updated));
-    toast.success("Progress updated! Keep it up! 🚀");
   };
 
   return (
@@ -214,3 +172,4 @@ const HomeScreen = () => {
 };
 
 export default HomeScreen;
+

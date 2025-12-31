@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils';
 import { ArrowLeft, Plus, Clock, Trash2, Save, GripVertical, AlertTriangle, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { TimePicker } from '@/components/ui/time-picker';
 import {
     Select,
     SelectContent,
@@ -16,15 +17,7 @@ import { toast } from 'sonner';
 import BulkAddDialog from '@/components/BulkAddDialog';
 import MainLayout from '@/components/layout/MainLayout';
 
-const CATEGORIES = [
-    'Mindfulness',
-    'Fitness',
-    'Nutrition',
-    'Productivity',
-    'Spiritual',
-    'Learning',
-    'Other',
-];
+import { CATEGORY_LIST } from '@/lib/constants';
 
 const EditSchedule = () => {
     const navigate = useNavigate();
@@ -221,22 +214,18 @@ const EditSchedule = () => {
                                         <div>
                                             <label className="text-xs font-semibold text-muted-foreground ml-1">Start Time</label>
                                             <div className="relative mt-1.5">
-                                                <Input
-                                                    type="time"
+                                                <TimePicker
                                                     value={editForm.startTime}
-                                                    onChange={(e) => setEditForm({ ...editForm, startTime: e.target.value })}
-                                                    className="bg-background h-11 rounded-xl"
+                                                    onChange={(val) => setEditForm({ ...editForm, startTime: val })}
                                                 />
                                             </div>
                                         </div>
                                         <div>
                                             <label className="text-xs font-semibold text-muted-foreground ml-1">End Time</label>
                                             <div className="relative mt-1.5">
-                                                <Input
-                                                    type="time"
+                                                <TimePicker
                                                     value={editForm.endTime}
-                                                    onChange={(e) => setEditForm({ ...editForm, endTime: e.target.value })}
-                                                    className="bg-background h-11 rounded-xl"
+                                                    onChange={(val) => setEditForm({ ...editForm, endTime: val })}
                                                 />
                                             </div>
                                         </div>
@@ -252,7 +241,7 @@ const EditSchedule = () => {
                                                 <SelectValue placeholder="Category" />
                                             </SelectTrigger>
                                             <SelectContent>
-                                                {CATEGORIES.map(c => (
+                                                {CATEGORY_LIST.map(c => (
                                                     <SelectItem key={c} value={c}>{c}</SelectItem>
                                                 ))}
                                             </SelectContent>
