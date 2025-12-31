@@ -20,11 +20,18 @@ const EditSchedule = () => {
 
     // Edit Form State
     const [editingId, setEditingId] = useState<string | null>(null);
-    const [editForm, setEditForm] = useState({
+    const [editForm, setEditForm] = useState<{
+        startTime: string;
+        endTime: string;
+        activity: string;
+        category: string;
+        description?: string;
+    }>({
         startTime: '',
         endTime: '',
         activity: '',
         category: '',
+        description: '',
     });
 
     useEffect(() => {
@@ -42,6 +49,7 @@ const EditSchedule = () => {
             endTime: item.endTime,
             activity: item.activity,
             category: item.category,
+            description: item.description || '',
         });
         setEditingId(item.id);
     };
@@ -65,6 +73,7 @@ const EditSchedule = () => {
             endTime: '09:30',
             activity: '',
             category: 'Productivity',
+            description: '',
         });
         setEditingId(newId);
     };
@@ -95,7 +104,8 @@ const EditSchedule = () => {
                     startTime: editForm.startTime,
                     endTime: editForm.endTime,
                     activity: editForm.activity,
-                    category: editForm.category
+                    category: editForm.category,
+                    description: editForm.description,
                 };
             }
             return item;

@@ -96,4 +96,21 @@ export interface Translation {
         workflow_frontend: string;
         workflow_refinement: string;
     };
+    home: {
+        greeting_morning: string;
+        greeting_afternoon: string;
+        greeting_evening: string;
+        start_checkin: string;
+        priorities_title: string;
+        priorities_done_suffix: string;
+        no_priorities_title: string;
+        no_priorities_desc: string;
+        first_priority_placeholder: string;
+        add_priority_placeholder: string;
+        routine_title: string;
+        edit_routine: string;
+        schedule_finished_title: string;
+        schedule_finished_desc: string;
+        no_routines_text: string;
+    };
 }

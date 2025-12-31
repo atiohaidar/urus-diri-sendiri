@@ -18,6 +18,7 @@ interface ScheduleFormProps {
         endTime: string;
         activity: string;
         category: string;
+        description?: string;
     };
     isOverlap: boolean;
     onFormChange: (updates: any) => void;
@@ -91,6 +92,16 @@ export const ScheduleForm = ({
                             ))}
                         </SelectContent>
                     </Select>
+                </div>
+
+                <div>
+                    <label className="text-xs font-semibold text-muted-foreground ml-1">Description (Optional)</label>
+                    <textarea
+                        value={editForm.description || ''}
+                        onChange={(e) => onFormChange({ description: e.target.value })}
+                        placeholder="Details about this routine..."
+                        className="flex min-h-[80px] w-full rounded-xl border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 mt-1.5 resize-none"
+                    />
                 </div>
 
                 <div className="flex gap-2 pt-2">

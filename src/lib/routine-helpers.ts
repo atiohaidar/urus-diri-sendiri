@@ -53,7 +53,7 @@ export const parseScheduleText = (text: string): RoutineItem[] => {
     const parsed: RoutineItem[] = [];
 
     lines.forEach((line, i) => {
-        // Regex to find "HH:mm - HH:mm Activity"
+        // Regex to find "HH:mm - HH:mm"
         const timeRangeMatch = line.match(/(\d{1,2}(?::\d{2})?(?:\s*[ap]m)?)\s*[-–to]\s*(\d{1,2}(?::\d{2})?(?:\s*[ap]m)?)/i);
 
         if (timeRangeMatch) {
@@ -65,7 +65,33 @@ export const parseScheduleText = (text: string): RoutineItem[] => {
             const startTime = normalizeTime(startStrRaw);
             const endTime = normalizeTime(endStrRaw);
 
-            // Clean activity
+            // 1. Extract Category [Between Brackets]
+            let category = 'Productivity'; // Default
+            const categoryMatch = content.match(/\[(.*?)\]/);
+            if (categoryMatch) {
+                category = categoryMatch[1].trim();
+                content = content.replace(categoryMatch[0], '').trim();
+            }
+
+            // 2. Extract Description (Between Parentheses) or after | or :
+            let description = '';
+
+            // Try pipe first
+            if (content.includes('|')) {
+                const parts = content.split('|');
+                content = parts[0].trim();
+                description = parts.slice(1).join('|').trim();
+            }
+            // Else try parentheses at the end
+            else {
+                const parenMatch = content.match(/\((.*?)\)$/);
+                if (parenMatch) {
+                    description = parenMatch[1].trim();
+                    content = content.replace(parenMatch[0], '').trim();
+                }
+            }
+
+            // Clean activity name (remove leading separators just in case)
             let activity = content.replace(/^[-–: ]+/, '').trim();
 
             parsed.push({
@@ -73,7 +99,8 @@ export const parseScheduleText = (text: string): RoutineItem[] => {
                 startTime,
                 endTime,
                 activity: activity || "New Item",
-                category: 'Productivity' // Default
+                category,
+                description
             });
         }
     });

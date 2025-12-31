@@ -10,6 +10,7 @@ import {
   checkOverlap,
   parseTimeToMinutes,
 } from '@/lib/storage';
+import { useLanguage } from '@/i18n/LanguageContext';
 
 const HomeScreen = () => {
   const {
@@ -21,18 +22,27 @@ const HomeScreen = () => {
     handleTogglePriority,
     handleAddPriority
   } = useRoutines();
+  const { t, language } = useLanguage();
 
   const navigate = useNavigate();
   const routineRefs = useRef<(HTMLDivElement | null)[]>([]);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to active routine
+  // Auto-scroll to active routine
   useEffect(() => {
-    if (routines.length > 0 && routineRefs.current[activeIndex] && scrollContainerRef.current) {
+    const container = scrollContainerRef.current;
+    const activeElement = routineRefs.current[activeIndex];
+
+    if (routines.length > 0 && activeElement && container) {
       setTimeout(() => {
-        routineRefs.current[activeIndex]?.scrollIntoView({
+        // Calculate position relative to container (since container will be relative)
+        // Subtract a small buffer (12px) for visual comfort
+        const topPos = activeElement.offsetTop - 12;
+
+        container.scrollTo({
+          top: topPos,
           behavior: 'smooth',
-          block: 'start',
         });
       }, 100);
     }
@@ -40,9 +50,9 @@ const HomeScreen = () => {
 
   const greeting = () => {
     const hour = currentDate.getHours();
-    if (hour < 12) return 'Good morning';
-    if (hour < 17) return 'Good afternoon';
-    return 'Good evening';
+    if (hour < 12) return t.home.greeting_morning;
+    if (hour < 17) return t.home.greeting_afternoon;
+    return t.home.greeting_evening;
   };
 
   return (
@@ -54,7 +64,7 @@ const HomeScreen = () => {
             <div>
               <h1 className="text-xl md:text-2xl font-bold text-foreground">{greeting()} 👋</h1>
               <p className="text-sm font-medium text-muted-foreground/90 mt-1">
-                {currentDate.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} • {currentDate.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                {currentDate.toLocaleDateString(language === 'id' ? 'id-ID' : 'en-US', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} • {currentDate.toLocaleTimeString(language === 'id' ? 'id-ID' : 'en-US', { hour: '2-digit', minute: '2-digit', hour12: false })}
               </p>
             </div>
           </div>
@@ -72,16 +82,16 @@ const HomeScreen = () => {
               className="w-full h-14 md:h-16 rounded-2xl text-base md:text-lg font-semibold gap-3 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg shadow-primary/20"
             >
               <Moon className="w-5 h-5 md:w-6 md:h-6" />
-              Start Maghrib Check-in
+              {t.home.start_checkin}
             </Button>
           </section>
 
           {/* Top 3 Priorities */}
           <section>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg md:text-xl font-bold text-foreground">Today's Priorities</h2>
+              <h2 className="text-lg md:text-xl font-bold text-foreground">{t.home.priorities_title}</h2>
               <span className="text-sm md:text-base text-muted-foreground bg-secondary/50 px-3 py-1 rounded-full">
-                {priorities.filter(p => p.completed).length}/{priorities.length} done
+                {priorities.filter(p => p.completed).length}/{priorities.length} {t.home.priorities_done_suffix}
               </span>
             </div>
 
@@ -101,7 +111,7 @@ const HomeScreen = () => {
                 {/* Add Priority Input */}
                 <div className="flex gap-2 animate-in fade-in slide-in-from-top-2 duration-300">
                   <Input
-                    placeholder="Apa lagi yang ingin diselesaikan hari ini?"
+                    placeholder={t.home.add_priority_placeholder}
                     className="h-12 bg-card rounded-xl border-dashed border-2 border-border/50 focus-visible:ring-primary/30"
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
@@ -117,7 +127,7 @@ const HomeScreen = () => {
                     variant="outline"
                     className="h-12 w-12 rounded-xl border-dashed border-2"
                     onClick={() => {
-                      const input = document.querySelector('input[placeholder="Apa lagi yang ingin diselesaikan hari ini?"]') as HTMLInputElement;
+                      const input = document.querySelector(`input[placeholder="${t.home.add_priority_placeholder}"]`) as HTMLInputElement;
                       if (input && input.value.trim()) {
                         handleAddPriority(input.value.trim());
                         input.value = '';
@@ -131,14 +141,14 @@ const HomeScreen = () => {
             ) : (
               <div className="space-y-4">
                 <div className="bg-card rounded-3xl p-8 text-center card-elevated border-2 border-dashed border-border/50">
-                  <p className="text-muted-foreground mb-2 text-lg font-medium">No priorities set yet</p>
+                  <p className="text-muted-foreground mb-2 text-lg font-medium">{t.home.no_priorities_title}</p>
                   <p className="text-sm text-muted-foreground/70">
-                    Complete your Maghrib Check-in to set tomorrow's priorities
+                    {t.home.no_priorities_desc}
                   </p>
                 </div>
                 <div className="flex gap-2">
                   <Input
-                    placeholder="Set priority pertama hari ini..."
+                    placeholder={t.home.first_priority_placeholder}
                     className="h-12 bg-card rounded-xl border-dashed border-2 border-border/50"
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
@@ -160,7 +170,7 @@ const HomeScreen = () => {
         <div className="md:col-span-5 lg:col-span-4">
           <section className="h-full flex flex-col">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg md:text-xl font-bold text-foreground">Daily Routine</h2>
+              <h2 className="text-lg md:text-xl font-bold text-foreground">{t.home.routine_title}</h2>
               <Button
                 variant="ghost"
                 size="sm"
@@ -168,14 +178,14 @@ const HomeScreen = () => {
                 className="gap-1.5 text-muted-foreground hover:text-foreground"
               >
                 <Settings2 className="w-4 h-4" />
-                Edit
+                {t.home.edit_routine}
               </Button>
             </div>
 
             {/* Fixed height scrollable container */}
             <div
               ref={scrollContainerRef}
-              className="h-[380px] md:h-[calc(100vh-250px)] md:min-h-[500px] overflow-y-auto rounded-3xl bg-muted/30 p-3 space-y-3 scroll-smooth md:pr-2 custom-scrollbar"
+              className="relative h-[380px] md:h-[calc(100vh-250px)] md:min-h-[500px] overflow-y-auto rounded-3xl bg-muted/30 p-3 space-y-3 scroll-smooth md:pr-2 custom-scrollbar"
             >
               {routines.map((routine, index) => {
                 // Check if this routine overlaps with any other
@@ -207,9 +217,17 @@ const HomeScreen = () => {
                   />
                 );
               })}
+              {routines.length > 0 && (
+                <div className="py-32 flex flex-col items-center justify-center text-center opacity-50 space-y-2">
+                  <div className="w-16 h-1 bg-border/50 rounded-full mb-2"></div>
+                  <p className="text-xs font-medium text-muted-foreground">{t.home.schedule_finished_title}</p>
+                  <p className="text-[10px] text-muted-foreground/60">{t.home.schedule_finished_desc}</p>
+                </div>
+              )}
+
               {routines.length === 0 && (
                 <div className="flex items-center justify-center h-full">
-                  <p className="text-muted-foreground">No routines yet. Add some!</p>
+                  <p className="text-muted-foreground">{t.home.no_routines_text}</p>
                 </div>
               )}
             </div>

@@ -1,4 +1,4 @@
-import { Home, Lightbulb, Clock, Settings } from 'lucide-react';
+import { Home, Lightbulb, Clock, Settings, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '@/i18n/LanguageContext';
@@ -22,8 +22,15 @@ const BottomNav = ({ activeTab }: BottomNavProps) => {
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card/80 backdrop-blur-lg border-t border-border safe-bottom md:top-0 md:w-64 md:border-t-0 md:border-r md:h-screen md:flex md:flex-col">
       <div className="w-full md:px-4 md:py-6">
         {/* Desktop Header Title */}
-        <div className="hidden md:flex items-center gap-2 mb-8 px-4">
-          <span className="font-bold text-xl tracking-tight text-primary">UrusDiriSendiri</span>
+        <div className="hidden md:flex flex-col items-start gap-1 mb-8 px-4">
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-medium border border-primary/20">
+            <Sparkles className="w-3 h-3" />
+            <span>v1.1.0</span>
+          </div>
+          <h1 className="text-2xl font-black tracking-tight flex items-center">
+            <span className="text-foreground">UrusDiri</span>
+            <span className="text-primary">Sendiri</span>
+          </h1>
         </div>
 
         <div className="flex items-center justify-around py-2 md:flex-col md:space-y-2 md:justify-start">

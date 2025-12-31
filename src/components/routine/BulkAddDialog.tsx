@@ -120,11 +120,31 @@ const BulkAddDialog = ({ open, onClose, onSave }: BulkAddDialogProps) => {
 
                         <TabsContent value="text" className="space-y-4 data-[state=inactive]:hidden">
                             <div className="p-4 bg-primary/5 rounded-2xl border border-primary/10">
-                                <p className="text-xs text-muted-foreground mb-2 font-medium">✨ Try pasting like this:</p>
-                                <p className="text-xs text-muted-foreground/80 italic">
-                                    06:00 - 06:30 Morning Run<br />
-                                    12:30 PM - 01:30 PM Lunch<br />
-                                    19:00 - 20:00 Reading
+                                <div className="flex items-center justify-between mb-2">
+                                    <p className="text-xs text-muted-foreground font-medium">✨ AI Prompt Template</p>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-6 text-[10px] px-2 text-primary hover:bg-primary/10"
+                                        onClick={() => {
+                                            const template = `Please convert my schedule into this format strictly:\nHH:mm - HH:mm Activity Name [Category] (Description/Details)\n\nCategories options: Productivity, Mindfulness, Fitness, Nutrition, Learning, Spiritual.\n\nExample:\n06:00 - 06:30 Morning Run [Fitness] (3km jog around park)\n09:00 - 10:00 Deep Work [Productivity] (Finish Q1 Report)\n\nMy Schedule:\n[PASTE YOUR SCHEDULE HERE]`;
+                                            navigator.clipboard.writeText(template);
+                                            toast.success("Prompt template copied!");
+                                        }}
+                                    >
+                                        Copy Prompt
+                                    </Button>
+                                </div>
+                                <p className="text-xs text-muted-foreground/80 leading-relaxed">
+                                    Have a messy schedule in Excel/Notes? Copy this prompt to ChatGPT/Claude to format it for you instantly.
+                                </p>
+                            </div>
+
+                            <div className="p-4 bg-muted/30 rounded-2xl border border-border/50">
+                                <p className="text-xs text-muted-foreground mb-2 font-medium">📝 Manual Format Example:</p>
+                                <p className="text-xs text-muted-foreground/80 italic space-y-1 font-mono">
+                                    <span className="block">06:00 - 06:30 Morning Run [Fitness] (Morning jog)</span>
+                                    <span className="block">12:30 PM - 01:30 PM Lunch | Using healthy catering</span>
                                 </p>
                             </div>
 
@@ -138,16 +158,27 @@ const BulkAddDialog = ({ open, onClose, onSave }: BulkAddDialogProps) => {
                             {parsedPreview.length > 0 && (
                                 <div className="space-y-2 animate-in fade-in slide-in-from-bottom-4">
                                     <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Preview ({parsedPreview.length} items)</h4>
-                                    <div className="space-y-2 bg-muted/30 rounded-2xl p-2">
+                                    <div className="space-y-2 bg-muted/30 rounded-2xl p-2 max-h-[200px] overflow-y-auto">
                                         {parsedPreview.map((item, i) => (
-                                            <div key={i} className="flex items-center gap-3 p-2 bg-background rounded-xl border border-border/50 text-sm">
-                                                <div className="flex flex-col text-[10px] font-mono font-medium text-primary shrink-0 leading-tight text-center">
-                                                    <span>{item.startTime}</span>
-                                                    <span className='opacity-50'>|</span>
-                                                    <span>{item.endTime}</span>
+                                            <div key={i} className="flex flex-col gap-1 p-2 bg-background rounded-xl border border-border/50 text-sm">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="flex items-center gap-1 text-[10px] font-mono font-medium text-primary shrink-0 leading-tight">
+                                                        <span>{item.startTime}</span>
+                                                        <span className='opacity-50'>-</span>
+                                                        <span>{item.endTime}</span>
+                                                    </div>
+                                                    <span className="flex-1 font-medium truncate">{item.activity}</span>
+                                                    {item.category && item.category !== 'Productivity' && (
+                                                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-secondary text-secondary-foreground">
+                                                            {item.category}
+                                                        </span>
+                                                    )}
                                                 </div>
-                                                <span className="flex-1 truncate">{item.activity}</span>
-                                                <span className="text-muted-foreground text-xs">{calculateDuration(item.startTime, item.endTime)}</span>
+                                                {item.description && (
+                                                    <p className="text-xs text-muted-foreground pl-[70px] truncate">
+                                                        {item.description}
+                                                    </p>
+                                                )}
                                             </div>
                                         ))}
                                     </div>

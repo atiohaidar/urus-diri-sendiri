@@ -39,4 +39,5 @@ export interface RoutineItem {
     category: Category | string; // Allow string for backward compatibility or custom categories
     completedAt?: string | null; // ISO date string of TODAY if completed today
     updatedAt?: string; // Timestamp of when it was checked
+    description?: string; // Optional detailed description
 }
