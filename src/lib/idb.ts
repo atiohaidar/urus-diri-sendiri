@@ -1,10 +1,14 @@
 /**
- * Simple IndexedDB wrapper for image storage
+ * IndexedDB wrapper for application storage
  */
 
-const DB_NAME = 'urus-diri-images';
-const STORE_NAME = 'images';
-const DB_VERSION = 1;
+const DB_NAME = 'urus-diri-db'; // Updated name for broader usage
+const STORES = {
+    IMAGES: 'images',
+    REFLECTIONS: 'reflections',
+    LOGS: 'logs'
+};
+const DB_VERSION = 2;
 
 export const openDB = (): Promise<IDBDatabase> => {
     return new Promise((resolve, reject) => {
@@ -15,20 +19,68 @@ export const openDB = (): Promise<IDBDatabase> => {
 
         request.onupgradeneeded = (event) => {
             const db = (event.target as IDBOpenDBRequest).result;
-            if (!db.objectStoreNames.contains(STORE_NAME)) {
-                db.createObjectStore(STORE_NAME);
+
+            // Create stores if they don't exist
+            if (!db.objectStoreNames.contains(STORES.IMAGES)) {
+                db.createObjectStore(STORES.IMAGES);
+            }
+            if (!db.objectStoreNames.contains(STORES.REFLECTIONS)) {
+                db.createObjectStore(STORES.REFLECTIONS, { keyPath: 'id' });
+            }
+            if (!db.objectStoreNames.contains(STORES.LOGS)) {
+                db.createObjectStore(STORES.LOGS, { keyPath: 'id' });
             }
         };
     });
 };
+
+// --- Generic Helpers ---
+
+export const putItem = async <T>(storeName: string, item: T): Promise<T> => {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction(storeName, 'readwrite');
+        const store = transaction.objectStore(storeName);
+        const request = store.put(item);
+
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => resolve(item);
+    });
+};
+
+export const getAllItems = async <T>(storeName: string): Promise<T[]> => {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction(storeName, 'readonly');
+        const store = transaction.objectStore(storeName);
+        const request = store.getAll();
+
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => resolve(request.result as T[]);
+    });
+};
+
+export const deleteItem = async (storeName: string, id: string): Promise<void> => {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction(storeName, 'readwrite');
+        const store = transaction.objectStore(storeName);
+        const request = store.delete(id);
+
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => resolve();
+    });
+};
+
+// --- Specific API (Backward Compatibility / Convenience) ---
 
 export const saveImage = async (base64: string): Promise<string> => {
     const db = await openDB();
     const id = `img-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
     return new Promise((resolve, reject) => {
-        const transaction = db.transaction(STORE_NAME, 'readwrite');
-        const store = transaction.objectStore(STORE_NAME);
+        const transaction = db.transaction(STORES.IMAGES, 'readwrite');
+        const store = transaction.objectStore(STORES.IMAGES);
         const request = store.put(base64, id);
 
         request.onerror = () => reject(request.error);
@@ -39,8 +91,8 @@ export const saveImage = async (base64: string): Promise<string> => {
 export const getImage = async (id: string): Promise<string | null> => {
     const db = await openDB();
     return new Promise((resolve, reject) => {
-        const transaction = db.transaction(STORE_NAME, 'readonly');
-        const store = transaction.objectStore(STORE_NAME);
+        const transaction = db.transaction(STORES.IMAGES, 'readonly');
+        const store = transaction.objectStore(STORES.IMAGES);
         const request = store.get(id);
 
         request.onerror = () => reject(request.error);
@@ -49,13 +101,8 @@ export const getImage = async (id: string): Promise<string | null> => {
 };
 
 export const deleteImage = async (id: string): Promise<void> => {
-    const db = await openDB();
-    return new Promise((resolve, reject) => {
-        const transaction = db.transaction(STORE_NAME, 'readwrite');
-        const store = transaction.objectStore(STORE_NAME);
-        const request = store.delete(id);
-
-        request.onerror = () => reject(request.error);
-        request.onsuccess = () => resolve();
-    });
+    return deleteItem(STORES.IMAGES, id);
 };
+
+// Helper constants for external use
+export const IDB_STORES = STORES;

@@ -19,6 +19,9 @@ import MaghribCheckinPage from "./pages/MaghribCheckinPage";
 import AboutPage from "./pages/AboutPage";
 import NotFound from "./pages/NotFound";
 
+import { initializeStorage } from "@/lib/storage";
+import { useEffect } from "react";
+
 const queryClient = new QueryClient();
 
 const BackButtonHandler = () => {
@@ -26,36 +29,42 @@ const BackButtonHandler = () => {
   return null;
 };
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <ThemeProvider defaultTheme="system" storageKey="urus-diri-theme">
-      <LanguageProvider>
-        <ErrorBoundary>
-          <TooltipProvider>
-            <Toaster />
-            <Sonner />
-            <BrowserRouter>
-              <BackButtonHandler />
-              <Routes>
-                <Route element={<AppLayout />}>
-                  <Route path="/" element={<HomeScreen />} />
-                  <Route path="/ideas" element={<ParkingLotScreen />} />
-                  <Route path="/history" element={<HistoryScreen />} />
-                  <Route path="/settings" element={<SettingsScreen />} />
-                </Route>
+const App = () => {
+  useEffect(() => {
+    initializeStorage();
+  }, []);
 
-                <Route path="/schedule-editor" element={<EditSchedule />} />
-                <Route path="/note-editor/:id" element={<NoteEditorPage />} />
-                <Route path="/maghrib-checkin" element={<MaghribCheckinPage />} />
-                <Route path="/about" element={<AboutPage />} />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </BrowserRouter>
-          </TooltipProvider>
-        </ErrorBoundary>
-      </LanguageProvider>
-    </ThemeProvider>
-  </QueryClientProvider>
-);
+  return (
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider defaultTheme="system" storageKey="urus-diri-theme">
+        <LanguageProvider>
+          <ErrorBoundary>
+            <TooltipProvider>
+              <Toaster />
+              <Sonner />
+              <BrowserRouter>
+                <BackButtonHandler />
+                <Routes>
+                  <Route element={<AppLayout />}>
+                    <Route path="/" element={<HomeScreen />} />
+                    <Route path="/ideas" element={<ParkingLotScreen />} />
+                    <Route path="/history" element={<HistoryScreen />} />
+                    <Route path="/settings" element={<SettingsScreen />} />
+                  </Route>
+
+                  <Route path="/schedule-editor" element={<EditSchedule />} />
+                  <Route path="/note-editor/:id" element={<NoteEditorPage />} />
+                  <Route path="/maghrib-checkin" element={<MaghribCheckinPage />} />
+                  <Route path="/about" element={<AboutPage />} />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </BrowserRouter>
+            </TooltipProvider>
+          </ErrorBoundary>
+        </LanguageProvider>
+      </ThemeProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;

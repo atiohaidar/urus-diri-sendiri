@@ -1,6 +1,6 @@
 import { PriorityTask, Reflection, Note, RoutineItem, ActivityLog } from './types';
 import { toggleRoutineCompletion as toggleRoutineHelper } from './routine-helpers';
-import { getImage } from './idb';
+import { getImage, getAllItems, putItem, deleteItem, IDB_STORES } from './idb';
 import { STORAGE_KEYS } from './constants';
 
 // Re-export types and utils for backward compatibility
@@ -8,7 +8,7 @@ export * from './types';
 export * from './time-utils';
 export * from './routine-helpers';
 
-// In-memory cache to avoid excessive JSON.parse calls
+// In-memory cache to avoid excessive JSON.parse calls or IDB reads
 const cache: {
   priorities: PriorityTask[] | null;
   reflections: Reflection[] | null;
@@ -23,6 +23,44 @@ const cache: {
   logs: null,
 };
 
+// --- Migration & Initialization ---
+
+export const initializeStorage = async () => {
+  // 1. Check for Reflections migration
+  const oldReflections = localStorage.getItem(STORAGE_KEYS.REFLECTIONS);
+  if (oldReflections) {
+    try {
+      const reflections: Reflection[] = JSON.parse(oldReflections);
+      for (const r of reflections) {
+        await putItem(IDB_STORES.REFLECTIONS, r);
+      }
+      localStorage.removeItem(STORAGE_KEYS.REFLECTIONS);
+      console.log('Migrated reflections to IDB');
+    } catch (e) {
+      console.error('Failed to migrate reflections', e);
+    }
+  }
+
+  // 2. Check for Logs migration
+  const oldLogs = localStorage.getItem(STORAGE_KEYS.LOGS);
+  if (oldLogs) {
+    try {
+      const logs: ActivityLog[] = JSON.parse(oldLogs);
+      for (const l of logs) {
+        await putItem(IDB_STORES.LOGS, l);
+      }
+      localStorage.removeItem(STORAGE_KEYS.LOGS);
+      console.log('Migrated logs to IDB');
+    } catch (e) {
+      console.error('Failed to migrate logs', e);
+    }
+  }
+
+  // Warm up cache
+  await getReflectionsAsync();
+  await getLogsAsync();
+};
+
 // --- Priorities ---
 export const getPriorities = (): PriorityTask[] => {
   if (cache.priorities) return cache.priorities;
@@ -32,8 +70,6 @@ export const getPriorities = (): PriorityTask[] => {
   const priorities: PriorityTask[] = JSON.parse(data);
 
   // Check if these priorities are from a previous day
-  // If they are, we keep the text but reset completion status for the new day
-  // unless they are replaced by Maghrib Check-in.
   const today = new Date().toDateString();
   const needsReset = priorities.some(p => p.updatedAt && new Date(p.updatedAt).toDateString() !== today);
 
@@ -81,22 +117,27 @@ export const addPriority = (text: string) => {
 };
 
 // --- Reflections ---
+
+/** @deprecated Use getReflectionsAsync for better performance */
 export const getReflections = (): Reflection[] => {
+  return cache.reflections || [];
+};
+
+export const getReflectionsAsync = async (): Promise<Reflection[]> => {
   if (cache.reflections) return cache.reflections;
 
-  const data = localStorage.getItem(STORAGE_KEYS.REFLECTIONS);
-  if (!data) return [];
-  const reflections = JSON.parse(data);
+  const reflections = await getAllItems<Reflection>(IDB_STORES.REFLECTIONS);
+  // Sort by date descending
+  reflections.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   cache.reflections = reflections;
   return reflections;
 };
 
-export const saveReflection = (reflection: Omit<Reflection, 'id'>) => {
-  const reflections = getReflections();
+export const saveReflection = async (reflection: Omit<Reflection, 'id'>) => {
+  const reflections = await getReflectionsAsync();
   const today = new Date().toDateString();
   const todayIndex = reflections.findIndex(r => new Date(r.date).toDateString() === today);
 
-  let updatedReflections: Reflection[];
   let savedItem: Reflection;
 
   if (todayIndex !== -1) {
@@ -104,22 +145,22 @@ export const saveReflection = (reflection: Omit<Reflection, 'id'>) => {
     savedItem = {
       ...reflections[todayIndex],
       ...reflection,
-      // If todayRoutines/Priorities aren't provided in the call, keep existing ones
       todayRoutines: reflection.todayRoutines || reflections[todayIndex].todayRoutines,
       todayPriorities: reflection.todayPriorities || reflections[todayIndex].todayPriorities,
     };
-    updatedReflections = [...reflections];
-    updatedReflections[todayIndex] = savedItem;
   } else {
     // Create new for today
     savedItem = {
       ...reflection,
       id: Date.now().toString(),
     };
-    updatedReflections = [savedItem, ...reflections];
   }
 
-  localStorage.setItem(STORAGE_KEYS.REFLECTIONS, JSON.stringify(updatedReflections));
+  await putItem(IDB_STORES.REFLECTIONS, savedItem);
+
+  // Refresh cache
+  cache.reflections = null;
+  await getReflectionsAsync();
 
   // Update tomorrow's priorities based on reflection
   const newPriorities: PriorityTask[] = reflection.priorities
@@ -183,31 +224,23 @@ export const deleteNote = (id: string) => {
 
 // --- Routines ---
 export const getRoutines = (): RoutineItem[] => {
-  if (cache.routines) {
-    // We still need to check if it's a new day even if we have cache
-    const today = new Date().toDateString();
-    const lastOpen = localStorage.getItem(STORAGE_KEYS.LAST_OPEN_DATE);
-    if (lastOpen === today) return cache.routines;
-    // If not today, proceed to full logic
+  const today = new Date().toDateString();
+  const lastOpen = localStorage.getItem(STORAGE_KEYS.LAST_OPEN_DATE);
+
+  if (cache.routines && lastOpen === today) {
+    return cache.routines;
   }
 
   const data = localStorage.getItem(STORAGE_KEYS.ROUTINES);
   let routines: RoutineItem[] = [];
 
   if (!data) {
-    const defaults: RoutineItem[] = [
-
-    ];
-    cache.routines = defaults;
-    localStorage.setItem(STORAGE_KEYS.ROUTINES, JSON.stringify(defaults));
-    return defaults;
+    routines = [];
+    cache.routines = routines;
+    localStorage.setItem(STORAGE_KEYS.ROUTINES, JSON.stringify(routines));
   } else {
     routines = JSON.parse(data);
   }
-
-  // Check last open date logic
-  const today = new Date().toDateString();
-  const lastOpen = localStorage.getItem(STORAGE_KEYS.LAST_OPEN_DATE);
 
   if (lastOpen !== today) {
     // IT'S A NEW DAY! 
@@ -232,24 +265,23 @@ export const saveRoutines = (routines: RoutineItem[]) => {
 };
 
 // --- Activity Logs ---
+
+/** @deprecated Use getLogsAsync */
 export const getLogs = (): ActivityLog[] => {
+  return cache.logs || [];
+};
+
+export const getLogsAsync = async (): Promise<ActivityLog[]> => {
   if (cache.logs) return cache.logs;
 
-  const data = localStorage.getItem(STORAGE_KEYS.LOGS);
-  if (!data) return [];
-  const logs = JSON.parse(data);
-
-  // Sort by timestamp descending (newest first)
-  logs.sort((a: ActivityLog, b: ActivityLog) =>
-    new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-  );
-
+  const logs = await getAllItems<ActivityLog>(IDB_STORES.LOGS);
+  // Sort by timestamp descending
+  logs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
   cache.logs = logs;
   return logs;
 };
 
-export const saveLog = (log: Omit<ActivityLog, 'id' | 'timestamp'>) => {
-  const logs = getLogs();
+export const saveLog = async (log: Omit<ActivityLog, 'id' | 'timestamp'>) => {
   const now = new Date().toISOString();
 
   const newLog: ActivityLog = {
@@ -258,22 +290,27 @@ export const saveLog = (log: Omit<ActivityLog, 'id' | 'timestamp'>) => {
     timestamp: now,
   };
 
-  const updatedLogs = [newLog, ...logs];
-  cache.logs = updatedLogs;
-  localStorage.setItem(STORAGE_KEYS.LOGS, JSON.stringify(updatedLogs));
+  await putItem(IDB_STORES.LOGS, newLog);
+
+  // Update cache locally for responsiveness
+  if (cache.logs) {
+    cache.logs = [newLog, ...cache.logs];
+  } else {
+    await getLogsAsync();
+  }
+
   return newLog;
 };
 
-export const deleteLog = (id: string) => {
-  const logs = getLogs();
-  const filtered = logs.filter(l => l.id !== id);
-  cache.logs = filtered;
-  localStorage.setItem(STORAGE_KEYS.LOGS, JSON.stringify(filtered));
-  return filtered;
+export const deleteLog = async (id: string) => {
+  await deleteItem(IDB_STORES.LOGS, id);
+  if (cache.logs) {
+    cache.logs = cache.logs.filter(l => l.id !== id);
+  }
 };
 
-// Wrapper for toggleRoutineCompletion to include side-effect (save)
-// The original implementation had this side-effect.
+// --- Helpers ---
+
 export const toggleRoutineCompletion = (id: string, routines: RoutineItem[]) => {
   const updated = toggleRoutineHelper(id, routines);
   saveRoutines(updated);
@@ -281,9 +318,8 @@ export const toggleRoutineCompletion = (id: string, routines: RoutineItem[]) => 
   return updated;
 };
 
-// Helper to update reflection snapshot for TODAY
-export const updateDailySnapshot = () => {
-  const reflections = getReflections();
+export const updateDailySnapshot = async () => {
+  const reflections = await getReflectionsAsync();
   const todayDate = new Date();
   const todayStr = todayDate.toDateString();
   const todayIndex = reflections.findIndex(r => new Date(r.date).toDateString() === todayStr);
@@ -293,14 +329,13 @@ export const updateDailySnapshot = () => {
 
   if (todayIndex !== -1) {
     // Update existing reflection
-    const updatedReflections = [...reflections];
-    updatedReflections[todayIndex] = {
-      ...updatedReflections[todayIndex],
+    const updatedReflection = {
+      ...reflections[todayIndex],
       todayRoutines: currentRoutines,
       todayPriorities: currentPriorities,
     };
-    cache.reflections = updatedReflections;
-    localStorage.setItem(STORAGE_KEYS.REFLECTIONS, JSON.stringify(updatedReflections));
+    await putItem(IDB_STORES.REFLECTIONS, updatedReflection);
+    cache.reflections = null; // Invalidate cache
   } else {
     // Create a new "Passive" reflection entry if at least one thing is checked
     const hasProgress = currentRoutines.some(r => r.completedAt) || currentPriorities.some(p => p.completed);
@@ -316,16 +351,14 @@ export const updateDailySnapshot = () => {
         todayRoutines: currentRoutines,
         todayPriorities: currentPriorities,
       };
-      const updatedReflections = [newReflection, ...reflections];
-      cache.reflections = updatedReflections;
-      localStorage.setItem(STORAGE_KEYS.REFLECTIONS, JSON.stringify(updatedReflections));
+      await putItem(IDB_STORES.REFLECTIONS, newReflection);
+      cache.reflections = null;
     }
   }
 };
 
 // --- Cloud Sync ---
 
-// CENTRAL PROXY URL (dikonfigurasi via .env)
 const CENTRAL_PROXY_URL = import.meta.env.VITE_CENTRAL_PROXY_URL;
 
 export const getCloudConfig = () => {
@@ -342,13 +375,13 @@ export const saveCloudConfig = (sheetUrl: string, folderUrl?: string) => {
   }
 };
 
-export const getAllAppData = () => {
+export const getAllAppDataAsync = async () => {
   return {
     priorities: getPriorities(),
-    reflections: getReflections(),
+    reflections: await getReflectionsAsync(),
     notes: getNotes(),
     routines: getRoutines(),
-    logs: getLogs(),
+    logs: await getLogsAsync(),
   };
 };
 
@@ -359,8 +392,7 @@ export const pushToCloud = async (overrideSheetUrl?: string, overrideFolderUrl?:
 
   if (!finalSheetUrl) throw new Error("Google Sheet URL not configured");
 
-  // Hydrate reflections with images from IDB before pushing
-  const appData = getAllAppData();
+  const appData = await getAllAppDataAsync();
   const hydratedReflections = await Promise.all(appData.reflections.map(async (r) => {
     if (r.imageIds && r.imageIds.length > 0) {
       const idbImages: string[] = [];
@@ -420,10 +452,27 @@ export const pullFromCloud = async (overrideSheetUrl?: string) => {
   if (result.status === "success" && result.payload) {
     const data = result.payload;
     if (data.priorities) savePriorities(data.priorities);
-    if (data.reflections) localStorage.setItem(STORAGE_KEYS.REFLECTIONS, JSON.stringify(data.reflections));
-    if (data.notes) localStorage.setItem(STORAGE_KEYS.NOTES, JSON.stringify(data.notes));
+
+    if (data.reflections) {
+      for (const r of data.reflections) {
+        await putItem(IDB_STORES.REFLECTIONS, r);
+      }
+      cache.reflections = null;
+    }
+
+    if (data.notes) {
+      localStorage.setItem(STORAGE_KEYS.NOTES, JSON.stringify(data.notes));
+      cache.notes = null;
+    }
+
     if (data.routines) saveRoutines(data.routines);
-    if (data.logs) localStorage.setItem(STORAGE_KEYS.LOGS, JSON.stringify(data.logs));
+
+    if (data.logs) {
+      for (const l of data.logs) {
+        await putItem(IDB_STORES.LOGS, l);
+      }
+      cache.logs = null;
+    }
     return true;
   }
 

@@ -8,6 +8,7 @@ import {
     toggleRoutineCompletion,
     getCompletionStats,
     addPriority,
+    initializeStorage,
     type RoutineItem,
     type PriorityTask
 } from '@/lib/storage';
@@ -19,7 +20,10 @@ export const useRoutines = () => {
     const [activeIndex, setActiveIndex] = useState(0);
     const [currentDate, setCurrentDate] = useState(new Date());
 
-    const loadData = useCallback(() => {
+    const loadData = useCallback(async () => {
+        // Ensure storage is initialized before loading
+        await initializeStorage();
+
         const loadedRoutines = getRoutines();
         setRoutines(loadedRoutines);
         setPriorities(getPriorities());
