@@ -75,6 +75,13 @@ export interface Translation {
         cloud_success_pull: string;
         cloud_error_permission: string;
         go_to_about: string;
+        account_title: string;
+        account_login: string;
+        account_logout: string;
+        account_guest: string;
+        account_sync_active: string;
+        account_warning_title: string;
+        account_warning_desc: string;
     };
     about: {
         title: string;

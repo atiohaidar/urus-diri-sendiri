@@ -75,6 +75,13 @@ export const en: Translation = {
         cloud_success_pull: "Data successfully downloaded! Reloading...",
         cloud_error_permission: "Permission Denied: Ensure Sheet access is 'Anyone with link can edit'",
         go_to_about: "Learn More About UrusDiriSendiri",
+        account_title: "Cloud Account (Supabase)",
+        account_login: "Sign in with Google",
+        account_logout: "Sign Out",
+        account_guest: "Guest (Local Storage)",
+        account_sync_active: "Cloud Sync Active",
+        account_warning_title: "Enable Cloud Sync?",
+        account_warning_desc: "Signing in will switch your storage to Supabase Cloud. Your current local data will NOT be automatically moved. Please backup your data first, then restore it after logging in to avoid data loss.",
     },
     about: {
         title: "About UrusDiriSendiri",

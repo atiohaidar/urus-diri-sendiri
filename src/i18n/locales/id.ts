@@ -75,6 +75,13 @@ export const id: Translation = {
         cloud_success_pull: "Data berhasil diunduh! Memuat ulang...",
         cloud_error_permission: "Izin Ditolak: Pastikan akses Sheet adalah 'Anyone with link can edit'",
         go_to_about: "Pelajari Lebih Lanjut Tentang UrusDiriSendiri",
+        account_title: "Akun Cloud (Supabase)",
+        account_login: "Masuk dengan Google",
+        account_logout: "Keluar Akun",
+        account_guest: "Tamu (Penyimpanan Lokal)",
+        account_sync_active: "Sinkronisasi Cloud Aktif",
+        account_warning_title: "Aktifkan Sinkronisasi Cloud?",
+        account_warning_desc: "Masuk akun akan memindahkan penyimpanan data Anda ke Supabase Cloud. Data lokal saat ini TIDAK akan terpindahkan secara otomatis. Silakan cadangkan data Anda terlebih dahulu, lalu pulihkan (restore) setelah masuk akun untuk menghindari kehilangan data.",
     },
     about: {
         title: "Tentang UrusDiriSendiri",

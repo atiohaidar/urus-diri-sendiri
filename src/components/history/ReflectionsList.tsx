@@ -26,7 +26,7 @@ export const ReflectionsList = ({ reflections, onLoadMore, hasMore }: Reflection
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {reflections.map((reflection, index) => (
                     <div
-                        key={reflection.id}
+                        key={`${reflection.id}-${index}`}
                         className="bg-card rounded-3xl card-elevated overflow-hidden animate-fade-in hover:shadow-lg transition-shadow duration-300"
                         style={{ animationDelay: `${index * 50}ms` }}
                     >

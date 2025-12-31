@@ -1,13 +1,15 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Moon, Sun, Download, Upload, Monitor, Settings as SettingsIcon, Cloud, CloudUpload, CloudDownload, Key, Link as LinkIcon, Sparkles, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Moon, Sun, Download, Upload, Monitor, Settings as SettingsIcon, Cloud, CloudUpload, CloudDownload, Key, Link as LinkIcon, Sparkles, ChevronRight, LogOut, LogIn, Mail, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { exportData, importData } from '@/lib/backup';
-import { getCloudConfig, saveCloudConfig, pushToCloud, pullFromCloud } from '@/lib/storage';
+import { getCloudConfig, saveCloudConfig, pushToCloud, pullFromCloud, getIsCloudActive } from '@/lib/storage';
 import { useTheme } from '@/components/theme-provider';
 import { useLanguage } from '@/i18n/LanguageContext';
 import { toast } from 'sonner';
+import { supabase, signInWithGoogle, signOut } from '@/lib/supabase';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 const SettingsScreen = () => {
     const navigate = useNavigate();
@@ -17,6 +19,42 @@ const SettingsScreen = () => {
     const [sheetUrl, setSheetUrl] = useState(getCloudConfig().sheetUrl);
     const [folderUrl, setFolderUrl] = useState(getCloudConfig().folderUrl);
     const [isSyncing, setIsSyncing] = useState(false);
+    const [user, setUser] = useState<any>(null);
+    const [loginLoading, setLoginLoading] = useState(false);
+
+    useEffect(() => {
+        // Initial session
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            setUser(session?.user ?? null);
+        });
+
+        // Listen for changes
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            setUser(session?.user ?? null);
+        });
+
+        return () => subscription.unsubscribe();
+    }, []);
+
+    const handleLogin = async () => {
+        setLoginLoading(true);
+        try {
+            await signInWithGoogle();
+        } catch (error: any) {
+            toast.error(error.message || "Failed to login");
+            setLoginLoading(false);
+        }
+    };
+
+    const handleLogout = async () => {
+        try {
+            await signOut();
+            toast.success("Signed out successfully");
+            setTimeout(() => window.location.reload(), 500);
+        } catch (error: any) {
+            toast.error(error.message || "Failed to logout");
+        }
+    };
 
     const handleExport = () => {
         if (exportData()) {
@@ -105,6 +143,99 @@ const SettingsScreen = () => {
             </header>
 
             <main className="container max-w-md md:max-w-5xl mx-auto px-4 py-6 space-y-6">
+                {/* Cloud Account Section */}
+                <section className="bg-card rounded-3xl p-6 border border-border/50 shadow-sm overflow-hidden relative">
+                    <div className="flex items-center justify-between mb-6">
+                        <div className="flex items-center gap-3">
+                            <div className={`p-2 rounded-xl ${user ? 'bg-primary/10' : 'bg-muted'}`}>
+                                <Cloud className={`w-5 h-5 ${user ? 'text-primary' : 'text-muted-foreground'}`} />
+                            </div>
+                            <div>
+                                <h2 className="text-lg font-bold">{t.settings.account_title}</h2>
+                                <p className="text-xs text-muted-foreground">
+                                    {user ? t.settings.account_sync_active : t.settings.account_guest}
+                                </p>
+                            </div>
+                        </div>
+
+                        {user && (
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={handleLogout}
+                                className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full"
+                            >
+                                <LogOut className="w-5 h-5" />
+                            </Button>
+                        )}
+                    </div>
+
+                    {user ? (
+                        <div className="flex items-center gap-4 bg-primary/5 p-4 rounded-2xl border border-primary/10">
+                            {user.user_metadata?.avatar_url ? (
+                                <img
+                                    src={user.user_metadata.avatar_url}
+                                    alt="Profile"
+                                    className="w-12 h-12 rounded-full ring-2 ring-primary/20"
+                                />
+                            ) : (
+                                <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center">
+                                    <Mail className="w-6 h-6 text-primary" />
+                                </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                                <p className="font-bold text-foreground truncate">{user.user_metadata?.full_name || user.email}</p>
+                                <div className="flex items-center gap-1.5 mt-0.5">
+                                    <CheckCircle2 className="w-3.5 h-3.5 text-primary" />
+                                    <span className="text-[10px] font-bold text-primary uppercase tracking-wider">Connected</span>
+                                </div>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="space-y-4">
+                            <div className="bg-muted/30 p-4 rounded-2xl border border-dashed border-border flex items-center gap-3">
+                                <Sparkles className="w-5 h-5 text-amber-500" />
+                                <p className="text-xs text-muted-foreground leading-relaxed">
+                                    Sync your data across devices seamlessly with Supabase Cloud.
+                                </p>
+                            </div>
+
+                            <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                    <Button
+                                        className="w-full h-12 rounded-2xl shadow-lg shadow-primary/20 gap-3 font-bold"
+                                        disabled={loginLoading}
+                                    >
+                                        <LogIn className="w-5 h-5" />
+                                        {t.settings.account_login}
+                                    </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent className="rounded-3xl border-border/50">
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle className="text-xl font-bold flex items-center gap-2">
+                                            <Cloud className="w-6 h-6 text-primary" />
+                                            {t.settings.account_warning_title}
+                                        </AlertDialogTitle>
+                                        <AlertDialogDescription className="text-base text-muted-foreground pt-2">
+                                            {t.settings.account_warning_desc}
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter className="flex-col sm:flex-row gap-2 pt-4">
+                                        <AlertDialogCancel className="h-12 rounded-2xl font-bold">
+                                            {t.common.cancel}
+                                        </AlertDialogCancel>
+                                        <AlertDialogAction
+                                            onClick={handleLogin}
+                                            className="h-12 rounded-2xl font-bold bg-primary shadow-lg shadow-primary/20"
+                                        >
+                                            {t.settings.account_login}
+                                        </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                        </div>
+                    )}
+                </section>
                 {/* Language Section */}
                 <section className="bg-card rounded-3xl p-6 border border-border/50 shadow-sm">
                     <h2 className="text-lg font-semibold mb-4">{t.settings.language}</h2>
