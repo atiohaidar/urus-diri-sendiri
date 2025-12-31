@@ -4,12 +4,11 @@ import { Moon, Sparkles, Settings2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import RoutineCard from '@/components/RoutineCard';
 import PriorityItem from '@/components/PriorityItem';
-import MaghribCheckin from '@/components/MaghribCheckin';
+
 import {
   getRoutines,
   getPriorities,
   updatePriorityCompletion,
-  saveRoutines,
   findCurrentRoutineIndex,
   checkOverlap,
   parseTimeToMinutes,
@@ -20,7 +19,6 @@ import {
 const HomeScreen = () => {
   const [routines, setRoutines] = useState<RoutineItem[]>([]);
   const [priorities, setPriorities] = useState<PriorityTask[]>([]);
-  const [showCheckin, setShowCheckin] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const [currentDate, setCurrentDate] = useState(new Date());
   const navigate = useNavigate();
@@ -95,7 +93,7 @@ const HomeScreen = () => {
       <main className="container max-w-md mx-auto px-4 py-6 space-y-8">
         {/* Maghrib Check-in Button */}
         <Button
-          onClick={() => setShowCheckin(true)}
+          onClick={() => navigate('/maghrib-checkin')}
           className="w-full h-14 rounded-2xl text-base font-semibold gap-3 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
         >
           <Moon className="w-5 h-5" />
@@ -189,14 +187,6 @@ const HomeScreen = () => {
           </div>
         </section>
       </main>
-
-      {/* Maghrib Check-in Modal */}
-      {showCheckin && (
-        <MaghribCheckin
-          onClose={() => setShowCheckin(false)}
-          onSave={loadData}
-        />
-      )}
     </div>
   );
 };

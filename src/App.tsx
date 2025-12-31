@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, useNavigate, useLocation } from "react-ro
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import EditSchedule from "./pages/EditSchedule";
+import MaghribCheckinPage from "./pages/MaghribCheckinPage";
 import { App as CapacitorApp } from "@capacitor/app";
 import { useEffect } from "react";
 
@@ -43,6 +44,7 @@ const App = () => (
           <Route path="/" element={<Index />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="/schedule-editor" element={<EditSchedule />} />
+          <Route path="/maghrib-checkin" element={<MaghribCheckinPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

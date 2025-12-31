@@ -14,6 +14,7 @@ import {
 import { getRoutines, saveRoutines, checkOverlap, calculateDuration, parseTimeToMinutes, type RoutineItem } from '@/lib/storage';
 import { toast } from 'sonner';
 import BulkAddDialog from '@/components/BulkAddDialog';
+import MainLayout from '@/components/layout/MainLayout';
 
 const CATEGORIES = [
     'Mindfulness',
@@ -148,10 +149,10 @@ const EditSchedule = () => {
     };
 
     return (
-        <div className="min-h-screen bg-background pb-20">
+        <MainLayout showMobileHeader={false} className="pt-0 md:pt-0">
             {/* Header */}
-            <div className="sticky top-0 z-40 bg-background/80 backdrop-blur-lg border-b border-border/50 px-4 py-4 mb-4">
-                <div className="max-w-md mx-auto flex items-center justify-between">
+            <div className="sticky top-0 z-40 bg-background/80 backdrop-blur-lg border-b border-border/50 -mx-4 px-4 py-4 mb-6 md:-mx-4 md:px-4">
+                <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="-ml-2">
                             <ArrowLeft className="w-5 h-5" />
@@ -171,13 +172,16 @@ const EditSchedule = () => {
                 </div>
             </div>
 
-            <div className="container max-w-md mx-auto px-4 space-y-3">
-                {items.length === 0 && (
-                    <div className="text-center py-10 text-muted-foreground">
-                        No routines found. Start by adding one!
-                    </div>
-                )}
+            {items.length === 0 && (
+                <div className="text-center py-20 text-muted-foreground border-2 border-dashed rounded-3xl">
+                    <p>No routines found.</p>
+                    <p className="text-sm mt-1">Start by adding one!</p>
+                </div>
+            )}
 
+            <div className={cn(
+                items.length > 0 && "grid grid-cols-1 md:grid-cols-2 gap-4 pb-10"
+            )}>
                 {items.map((item) => {
                     const isEditing = editingId === item.id;
 
@@ -273,7 +277,8 @@ const EditSchedule = () => {
                             key={item.id}
                             onClick={() => startEdit(item)}
                             className={cn(
-                                "group bg-card hover:bg-muted/50 transition-colors p-4 rounded-3xl border border-border/50 flex items-center gap-4 cursor-pointer active:scale-[0.98] duration-200",
+                                "group bg-card hover:bg-muted/50 transition-colors p-4 rounded-3xl border border-border/50 flex items-center gap-4 cursor-pointer active:scale-[0.98] duration-200 h-full",
+                                "border-primary/20",
                                 isOverlap && "border-destructive/50 bg-destructive/5"
                             )}
                         >
@@ -317,8 +322,9 @@ const EditSchedule = () => {
                 onClose={() => setShowBulkAdd(false)}
                 onSave={handleBulkSave}
             />
-        </div>
+        </MainLayout>
     );
+
 };
 
 export default EditSchedule;
