@@ -5,6 +5,7 @@ import { HomeHeader } from '@/components/home/HomeHeader';
 import { HomeRoutineSection } from '@/components/home/HomeRoutineSection';
 import { HomePrioritySection } from '@/components/home/HomePrioritySection';
 import { CheckInButton } from '@/components/home/CheckInButton';
+import { GoogleSearchWidget } from '@/components/home/GoogleSearchWidget';
 
 const HomeScreen = () => {
   const {
@@ -41,6 +42,12 @@ const HomeScreen = () => {
           <CheckInButton variant="mobile" currentDate={currentDate} />
 
           <GreetingOverlay />
+
+          {/* Google Search (Desktop Only) */}
+          <div className="hidden md:block">
+            <GoogleSearchWidget />
+          </div>
+
 
           {/* Daily Routine (Left side on Desktop) */}
           <HomeRoutineSection
