@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { getImage } from '@/lib/idb';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -10,8 +10,35 @@ interface LazyImageProps {
 export const LazyImage = ({ imageId, className }: LazyImageProps) => {
     const [src, setSrc] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
+    const [isVisible, setIsVisible] = useState(false);
+    const imgRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
+        const observer = new IntersectionObserver(
+            ([entry]) => {
+                if (entry.isIntersecting) {
+                    setIsVisible(true);
+                    observer.disconnect();
+                }
+            },
+            {
+                rootMargin: '200px', // Load images slightly before they appear
+                threshold: 0.1
+            }
+        );
+
+        if (imgRef.current) {
+            observer.observe(imgRef.current);
+        }
+
+        return () => {
+            if (observer) observer.disconnect();
+        };
+    }, []);
+
+    useEffect(() => {
+        if (!isVisible) return;
+
         let isMounted = true;
 
         const load = async () => {
@@ -29,13 +56,14 @@ export const LazyImage = ({ imageId, className }: LazyImageProps) => {
 
         load();
         return () => { isMounted = false; };
-    }, [imageId]);
+    }, [imageId, isVisible]);
 
-    if (loading) {
-        return <Skeleton className={className} />;
+    // Container for observation
+    if (!isVisible || loading) {
+        return <div ref={imgRef} className={className}><Skeleton className="w-full h-full" /></div>;
     }
 
-    if (!src) return null;
+    if (!src) return <div className={className} />; // Placeholder if no src found
 
     return (
         <img

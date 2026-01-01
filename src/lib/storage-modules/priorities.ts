@@ -52,3 +52,21 @@ export const addPriority = (text: string) => {
     notifyListeners(); // Auto-update snapshot
     return updated;
 };
+
+export const deletePriority = (id: string) => {
+    const priorities = getPriorities();
+    const updated = priorities.filter(p => p.id !== id);
+    savePriorities(updated);
+    notifyListeners();
+    return updated;
+};
+
+export const updatePriorityText = (id: string, text: string) => {
+    const priorities = getPriorities();
+    const updated = priorities.map(p =>
+        p.id === id ? { ...p, text, updatedAt: new Date().toISOString() } : p
+    );
+    savePriorities(updated);
+    notifyListeners();
+    return updated;
+};

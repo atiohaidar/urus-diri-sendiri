@@ -100,6 +100,19 @@
   body {
     @apply bg-background text-foreground font-sans antialiased;
     font-family: 'Inter', sans-serif;
+    
+    /* Mobile Native Feel */
+    -webkit-tap-highlight-color: transparent; /* Remove blue tap flash */
+    touch-action: manipulation; /* Improve touch response */
+    overscroll-behavior-y: none; /* Prevent rubber-banding */
+    user-select: none; /* Prevent text selection */
+    -webkit-user-select: none;
+  }
+  
+  /* Allow selection on inputs */
+  input, textarea {
+    user-select: text;
+    -webkit-user-select: text;
   }
 }
 

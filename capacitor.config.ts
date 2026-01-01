@@ -10,6 +10,9 @@ const config: CapacitorConfig = {
       style: 'dark',
     },
   },
+  android: {
+    backgroundColor: '#ffffff', // Matches light theme background to prevent white flash
+  },
 };
 
 export default config;

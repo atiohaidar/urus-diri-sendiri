@@ -5,16 +5,22 @@ import { AuthSection } from '@/components/settings/AuthSection';
 import { PreferencesSection } from '@/components/settings/PreferencesSection';
 import { CloudLegacySection } from '@/components/settings/CloudLegacySection';
 import { DataBackupSection } from '@/components/settings/DataBackupSection';
+import { PullToRefresh } from '@/components/ui/pull-to-refresh';
 
 const SettingsScreen = () => {
     const navigate = useNavigate();
     const { t } = useLanguage();
 
+    const handleRefresh = async () => {
+        // Minimal delay to simulate refresh feel or actual refresh logic if needed
+        await new Promise(resolve => setTimeout(resolve, 500));
+    };
+
     return (
-        <div className="min-h-screen pb-24 md:pb-8">
+        <PullToRefresh onRefresh={handleRefresh} className="min-h-screen pb-24 md:pb-8">
             {/* Header */}
             <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-lg border-b border-border/50">
-                <div className="container max-w-md md:max-w-5xl mx-auto px-4 py-4">
+                <div className="container md:max-w-5xl mx-auto px-4 py-4">
                     <div className="flex items-center gap-3">
                         <div className="p-2 rounded-xl bg-primary/10">
                             <SettingsIcon className="w-6 h-6 text-primary" />
@@ -27,7 +33,7 @@ const SettingsScreen = () => {
                 </div>
             </header>
 
-            <main className="container max-w-md md:max-w-5xl mx-auto px-4 py-6 space-y-6">
+            <main className="container md:max-w-5xl mx-auto px-4 py-6 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
                 {/* Auth & Account */}
                 <AuthSection />
@@ -65,7 +71,7 @@ const SettingsScreen = () => {
                     </div>
                 </div>
             </main>
-        </div>
+        </PullToRefresh>
     );
 };
 

@@ -15,4 +15,17 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-ui': ['@radix-ui', 'framer-motion', 'lucide-react', 'clsx', 'tailwind-merge', 'react-virtuoso'],
+          'vendor-utils': ['date-fns', 'zod', 'react-hook-form'],
+          'vendor-db': ['@supabase/supabase-js', '@tanstack/react-query'],
+          'vendor-charts': ['recharts'],
+        },
+      },
+    },
+  },
 }));

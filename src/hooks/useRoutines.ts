@@ -11,7 +11,9 @@ import {
     initializeStorage,
     hydrateCache,
     type RoutineItem,
-    type PriorityTask
+    type PriorityTask,
+    deletePriority,
+    updatePriorityText
 } from '@/lib/storage';
 
 export const useRoutines = () => {
@@ -91,6 +93,17 @@ export const useRoutines = () => {
         toast.success("Prioritas ditambahkan!");
     };
 
+    const handleDeletePriority = (id: string) => {
+        const updated = deletePriority(id);
+        setPriorities(updated);
+        toast.success("Prioritas dihapus");
+    };
+
+    const handleUpdatePriorityText = (id: string, text: string) => {
+        const updated = updatePriorityText(id, text);
+        setPriorities(updated);
+    };
+
     const handleCheckIn = (id: string) => {
         const updated = toggleRoutineCompletion(id, routines);
         setRoutines(updated);
@@ -121,6 +134,8 @@ export const useRoutines = () => {
         isLoading,
         handleTogglePriority,
         handleAddPriority,
+        handleDeletePriority,
+        handleUpdatePriorityText,
         handleCheckIn,
         refreshData: () => loadData(true)
     };

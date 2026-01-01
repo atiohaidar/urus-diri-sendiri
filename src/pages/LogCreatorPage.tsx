@@ -1,24 +1,37 @@
 import { useState, useEffect, useRef } from 'react';
-import { Camera, Send, X, Image as ImageIcon, Type, Sparkles, ChevronLeft, FlipHorizontal, Palette } from 'lucide-react';
+import { Camera, Send, X, Image as ImageIcon, Type, Sparkles, ChevronLeft, FlipHorizontal, Palette, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { saveImage } from '@/lib/idb';
 import { saveLog } from '@/lib/storage';
 import { useToast } from '@/hooks/use-toast';
-import { triggerHaptic } from '@/lib/haptics';
+import { triggerHaptic, triggerSuccessHaptic } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import { Camera as CapacitorCamera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { useNavigate } from 'react-router-dom';
 import { compressImage } from '@/lib/image-utils';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { App as CapacitorApp } from '@capacitor/app';
 
 const LogCreatorPage = () => {
     const navigate = useNavigate();
     const [caption, setCaption] = useState('');
     const [imagePreview, setImagePreview] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [showSuccess, setShowSuccess] = useState(false);
     const [showCamera, setShowCamera] = useState(false);
     const [cameraFacing, setCameraFacing] = useState<'user' | 'environment'>('environment');
     const [flashEffect, setFlashEffect] = useState(false);
+    const [showExitDialog, setShowExitDialog] = useState(false);
 
     // Status-specific states
     const statusColors = [
@@ -60,6 +73,38 @@ const LogCreatorPage = () => {
             }
         };
     }, []);
+
+    const handleBack = () => {
+        // Only trigger dialog if there is content AND it is not submitting AND not successfully saved
+        const isDirty = (caption.trim().length > 0 || imagePreview !== null);
+        if (isDirty && !isSubmitting && !showSuccess) {
+            setShowExitDialog(true);
+        } else {
+            navigate(-1);
+        }
+    };
+
+    // Hardware Back Button Listener
+    useEffect(() => {
+        let listener: any;
+        const setupListener = async () => {
+            listener = await CapacitorApp.addListener('backButton', () => {
+                if (showCamera) {
+                    stopCamera();
+                } else if (showExitDialog) {
+                    setShowExitDialog(false);
+                } else {
+                    handleBack();
+                }
+            });
+        };
+        setupListener();
+
+        return () => {
+            if (listener) listener.remove();
+        };
+    }, [caption, imagePreview, showCamera, showSuccess, showExitDialog]);
+
 
     const startCamera = async (facing: 'user' | 'environment') => {
         try {
@@ -151,158 +196,196 @@ const LogCreatorPage = () => {
                 content: caption,
                 mediaId: mediaId,
             });
-            toast({ title: "Moment captured! 📸" });
-            navigate(-1);
+
+            // Show Success Animation
+            setShowSuccess(true);
+            triggerSuccessHaptic();
+
+            // Wait for animation before closing
+            setTimeout(() => {
+                navigate(-1);
+            }, 1200);
+
         } catch (e) {
             toast({ title: "Gagal menyimpan", variant: "destructive" });
-        } finally {
             setIsSubmitting(false);
         }
     };
 
     return (
-        <div className={cn(
-            "fixed inset-0 z-50 flex flex-col transition-colors duration-500 overflow-hidden",
-            imagePreview ? "bg-black" : bgColor
-        )}>
-            {/* Native Camera View */}
-            {showCamera && (
-                <div className="absolute inset-0 z-10 bg-black">
-                    <video
-                        ref={videoRef}
-                        autoPlay
-                        playsInline
-                        className={cn("w-full h-full object-cover", cameraFacing === 'user' && "scale-x-[-1]")}
-                    />
-                    {flashEffect && <div className="absolute inset-0 bg-white z-20" />}
-
-                    <div className="absolute top-0 left-0 right-0 p-6 flex justify-between items-center z-30 safe-top">
-                        <button onClick={stopCamera} className="p-3 bg-black/30 backdrop-blur-md rounded-full text-white">
-                            <X className="w-6 h-6" />
-                        </button>
+        <AlertDialog open={showExitDialog} onOpenChange={setShowExitDialog}>
+            <div className={cn(
+                "fixed inset-0 z-50 flex flex-col transition-colors duration-500 overflow-hidden",
+                imagePreview ? "bg-black" : bgColor
+            )}>
+                {/* Success Overlay */}
+                {showSuccess && (
+                    <div className="absolute inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-md animate-in fade-in duration-300">
+                        <div className="flex flex-col items-center animate-in zoom-in-50 duration-500 slide-in-from-bottom-10">
+                            <div className="w-24 h-24 rounded-full bg-emerald-500 flex items-center justify-center shadow-2xl shadow-emerald-500/50 mb-4">
+                                <Check className="w-12 h-12 text-white animate-in zoom-in duration-300 delay-200" strokeWidth={3} />
+                            </div>
+                            <h2 className="text-2xl font-bold text-white tracking-tight animate-in fade-in slide-in-from-bottom-2 delay-300">
+                                Saved!
+                            </h2>
+                        </div>
                     </div>
+                )}
 
-                    <div className="absolute bottom-0 left-0 right-0 p-12 flex justify-around items-center z-30 safe-bottom">
-                        <button onClick={handlePickGallery} className="p-4 bg-white/10 backdrop-blur-md rounded-full text-white active:scale-90 transition-transform">
-                            <ImageIcon className="w-7 h-7" />
-                        </button>
+                {/* Native Camera View */}
+                {showCamera && (
+                    <div className="absolute inset-0 z-10 bg-black">
+                        <video
+                            ref={videoRef}
+                            autoPlay
+                            playsInline
+                            className={cn("w-full h-full object-cover", cameraFacing === 'user' && "scale-x-[-1]")}
+                        />
+                        {flashEffect && <div className="absolute inset-0 bg-white z-20" />}
 
-                        <button
-                            onClick={capturePhoto}
-                            className="w-20 h-20 rounded-full border-4 border-white flex items-center justify-center p-1 active:scale-95 transition-all shadow-xl"
-                        >
-                            <div className="w-full h-full bg-white rounded-full" />
-                        </button>
-
-                        <button
-                            onClick={() => {
-                                const next = cameraFacing === 'user' ? 'environment' : 'user';
-                                setCameraFacing(next);
-                                startCamera(next);
-                            }}
-                            className="p-4 bg-white/10 backdrop-blur-md rounded-full text-white active:scale-90 transition-transform"
-                        >
-                            <FlipHorizontal className="w-7 h-7" />
-                        </button>
-                    </div>
-                </div>
-            )}
-
-            {/* Header Controls */}
-            {!showCamera && (
-                <div className="relative z-30 px-6 py-4 flex items-center justify-between safe-top">
-                    <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="rounded-full text-white hover:bg-white/10 h-12 w-12">
-                        <ChevronLeft className="w-8 h-8" strokeWidth={2.5} />
-                    </Button>
-
-                    <div className="flex items-center gap-3">
-                        {!imagePreview && (
-                            <Button variant="ghost" size="icon" onClick={nextBgColor} className="rounded-full text-white hover:bg-white/10 h-10 w-10">
-                                <Palette className="w-6 h-6" />
-                            </Button>
-                        )}
-                        {imagePreview && (
-                            <Button variant="ghost" size="icon" onClick={() => setImagePreview(null)} className="rounded-full text-white hover:bg-white/10 h-10 w-10">
+                        <div className="absolute top-0 left-0 right-0 p-6 flex justify-between items-center z-30 safe-top">
+                            <button onClick={stopCamera} className="p-3 bg-black/30 backdrop-blur-md rounded-full text-white">
                                 <X className="w-6 h-6" />
-                            </Button>
-                        )}
+                            </button>
+                        </div>
+
+                        <div className="absolute bottom-0 left-0 right-0 p-12 flex justify-around items-center z-30 safe-bottom">
+                            <button onClick={handlePickGallery} className="p-4 bg-white/10 backdrop-blur-md rounded-full text-white active:scale-90 transition-transform">
+                                <ImageIcon className="w-7 h-7" />
+                            </button>
+
+                            <button
+                                onClick={capturePhoto}
+                                className="w-20 h-20 rounded-full border-4 border-white flex items-center justify-center p-1 active:scale-95 transition-all shadow-xl"
+                            >
+                                <div className="w-full h-full bg-white rounded-full" />
+                            </button>
+
+                            <button
+                                onClick={() => {
+                                    const next = cameraFacing === 'user' ? 'environment' : 'user';
+                                    setCameraFacing(next);
+                                    startCamera(next);
+                                }}
+                                className="p-4 bg-white/10 backdrop-blur-md rounded-full text-white active:scale-90 transition-transform"
+                            >
+                                <FlipHorizontal className="w-7 h-7" />
+                            </button>
+                        </div>
                     </div>
-                </div>
-            )}
+                )}
 
-            {/* Immersive Canvas Area */}
-            {!showCamera && (
-                <div className="flex-1 relative flex flex-col items-center pt-10 px-6 md:px-8">
-                    {imagePreview && (
-                        <img
-                            src={imagePreview}
-                            className="absolute inset-0 w-full h-full object-cover animate-in fade-in zoom-in-105 duration-700"
-                            alt="Preview"
-                        />
-                    )}
+                {/* Header Controls */}
+                {!showCamera && (
+                    <div className="relative z-30 px-6 py-4 flex items-center justify-between safe-top">
+                        <Button variant="ghost" size="icon" onClick={handleBack} className="rounded-full text-white hover:bg-white/10 h-12 w-12">
+                            <ChevronLeft className="w-8 h-8" strokeWidth={2.5} />
+                        </Button>
 
-                    {/* Immersive Floating Textarea with Keyboard Avoidance */}
-                    <div
-                        className="relative z-20 w-full flex flex-col items-center transition-all duration-300 pointer-events-none"
-                        style={{
-                            marginTop: imagePreview ? 'auto' : '15dvh',
-                            marginBottom: imagePreview ? `${Math.max(120, keyboardHeight + 20)}px` : '0px'
-                        }}
-                    >
-                        <Textarea
-                            autoFocus
-                            value={caption}
-                            onChange={(e) => setCaption(e.target.value)}
-                            placeholder={imagePreview ? "Tambah keterangan..." : "Ada cerita apa?"}
-                            className={cn(
-                                "w-full text-center text-white placeholder:text-white/30 border-none bg-transparent resize-none focus-visible:ring-0 leading-snug transition-all duration-300 pointer-events-auto",
-                                imagePreview
-                                    ? "text-lg font-medium bg-black/50 backdrop-blur-xl p-6 min-h-[60px] rounded-[2rem] border border-white/10 max-w-sm shadow-2xl"
-                                    : "text-3xl font-bold min-h-[250px]"
+                        <div className="flex items-center gap-3">
+                            {!imagePreview && (
+                                <Button variant="ghost" size="icon" onClick={nextBgColor} className="rounded-full text-white hover:bg-white/10 h-10 w-10">
+                                    <Palette className="w-6 h-6" />
+                                </Button>
                             )}
-                            style={{ textShadow: imagePreview ? '0 2px 10px rgba(0,0,0,0.5)' : 'none' }}
-                        />
+                            {imagePreview && (
+                                <Button variant="ghost" size="icon" onClick={() => setImagePreview(null)} className="rounded-full text-white hover:bg-white/10 h-10 w-10">
+                                    <X className="w-6 h-6" />
+                                </Button>
+                            )}
+                        </div>
                     </div>
-                </div>
-            )}
+                )}
 
-            {/* Bottom Floating Post Area */}
-            {!showCamera && (
-                <div className="relative z-30 p-8 flex items-end justify-between safe-bottom">
-                    <div className="flex gap-4">
-                        <button
-                            onClick={() => startCamera(cameraFacing)}
-                            className="p-5 bg-white/10 backdrop-blur-2xl rounded-full text-white border border-white/20 shadow-xl active:scale-90 transition-all hover:bg-white/20"
+                {/* Immersive Canvas Area */}
+                {!showCamera && (
+                    <div className="flex-1 relative flex flex-col items-center pt-10 px-6 md:px-8">
+                        {imagePreview && (
+                            <img
+                                src={imagePreview}
+                                className="absolute inset-0 w-full h-full object-cover animate-in fade-in zoom-in-105 duration-700"
+                                alt="Preview"
+                            />
+                        )}
+
+                        {/* Immersive Floating Textarea with Keyboard Avoidance */}
+                        <div
+                            className="relative z-20 w-full flex flex-col items-center transition-all duration-300 pointer-events-none"
+                            style={{
+                                marginTop: imagePreview ? 'auto' : '15dvh',
+                                marginBottom: imagePreview ? `${Math.max(120, keyboardHeight + 20)}px` : '0px'
+                            }}
                         >
-                            <Camera className="w-7 h-7" />
-                        </button>
+                            <Textarea
+                                autoFocus
+                                value={caption}
+                                onChange={(e) => setCaption(e.target.value)}
+                                placeholder={imagePreview ? "Tambah keterangan..." : "Ada cerita apa?"}
+                                className={cn(
+                                    "w-full text-center text-white placeholder:text-white/30 border-none bg-transparent resize-none focus-visible:ring-0 leading-snug transition-all duration-300 pointer-events-auto",
+                                    imagePreview
+                                        ? "text-lg font-medium bg-black/50 backdrop-blur-xl p-6 min-h-[60px] rounded-[2rem] border border-white/10 max-w-sm shadow-2xl"
+                                        : "text-3xl font-bold min-h-[250px]"
+                                )}
+                                style={{ textShadow: imagePreview ? '0 2px 10px rgba(0,0,0,0.5)' : 'none' }}
+                            />
+                        </div>
+                    </div>
+                )}
+
+                {/* Bottom Floating Post Area */}
+                {!showCamera && (
+                    <div className="relative z-30 p-8 flex items-end justify-between safe-bottom">
+                        <div className="flex gap-4">
+                            <button
+                                onClick={() => startCamera(cameraFacing)}
+                                className="p-5 bg-white/10 backdrop-blur-2xl rounded-full text-white border border-white/20 shadow-xl active:scale-90 transition-all hover:bg-white/20"
+                            >
+                                <Camera className="w-7 h-7" />
+                            </button>
+                            <button
+                                onClick={handlePickGallery}
+                                className="p-5 bg-white/10 backdrop-blur-2xl rounded-full text-white border border-white/20 shadow-xl active:scale-90 transition-all hover:bg-white/20"
+                            >
+                                <ImageIcon className="w-7 h-7" />
+                            </button>
+                        </div>
+
                         <button
-                            onClick={handlePickGallery}
-                            className="p-5 bg-white/10 backdrop-blur-2xl rounded-full text-white border border-white/20 shadow-xl active:scale-90 transition-all hover:bg-white/20"
+                            onClick={handleSubmit}
+                            disabled={isSubmitting || (!caption.trim() && !imagePreview)}
+                            className={cn(
+                                "w-16 h-16 rounded-full flex items-center justify-center shadow-2xl transition-all active:scale-90",
+                                (caption.trim() || imagePreview)
+                                    ? "bg-primary text-primary-foreground scale-110 shadow-primary/40"
+                                    : "bg-white/10 text-white/20"
+                            )}
                         >
-                            <ImageIcon className="w-7 h-7" />
+                            {isSubmitting ? (
+                                <Sparkles className="w-7 h-7 animate-spin" />
+                            ) : (
+                                <Send className="w-7 h-7 ml-0.5" />
+                            )}
                         </button>
                     </div>
+                )}
+            </div>
 
-                    <button
-                        onClick={handleSubmit}
-                        disabled={isSubmitting || (!caption.trim() && !imagePreview)}
-                        className={cn(
-                            "w-16 h-16 rounded-full flex items-center justify-center shadow-2xl transition-all active:scale-90",
-                            (caption.trim() || imagePreview)
-                                ? "bg-primary text-primary-foreground scale-110 shadow-primary/40"
-                                : "bg-white/10 text-white/20"
-                        )}
-                    >
-                        {isSubmitting ? (
-                            <Sparkles className="w-7 h-7 animate-spin" />
-                        ) : (
-                            <Send className="w-7 h-7 ml-0.5" />
-                        )}
-                    </button>
-                </div>
-            )}
-        </div>
+            <AlertDialogContent className="rounded-2xl max-w-[80vw]">
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Hapus perubahan?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Tulisan atau foto yang belum disimpan akan hilang jika Anda keluar.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Batal</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => navigate(-1)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                        Keluar
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
     );
 };
 

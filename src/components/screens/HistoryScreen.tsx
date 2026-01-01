@@ -8,6 +8,8 @@ import { getLogsAsync, deleteLog, ActivityLog, getReflectionsAsync, Reflection, 
 import { ReflectionsList } from '@/components/history/ReflectionsList';
 import { LogsList } from '@/components/history/LogsList';
 import { LazyImage } from '@/components/history/LazyImage';
+import { PullToRefresh } from '@/components/ui/pull-to-refresh';
+import { ReflectionSkeleton } from '@/components/history/ReflectionSkeleton';
 
 const ITEMS_PER_PAGE = 10;
 
@@ -31,6 +33,7 @@ const HistoryScreen = () => {
   }, [activeTab]);
 
   const refreshData = async () => {
+    // Add artificial delay for skeleton demo if it's too fast, but usually valid
     if (activeTab === 'reflections') {
       const data = await getReflectionsAsync();
       setReflections(data);
@@ -55,10 +58,10 @@ const HistoryScreen = () => {
   };
 
   return (
-    <div className="min-h-screen pb-24 md:pb-8">
+    <PullToRefresh onRefresh={refreshData} className="min-h-screen pb-24 md:pb-8">
       {/* Header */}
       <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-lg border-b border-border/50">
-        <div className="container max-w-md md:max-w-5xl mx-auto px-4 py-4 space-y-4">
+        <div className="container md:max-w-5xl mx-auto px-4 py-4 space-y-4">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-xl bg-primary/10">
               <Clock className="w-6 h-6 text-primary" />
@@ -93,10 +96,13 @@ const HistoryScreen = () => {
         </div>
       </header>
 
-      <main className="container max-w-md md:max-w-5xl mx-auto px-4 py-6">
+      <main className="container md:max-w-5xl mx-auto px-4 py-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
         {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          <div className="space-y-4">
+            {/* Show 3 Skeletons for simulated loading */}
+            {[1, 2, 3].map((i) => (
+              <ReflectionSkeleton key={i} />
+            ))}
           </div>
         ) : activeTab === 'reflections' ? (
           reflections.length > 0 ? (
@@ -133,7 +139,7 @@ const HistoryScreen = () => {
         </Button>
       </div>
 
-    </div>
+    </PullToRefresh>
   );
 };
 

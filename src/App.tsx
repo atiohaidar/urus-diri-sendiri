@@ -8,23 +8,26 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { LanguageProvider } from "@/i18n/LanguageContext";
 import { useBackButton } from "@/hooks/useBackButton";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-
-import AppLayout from "./components/layout/AppLayout";
-import HomeScreen from "./components/screens/HomeScreen";
-import ParkingLotScreen from "./components/screens/ParkingLotScreen";
-import HistoryScreen from "./components/screens/HistoryScreen";
-import SettingsScreen from "./components/screens/SettingsScreen";
-import EditSchedule from "./pages/EditSchedule";
-import NoteEditorPage from "./pages/NoteEditorPage";
-import MaghribCheckinPage from "./pages/MaghribCheckinPage";
-import AboutPage from "./pages/AboutPage";
-import LogCreatorPage from "./pages/LogCreatorPage";
-import NotFound from "./pages/NotFound";
-
 import { initializeStorage } from "@/lib/storage";
-import { useEffect } from "react";
+import { useEffect, Suspense, lazy } from "react";
 import { App as CapacitorApp } from '@capacitor/app';
 import { supabase } from '@/lib/supabase';
+import { Loader2 } from "lucide-react";
+
+// Layouts - Keep eager if small, or lazy if large. Layout usually needed immediately.
+import AppLayout from "./components/layout/AppLayout";
+
+// Lazy Load Pages
+const HomeScreen = lazy(() => import("./components/screens/HomeScreen"));
+const ParkingLotScreen = lazy(() => import("./components/screens/ParkingLotScreen"));
+const HistoryScreen = lazy(() => import("./components/screens/HistoryScreen"));
+const SettingsScreen = lazy(() => import("./components/screens/SettingsScreen"));
+const EditSchedule = lazy(() => import("./pages/EditSchedule"));
+const NoteEditorPage = lazy(() => import("./pages/NoteEditorPage"));
+const MaghribCheckinPage = lazy(() => import("./pages/MaghribCheckinPage"));
+const AboutPage = lazy(() => import("./pages/AboutPage"));
+const LogCreatorPage = lazy(() => import("./pages/LogCreatorPage"));
+const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
 
@@ -33,11 +36,17 @@ const BackButtonHandler = () => {
   return null;
 };
 
+// Global Loading Fallback
+const PageLoader = () => (
+  <div className="flex items-center justify-center min-h-[50vh]">
+    <Loader2 className="w-8 h-8 animate-spin text-primary" />
+  </div>
+);
+
 const App = () => {
   useEffect(() => {
     initializeStorage();
 
-    // Listen for Deep Links (Supabase Auth)
     // Listen for Deep Links (Supabase Auth)
     const handleDeepLink = async (url: string) => {
       try {
@@ -114,21 +123,23 @@ const App = () => {
               <Sonner />
               <BrowserRouter>
                 <BackButtonHandler />
-                <Routes>
-                  <Route element={<AppLayout />}>
-                    <Route path="/" element={<HomeScreen />} />
-                    <Route path="/ideas" element={<ParkingLotScreen />} />
-                    <Route path="/history" element={<HistoryScreen />} />
-                    <Route path="/settings" element={<SettingsScreen />} />
-                  </Route>
+                <Suspense fallback={<PageLoader />}>
+                  <Routes>
+                    <Route element={<AppLayout />}>
+                      <Route path="/" element={<HomeScreen />} />
+                      <Route path="/ideas" element={<ParkingLotScreen />} />
+                      <Route path="/history" element={<HistoryScreen />} />
+                      <Route path="/settings" element={<SettingsScreen />} />
+                    </Route>
 
-                  <Route path="/schedule-editor" element={<EditSchedule />} />
-                  <Route path="/note-editor/:id" element={<NoteEditorPage />} />
-                  <Route path="/maghrib-checkin" element={<MaghribCheckinPage />} />
-                  <Route path="/about" element={<AboutPage />} />
-                  <Route path="/log-creator" element={<LogCreatorPage />} />
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
+                    <Route path="/schedule-editor" element={<EditSchedule />} />
+                    <Route path="/note-editor/:id" element={<NoteEditorPage />} />
+                    <Route path="/maghrib-checkin" element={<MaghribCheckinPage />} />
+                    <Route path="/about" element={<AboutPage />} />
+                    <Route path="/log-creator" element={<LogCreatorPage />} />
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </Suspense>
               </BrowserRouter>
             </TooltipProvider>
           </ErrorBoundary>
