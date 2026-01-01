@@ -40,7 +40,7 @@ const BottomNav = ({ activeTab }: BottomNavProps) => {
               key={id}
               onClick={() => navigate(path)}
               className={cn(
-                "flex flex-col items-center gap-1 px-6 py-2 rounded-2xl transition-all duration-200 md:flex-row md:w-full md:px-4 md:py-3.5 md:gap-3",
+                "flex flex-col items-center gap-1 px-2 py-2 rounded-2xl transition-all duration-200 md:flex-row md:w-full md:px-4 md:py-3.5 md:gap-3",
                 activeTab === id
                   ? "text-primary bg-secondary/50"
                   : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
@@ -54,7 +54,7 @@ const BottomNav = ({ activeTab }: BottomNavProps) => {
                 strokeWidth={activeTab === id ? 2.5 : 2}
               />
               <span className={cn(
-                "text-xs font-medium md:text-sm",
+                "text-[10px] font-medium md:text-sm",
                 activeTab === id ? "font-semibold" : "font-medium"
               )}>{label}</span>
             </button>
@@ -79,7 +79,7 @@ const BottomNav = ({ activeTab }: BottomNavProps) => {
               key={id}
               onClick={() => navigate(path)}
               className={cn(
-                "flex flex-col items-center gap-1 px-6 py-2 rounded-2xl transition-all duration-200 md:flex-row md:w-full md:px-4 md:py-3.5 md:gap-3",
+                "flex flex-col items-center gap-1 px-2 py-2 rounded-2xl transition-all duration-200 md:flex-row md:w-full md:px-4 md:py-3.5 md:gap-3",
                 activeTab === id
                   ? "text-primary bg-secondary/50"
                   : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
@@ -93,7 +93,7 @@ const BottomNav = ({ activeTab }: BottomNavProps) => {
                 strokeWidth={activeTab === id ? 2.5 : 2}
               />
               <span className={cn(
-                "text-xs font-medium md:text-sm",
+                "text-[10px] font-medium md:text-sm",
                 activeTab === id ? "font-semibold" : "font-medium"
               )}>{label}</span>
             </button>
