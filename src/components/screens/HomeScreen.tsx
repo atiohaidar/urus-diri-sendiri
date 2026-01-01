@@ -15,6 +15,7 @@ import { useLanguage } from '@/i18n/LanguageContext';
 import GreetingOverlay from '@/components/GreetingOverlay';
 import { triggerHaptic } from '@/lib/haptics';
 import { isCheckinCompletedToday } from '@/lib/checkin-helper';
+import { PullToRefresh } from '@/components/ui/pull-to-refresh';
 // import DailyQuote from '@/components/DailyQuote';
 
 const HomeScreen = () => {
@@ -77,7 +78,7 @@ const HomeScreen = () => {
   const innerStrokeDashoffset = innerCircumference - (priorityPercent / 100) * innerCircumference;
 
   return (
-    <div className="min-h-screen pb-24 md:pb-8">
+    <PullToRefresh onRefresh={async () => { await refreshData(); }} className="min-h-screen pb-24 md:pb-8">
       {/* Header */}
       <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-lg border-b border-border/50">
         <div className="container px-4 py-4 md:max-w-7xl">
@@ -423,9 +424,8 @@ const HomeScreen = () => {
         </div>
 
       </main >
-    </div >
+    </PullToRefresh >
   );
 };
 
 export default HomeScreen;
-
