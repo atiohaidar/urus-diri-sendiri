@@ -1,5 +1,4 @@
 import { Home, Lightbulb, Clock, Settings, Sparkles, Plus } from 'lucide-react';
-import LogCreator from '@/components/LogCreator';
 import { cn } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '@/i18n/LanguageContext';
@@ -62,11 +61,12 @@ const BottomNav = ({ activeTab }: BottomNavProps) => {
 
           {/* Central Log Button (Mobile) */}
           <div className="md:hidden -mt-8">
-            <LogCreator>
-              <button className="h-14 w-14 rounded-full bg-gradient-to-tr from-primary to-lime-400 shadow-lg shadow-primary/40 flex items-center justify-center text-primary-foreground transform active:scale-95 transition-transform">
-                <Plus className="w-7 h-7" strokeWidth={3} />
-              </button>
-            </LogCreator>
+            <button
+              onClick={() => navigate('/log-creator')}
+              className="h-14 w-14 rounded-full bg-gradient-to-tr from-primary to-lime-400 shadow-lg shadow-primary/40 flex items-center justify-center text-primary-foreground transform active:scale-95 transition-transform"
+            >
+              <Plus className="w-7 h-7" strokeWidth={3} />
+            </button>
           </div>
 
           {/* Desktop Log Button (Hidden in flex map above, added here specific for Desktop sidebar layout if needed, 

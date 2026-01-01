@@ -18,6 +18,7 @@ import EditSchedule from "./pages/EditSchedule";
 import NoteEditorPage from "./pages/NoteEditorPage";
 import MaghribCheckinPage from "./pages/MaghribCheckinPage";
 import AboutPage from "./pages/AboutPage";
+import LogCreatorPage from "./pages/LogCreatorPage";
 import NotFound from "./pages/NotFound";
 
 import { initializeStorage } from "@/lib/storage";
@@ -125,6 +126,7 @@ const App = () => {
                   <Route path="/note-editor/:id" element={<NoteEditorPage />} />
                   <Route path="/maghrib-checkin" element={<MaghribCheckinPage />} />
                   <Route path="/about" element={<AboutPage />} />
+                  <Route path="/log-creator" element={<LogCreatorPage />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </BrowserRouter>

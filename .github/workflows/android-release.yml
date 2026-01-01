@@ -58,8 +58,15 @@ jobs:
         run: |
           echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/release.jks
 
+      - name: Get version from package.json
+        id: package-version
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
       - name: Sign APK
         if: env.ANDROID_KEYSTORE_BASE64 != ''
+        id: sign_apk
         run: |
           cd android
           # Find latest build-tools
@@ -84,8 +91,22 @@ jobs:
             --key-pass "pass:$ANDROID_KEY_PASSWORD" \
             --out "$SIGNED_APK" \
             "$ALIGNED_APK"
+          
+          echo "signed_apk=$SIGNED_APK" >> $GITHUB_OUTPUT
 
-      - name: Upload Release APK
+      - name: Create GitHub Release
+        if: env.ANDROID_KEYSTORE_BASE64 != ''
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.package-version.outputs.version }}+${{ github.run_number }}
+          name: Release v${{ steps.package-version.outputs.version }} (Build ${{ github.run_number }})
+          files: android/app/build/outputs/apk/release/app-release.apk
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Release APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: release-apk
