@@ -1,6 +1,6 @@
 import { useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Moon, Sparkles, Settings2, Plus, CheckCircle2 } from 'lucide-react';
+import { Moon, Sparkles, Settings2, Plus, CheckCircle2, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import RoutineCard from '@/components/RoutineCard';
@@ -23,6 +23,8 @@ const HomeScreen = () => {
     priorities,
     activeIndex,
     currentDate,
+    isLoading,
+    refreshData,
     handleCheckIn,
     handleTogglePriority,
     handleAddPriority
@@ -81,7 +83,16 @@ const HomeScreen = () => {
         <div className="container px-4 py-4 md:max-w-7xl">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-xl md:text-2xl font-bold text-foreground">{greeting()} 👋</h1>
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl md:text-2xl font-bold text-foreground">{greeting()} 👋</h1>
+                <button
+                  onClick={refreshData}
+                  className={`p-1.5 rounded-full hover:bg-muted/50 transition-colors ${isLoading ? 'animate-spin' : ''}`}
+                  disabled={isLoading}
+                >
+                  <RotateCcw className="w-4 h-4 text-muted-foreground" />
+                </button>
+              </div>
               <p className="text-sm font-medium text-muted-foreground/90 mt-1">
                 {currentDate.toLocaleDateString(language === 'id' ? 'id-ID' : 'en-US', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} • {currentDate.toLocaleTimeString(language === 'id' ? 'id-ID' : 'en-US', { hour: '2-digit', minute: '2-digit', hour12: false })}
               </p>

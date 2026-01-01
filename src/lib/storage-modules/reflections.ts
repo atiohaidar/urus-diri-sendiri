@@ -8,7 +8,33 @@ export const getReflections = (): Reflection[] => {
 };
 
 export const getReflectionsAsync = async (): Promise<Reflection[]> => {
-    return hydrateTable('reflections');
+    const reflections = await hydrateTable('reflections') as Reflection[];
+
+    // Deduplicate by Date (keep latest updated)
+    const uniqueMap = new Map<string, Reflection>();
+
+    // Process all reflections
+    for (const r of reflections) {
+        const dateKey = new Date(r.date).toDateString();
+        const existing = uniqueMap.get(dateKey);
+
+        // Logic to keep the "better" version (prefer newer updatedAt)
+        if (!existing) {
+            uniqueMap.set(dateKey, r);
+            continue;
+        }
+
+        const currTime = r.updatedAt ? new Date(r.updatedAt).getTime() : 0;
+        const existTime = existing.updatedAt ? new Date(existing.updatedAt).getTime() : 0;
+
+        if (currTime > existTime) {
+            uniqueMap.set(dateKey, r);
+        }
+    }
+
+    return Array.from(uniqueMap.values()).sort((a, b) =>
+        new Date(b.date).getTime() - new Date(a.date).getTime()
+    );
 };
 
 export const saveReflection = async (reflection: Omit<Reflection, 'id'>) => {

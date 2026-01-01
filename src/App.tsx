@@ -21,6 +21,8 @@ import NotFound from "./pages/NotFound";
 
 import { initializeStorage } from "@/lib/storage";
 import { useEffect } from "react";
+import { App as CapacitorApp } from '@capacitor/app';
+import { supabase } from '@/lib/supabase';
 
 const queryClient = new QueryClient();
 
@@ -32,6 +34,40 @@ const BackButtonHandler = () => {
 const App = () => {
   useEffect(() => {
     initializeStorage();
+
+    // Listen for Deep Links (Supabase Auth)
+    const handleDeepLink = async (url: string) => {
+      try {
+        if (url.includes('login-callback')) {
+          // Parse tokens from hash (Implicit Flow)
+          const hashIndex = url.indexOf('#');
+          if (hashIndex !== -1) {
+            const hash = url.substring(hashIndex + 1);
+            const params = new URLSearchParams(hash);
+            const access_token = params.get('access_token');
+            const refresh_token = params.get('refresh_token');
+
+            if (access_token && refresh_token) {
+              await supabase.auth.setSession({
+                access_token,
+                refresh_token,
+              });
+              // Force reload/navigation might be good, but state change should trigger UI update
+            }
+          }
+        }
+      } catch (e) {
+        console.error('Deep link handling error:', e);
+      }
+    };
+
+    const listener = CapacitorApp.addListener('appUrlOpen', (data) => {
+      handleDeepLink(data.url);
+    });
+
+    return () => {
+      listener.then(handle => handle.remove());
+    };
   }, []);
 
   return (

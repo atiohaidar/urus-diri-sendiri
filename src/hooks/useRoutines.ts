@@ -9,6 +9,7 @@ import {
     getCompletionStats,
     addPriority,
     initializeStorage,
+    hydrateCache,
     type RoutineItem,
     type PriorityTask
 } from '@/lib/storage';
@@ -19,23 +20,37 @@ export const useRoutines = () => {
     const [stats, setStats] = useState({ total: 0, completed: 0, percent: 0 });
     const [activeIndex, setActiveIndex] = useState(0);
     const [currentDate, setCurrentDate] = useState(new Date());
+    const [isLoading, setIsLoading] = useState(true);
 
-    const loadData = useCallback(async () => {
-        // Ensure storage is initialized before loading
-        await initializeStorage();
+    const loadData = useCallback(async (force = false) => {
+        setIsLoading(true);
+        try {
+            // Ensure storage is initialized before loading
+            await initializeStorage();
 
-        const loadedRoutines = getRoutines();
-        setRoutines(loadedRoutines);
-        setPriorities(getPriorities());
-        setStats(getCompletionStats(loadedRoutines));
+            // Force refresh from storage if requested
+            if (force) {
+                await hydrateCache(true);
+            }
 
-        // Find current routine index
-        const currentIndex = findCurrentRoutineIndex(loadedRoutines);
-        setActiveIndex(currentIndex);
+            const loadedRoutines = getRoutines();
+            setRoutines(loadedRoutines);
+            setPriorities(getPriorities());
+            setStats(getCompletionStats(loadedRoutines));
+
+            // Find current routine index
+            const currentIndex = findCurrentRoutineIndex(loadedRoutines);
+            setActiveIndex(currentIndex);
+        } catch (error) {
+            console.error("Failed to load routines:", error);
+        } finally {
+            setIsLoading(false);
+        }
     }, []);
 
     useEffect(() => {
-        loadData();
+        // Initial load with force refresh to ensure data is up-to-date
+        loadData(true);
     }, [loadData]);
 
     // Timer for current date updates
@@ -80,9 +95,10 @@ export const useRoutines = () => {
         stats,
         activeIndex,
         currentDate,
+        isLoading,
         handleTogglePriority,
         handleAddPriority,
         handleCheckIn,
-        refreshData: loadData
+        refreshData: () => loadData(true)
     };
 };
