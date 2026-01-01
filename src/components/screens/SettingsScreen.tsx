@@ -8,7 +8,7 @@ import { getCloudConfig, saveCloudConfig, pushToCloud, pullFromCloud, getIsCloud
 import { useTheme } from '@/components/theme-provider';
 import { useLanguage } from '@/i18n/LanguageContext';
 import { toast } from 'sonner';
-import { supabase, signInWithGoogle, signOut } from '@/lib/supabase';
+import { supabase, signInWithGoogle, signOut, isSupabaseConfigured } from '@/lib/supabase';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 const SettingsScreen = () => {
@@ -23,6 +23,8 @@ const SettingsScreen = () => {
     const [loginLoading, setLoginLoading] = useState(false);
 
     useEffect(() => {
+        if (!isSupabaseConfigured) return;
+
         // Initial session
         supabase.auth.getSession().then(({ data: { session } }) => {
             setUser(session?.user ?? null);
@@ -37,6 +39,10 @@ const SettingsScreen = () => {
     }, []);
 
     const handleLogin = async () => {
+        if (!isSupabaseConfigured) {
+            toast.error("Supabase not configured");
+            return;
+        }
         setLoginLoading(true);
         try {
             await signInWithGoogle();
@@ -200,39 +206,47 @@ const SettingsScreen = () => {
                                 </p>
                             </div>
 
-                            <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                    <Button
-                                        className="w-full h-12 rounded-2xl shadow-lg shadow-primary/20 gap-3 font-bold"
-                                        disabled={loginLoading}
-                                    >
-                                        <LogIn className="w-5 h-5" />
-                                        {t.settings.account_login}
-                                    </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent className="rounded-3xl border-border/50">
-                                    <AlertDialogHeader>
-                                        <AlertDialogTitle className="text-xl font-bold flex items-center gap-2">
-                                            <Cloud className="w-6 h-6 text-primary" />
-                                            {t.settings.account_warning_title}
-                                        </AlertDialogTitle>
-                                        <AlertDialogDescription className="text-base text-muted-foreground pt-2">
-                                            {t.settings.account_warning_desc}
-                                        </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter className="flex-col sm:flex-row gap-2 pt-4">
-                                        <AlertDialogCancel className="h-12 rounded-2xl font-bold">
-                                            {t.common.cancel}
-                                        </AlertDialogCancel>
-                                        <AlertDialogAction
-                                            onClick={handleLogin}
-                                            className="h-12 rounded-2xl font-bold bg-primary shadow-lg shadow-primary/20"
+                            {!isSupabaseConfigured ? (
+                                <div className="bg-destructive/10 border border-destructive/20 rounded-xl p-3">
+                                    <p className="text-[10px] text-destructive font-semibold flex items-center gap-1.5">
+                                        ⚠️ Login tidak tersedia (ENV belum di-setting)
+                                    </p>
+                                </div>
+                            ) : (
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <Button
+                                            className="w-full h-12 rounded-2xl shadow-lg shadow-primary/20 gap-3 font-bold"
+                                            disabled={loginLoading}
                                         >
+                                            <LogIn className="w-5 h-5" />
                                             {t.settings.account_login}
-                                        </AlertDialogAction>
-                                    </AlertDialogFooter>
-                                </AlertDialogContent>
-                            </AlertDialog>
+                                        </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent className="rounded-3xl border-border/50">
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle className="text-xl font-bold flex items-center gap-2">
+                                                <Cloud className="w-6 h-6 text-primary" />
+                                                {t.settings.account_warning_title}
+                                            </AlertDialogTitle>
+                                            <AlertDialogDescription className="text-base text-muted-foreground pt-2">
+                                                {t.settings.account_warning_desc}
+                                            </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter className="flex-col sm:flex-row gap-2 pt-4">
+                                            <AlertDialogCancel className="h-12 rounded-2xl font-bold">
+                                                {t.common.cancel}
+                                            </AlertDialogCancel>
+                                            <AlertDialogAction
+                                                onClick={handleLogin}
+                                                className="h-12 rounded-2xl font-bold bg-primary shadow-lg shadow-primary/20"
+                                            >
+                                                {t.settings.account_login}
+                                            </AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+                            )}
                         </div>
                     )}
                 </section>

@@ -2,16 +2,8 @@ import { useState, useEffect } from 'react';
 import { X, Quote, Sun } from 'lucide-react';
 
 const quotes = [
-    { text: "Small daily improvements are the key to staggering long-term results.", author: "Unknown" },
-    { text: "You don't have to be great to start, but you have to start to be great.", author: "Zig Ziglar" },
-    { text: "The secret of your future is hidden in your daily routine.", author: "Mike Murdock" },
-    { text: "Don't watch the clock; do what it does. Keep going.", author: "Sam Levenson" },
-    { text: "Success is the sum of small efforts, repeated day in and day out.", author: "Robert Collier" },
-    { text: "Your life changes the moment you make a new, congruent, and committed decision.", author: "Tony Robbins" },
-    { text: "Discipline is doing what needs to be done, even if you don't want to do it.", author: "Unknown" },
-    { text: "The only bad workout is the one that didn't happen.", author: "Unknown" },
-    { text: "Believe you can and you're halfway there.", author: "Theodore Roosevelt" },
-    { text: "Act as if what you do makes a difference. It does.", author: "William James" },
+    { text: "Kata-kata hari ini: Semangat XD", author: "Aku" },
+
 ];
 
 const GreetingOverlay = () => {
