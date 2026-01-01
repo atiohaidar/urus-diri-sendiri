@@ -82,6 +82,12 @@ export interface Translation {
         account_sync_active: string;
         account_warning_title: string;
         account_warning_desc: string;
+        login_with_google: string;
+        login_with_email: string;
+        send_code: string;
+        enter_code_desc: string;
+        verify_login: string;
+        check_email_for_code: string;
     };
     about: {
         title: string;
