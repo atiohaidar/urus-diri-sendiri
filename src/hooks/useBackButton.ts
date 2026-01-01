@@ -7,18 +7,32 @@ export const useBackButton = () => {
     const location = useLocation();
 
     useEffect(() => {
-        CapacitorApp.addListener("backButton", ({ canGoBack }) => {
-            // Updated to support all main tab routes
-            const mainRoutes = ['/', '/ideas', '/history', '/settings'];
-            if (mainRoutes.includes(location.pathname)) {
-                CapacitorApp.exitApp();
-            } else {
-                navigate(-1);
-            }
-        });
+        let backButtonListener: any;
+
+        const setupListener = async () => {
+            backButtonListener = await CapacitorApp.addListener("backButton", ({ canGoBack }) => {
+                // Main routes that should act as "top level"
+                const mainRoutes = ['/ideas', '/history', '/settings', '/about'];
+
+                if (location.pathname === '/' || location.pathname === '') {
+                    // Only exit if on the actual Home screen
+                    CapacitorApp.exitApp();
+                } else if (mainRoutes.includes(location.pathname)) {
+                    // If on another main tab, go back to Home first
+                    navigate('/');
+                } else {
+                    // Otherwise, go back in history (e.g. from editor to list)
+                    navigate(-1);
+                }
+            });
+        };
+
+        setupListener();
 
         return () => {
-            CapacitorApp.removeAllListeners();
+            if (backButtonListener) {
+                backButtonListener.remove();
+            }
         };
     }, [navigate, location]);
 };

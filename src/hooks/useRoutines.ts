@@ -73,12 +73,21 @@ export const useRoutines = () => {
     const handleTogglePriority = (id: string, completed: boolean) => {
         const updated = updatePriorityCompletion(id, completed);
         setPriorities(updated);
+
+        if (completed) {
+            toast.success("Prioritas selesai!", {
+                action: {
+                    label: "Batal",
+                    onClick: () => handleTogglePriority(id, false)
+                }
+            });
+        }
     };
 
     const handleAddPriority = (text: string) => {
         const updated = addPriority(text);
         setPriorities(updated);
-        toast.success("Priority added!");
+        toast.success("Prioritas ditambahkan!");
     };
 
     const handleCheckIn = (id: string) => {
@@ -86,7 +95,20 @@ export const useRoutines = () => {
         setRoutines(updated);
         setStats(getCompletionStats(updated));
 
-        toast.success("Progress updated! Keep it up! 🚀");
+        // Start haptic was triggered in UI
+
+        // Find if it was completed or uncompleted
+        const routine = updated.find(r => r.id === id);
+        const isCompleted = !!routine?.completedAt;
+
+        if (isCompleted) {
+            toast.success("Progress updated! Keep it up! 🚀", {
+                action: {
+                    label: "Batal",
+                    onClick: () => handleCheckIn(id) // Toggle back
+                }
+            });
+        }
     };
 
     return {

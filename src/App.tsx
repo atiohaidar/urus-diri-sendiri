@@ -1,5 +1,6 @@
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
+import { toast } from "sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
@@ -36,28 +37,60 @@ const App = () => {
     initializeStorage();
 
     // Listen for Deep Links (Supabase Auth)
+    // Listen for Deep Links (Supabase Auth)
     const handleDeepLink = async (url: string) => {
       try {
-        if (url.includes('login-callback')) {
-          // Parse tokens from hash (Implicit Flow)
-          const hashIndex = url.indexOf('#');
-          if (hashIndex !== -1) {
-            const hash = url.substring(hashIndex + 1);
-            const params = new URLSearchParams(hash);
-            const access_token = params.get('access_token');
-            const refresh_token = params.get('refresh_token');
+        console.log('Deep link received:', url);
 
-            if (access_token && refresh_token) {
-              await supabase.auth.setSession({
-                access_token,
-                refresh_token,
-              });
-              // Force reload/navigation might be good, but state change should trigger UI update
-            }
+        // Normalize URL to handle custom schemes correctly in URL constructor if needed
+        // But Capacitor usually passes a full valid URL string.
+        const urlObj = new URL(url);
+
+        // 1. Handle PKCE Flow (code in query params)
+        const code = urlObj.searchParams.get('code');
+        if (code) {
+          console.log('Detected PKCE code, exchanging for session...');
+          const { error } = await supabase.auth.exchangeCodeForSession(code);
+          if (error) throw error;
+
+          toast.success("Login berhasil! (PKCE)");
+          return;
+        }
+
+        // 2. Handle Implicit Flow (tokens in hash)
+        // new URL(url).hash returns string starting with #
+        if (urlObj.hash) {
+          const hashParams = new URLSearchParams(urlObj.hash.substring(1)); // remove #
+          const access_token = hashParams.get('access_token');
+          const refresh_token = hashParams.get('refresh_token');
+
+          if (access_token && refresh_token) {
+            console.log('Detected Implicit tokens, setting session...');
+            await supabase.auth.setSession({
+              access_token,
+              refresh_token,
+            });
+            toast.success("Login berhasil!");
+            return;
           }
         }
-      } catch (e) {
+
+        // 3. Fallback: Parse query params for implicit tokens (sometimes happens)
+        const access_token_query = urlObj.searchParams.get('access_token');
+        const refresh_token_query = urlObj.searchParams.get('refresh_token');
+        if (access_token_query && refresh_token_query) {
+          console.log('Detected Implicit tokens in query, setting session...');
+          await supabase.auth.setSession({
+            access_token: access_token_query,
+            refresh_token: refresh_token_query,
+          });
+          toast.success("Login berhasil!");
+          return;
+        }
+
+      } catch (e: any) {
         console.error('Deep link handling error:', e);
+        toast.error(`Login failed: ${e.message || e}`);
       }
     };
 
