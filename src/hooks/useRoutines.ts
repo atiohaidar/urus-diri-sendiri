@@ -49,8 +49,9 @@ export const useRoutines = () => {
     }, []);
 
     useEffect(() => {
-        // Initial load with force refresh to ensure data is up-to-date
-        loadData(true);
+        // Initial load - don't force refresh every time component mounts
+        // Only fetch updates in the background or use cache
+        loadData(false);
     }, [loadData]);
 
     // Timer for current date updates

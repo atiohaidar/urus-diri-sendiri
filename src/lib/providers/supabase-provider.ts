@@ -3,6 +3,7 @@ import { PriorityTask, Reflection, Note, RoutineItem, ActivityLog } from '../typ
 import { supabase } from '../supabase';
 import { getImage, deleteImage } from '../idb';
 import { STORAGE_KEYS } from '../constants';
+import { LocalStorageProvider } from './local-storage-provider';
 
 type QueueItem =
     | { type: 'priorities'; data: PriorityTask[] }
@@ -16,6 +17,7 @@ export class SupabaseProvider implements IStorageProvider {
 
     private userIdPromise: Promise<string> | null = null;
     private queueKey = STORAGE_KEYS.OFFLINE_QUEUE;
+    private localProvider = new LocalStorageProvider();
 
     constructor() {
         // Auto-process queue when coming back online
@@ -126,7 +128,7 @@ export class SupabaseProvider implements IStorageProvider {
 
     // --- Priorities ---
     async getPriorities(since?: string): Promise<PriorityTask[]> {
-        if (!this.isOnline()) return [];
+        if (!this.isOnline()) return this.localProvider.getPriorities(since);
         // We still need userId for inserts, but for selects RLS handles it.
         // However, we still fetch userId to ensure we are authenticated before firing request?
         // Actually getUserId() checks auth status.
@@ -144,19 +146,35 @@ export class SupabaseProvider implements IStorageProvider {
 
         if (error) {
             console.error('Error fetching priorities:', error);
-            return [];
+            return this.localProvider.getPriorities(since);
         }
 
-        return (data || []).map((row: any) => ({
+        const priorities = (data || []).map((row: any) => ({
             id: row.id,
             text: row.text,
             completed: row.completed,
             updatedAt: row.updated_at,
             deletedAt: row.deleted_at
         }));
+
+        // Update local cache with fetched results
+        // For incremental sync, we should ideally merge.
+        // However, SupabaseProvider.getPriorities(undefined) returns full set.
+        if (!since) {
+            await this.localProvider.savePriorities(priorities);
+        } else if (priorities.length > 0) {
+            // For incremental, we fetch current local, merge, and save.
+            const current = await this.localProvider.getPriorities();
+            const mergedMap = new Map(current.map(p => [p.id, p]));
+            priorities.forEach(p => mergedMap.set(p.id, p));
+            await this.localProvider.savePriorities(Array.from(mergedMap.values()));
+        }
+
+        return priorities;
     }
 
     async savePriorities(priorities: PriorityTask[]): Promise<void> {
+        await this.localProvider.savePriorities(priorities);
         await this.executeOrQueue(
             { type: 'priorities', data: priorities },
             () => this._savePriorities(priorities)
@@ -203,7 +221,7 @@ export class SupabaseProvider implements IStorageProvider {
 
     // --- Reflections ---
     async getReflections(since?: string): Promise<Reflection[]> {
-        if (!this.isOnline()) return [];
+        if (!this.isOnline()) return this.localProvider.getReflections(since);
         await this.getUserId();
 
         let query = supabase
@@ -219,10 +237,10 @@ export class SupabaseProvider implements IStorageProvider {
         // ...
         if (error) {
             console.error('Error fetching reflections:', error);
-            return [];
+            return this.localProvider.getReflections(since);
         }
 
-        return (data || []).map((row: any) => ({
+        const reflections = (data || []).map((row: any) => ({
             id: row.id,
             date: row.date,
             winOfDay: row.win_of_day,
@@ -236,9 +254,25 @@ export class SupabaseProvider implements IStorageProvider {
             updatedAt: row.updated_at,
             deletedAt: row.deleted_at
         }));
+
+        // Update local cache
+        if (!since) {
+            // Full refresh: ideally we should clear local reflections and put these,
+            // but for safety with images, we just upsert.
+            for (const r of reflections) {
+                await this.localProvider.saveReflection(r);
+            }
+        } else if (reflections.length > 0) {
+            for (const r of reflections) {
+                await this.localProvider.saveReflection(r);
+            }
+        }
+
+        return reflections;
     }
 
     async saveReflection(reflection: Reflection): Promise<void> {
+        await this.localProvider.saveReflection(reflection);
         await this.executeOrQueue(
             { type: 'reflection', data: reflection },
             () => this._saveReflection(reflection)
@@ -294,7 +328,7 @@ export class SupabaseProvider implements IStorageProvider {
 
     // --- Notes ---
     async getNotes(since?: string): Promise<Note[]> {
-        if (!this.isOnline()) return [];
+        if (!this.isOnline()) return this.localProvider.getNotes(since);
         await this.getUserId();
 
         let query = supabase
@@ -307,9 +341,9 @@ export class SupabaseProvider implements IStorageProvider {
         }
 
         const { data, error } = await query;
-        if (error) return [];
+        if (error) return this.localProvider.getNotes(since);
 
-        return data.map((r: any) => ({
+        const notes = data.map((r: any) => ({
             id: r.id,
             title: r.title,
             content: r.content,
@@ -317,9 +351,21 @@ export class SupabaseProvider implements IStorageProvider {
             updatedAt: r.updated_at,
             deletedAt: r.deleted_at
         }));
+
+        if (!since) {
+            await this.localProvider.saveNotes(notes);
+        } else if (notes.length > 0) {
+            const current = await this.localProvider.getNotes();
+            const mergedMap = new Map(current.map(n => [n.id, n]));
+            notes.forEach(n => mergedMap.set(n.id, n));
+            await this.localProvider.saveNotes(Array.from(mergedMap.values()));
+        }
+
+        return notes;
     }
 
     async saveNotes(notes: Note[]): Promise<void> {
+        await this.localProvider.saveNotes(notes);
         await this.executeOrQueue(
             { type: 'notes', data: notes },
             () => this._saveNotes(notes)
@@ -365,7 +411,7 @@ export class SupabaseProvider implements IStorageProvider {
 
     // --- Routines ---
     async getRoutines(since?: string): Promise<RoutineItem[]> {
-        if (!this.isOnline()) return [];
+        if (!this.isOnline()) return this.localProvider.getRoutines(since);
         await this.getUserId();
 
         let query = supabase.from('routines').select('*');
@@ -376,7 +422,7 @@ export class SupabaseProvider implements IStorageProvider {
 
         const { data } = await query;
 
-        return (data || []).map((r: any) => ({
+        const routines = (data || []).map((r: any) => ({
             id: r.id,
             startTime: r.start_time,
             endTime: r.end_time,
@@ -387,9 +433,21 @@ export class SupabaseProvider implements IStorageProvider {
             description: r.description,
             deletedAt: r.deleted_at
         }));
+
+        if (!since) {
+            await this.localProvider.saveRoutines(routines);
+        } else if (routines.length > 0) {
+            const current = await this.localProvider.getRoutines();
+            const mergedMap = new Map(current.map(r => [r.id, r]));
+            routines.forEach(r => mergedMap.set(r.id, r));
+            await this.localProvider.saveRoutines(Array.from(mergedMap.values()));
+        }
+
+        return routines;
     }
 
     async saveRoutines(routines: RoutineItem[]): Promise<void> {
+        await this.localProvider.saveRoutines(routines);
         await this.executeOrQueue(
             { type: 'routines', data: routines },
             () => this._saveRoutines(routines)
@@ -437,7 +495,7 @@ export class SupabaseProvider implements IStorageProvider {
 
     // --- Logs ---
     async getLogs(since?: string): Promise<ActivityLog[]> {
-        if (!this.isOnline()) return [];
+        if (!this.isOnline()) return this.localProvider.getLogs(since);
         await this.getUserId();
 
         let query = supabase
@@ -451,7 +509,7 @@ export class SupabaseProvider implements IStorageProvider {
 
         const { data } = await query;
 
-        return (data || []).map((r: any) => ({
+        const logs = (data || []).map((r: any) => ({
             id: r.id,
             timestamp: r.timestamp,
             type: r.type,
@@ -461,9 +519,24 @@ export class SupabaseProvider implements IStorageProvider {
             updatedAt: r.updated_at,
             deletedAt: r.deleted_at
         }));
+
+        if (!since) {
+            // Similar to reflections, we upsert to avoid wiping IDB logs we might want to keep?
+            // But usually full set is the truth.
+            for (const l of logs) {
+                await this.localProvider.saveLog(l);
+            }
+        } else if (logs.length > 0) {
+            for (const l of logs) {
+                await this.localProvider.saveLog(l);
+            }
+        }
+
+        return logs;
     }
 
     async saveLog(log: ActivityLog): Promise<void> {
+        await this.localProvider.saveLog(log);
         await this.executeOrQueue(
             { type: 'log', data: log },
             () => this._saveLog(log)
@@ -509,6 +582,7 @@ export class SupabaseProvider implements IStorageProvider {
     }
 
     async deleteLog(id: string): Promise<void> {
+        await this.localProvider.deleteLog(id);
         await this.executeOrQueue(
             { type: 'delete_log', data: id },
             () => this._deleteLog(id)
