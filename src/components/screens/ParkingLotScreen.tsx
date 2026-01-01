@@ -5,10 +5,12 @@ import { Input } from '@/components/ui/input';
 import NoteCard from '@/components/NoteCard';
 import { useNotes } from '@/hooks/useNotes';
 import { type Note } from '@/lib/storage';
+import { useLanguage } from '@/i18n/LanguageContext';
 
 const ParkingLotScreen = () => {
   const navigate = useNavigate();
   const { notes } = useNotes();
+  const { t } = useLanguage();
   const [searchQuery, setSearchQuery] = useState('');
 
   const filteredNotes = useMemo(() => {
@@ -40,8 +42,8 @@ const ParkingLotScreen = () => {
                 <Lightbulb className="w-6 h-6 text-primary" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-foreground">Parking Lot</h1>
-                <p className="text-sm text-muted-foreground hidden md:block">Capture ideas for later</p>
+                <h1 className="text-xl font-bold text-foreground">{t.ideas.title}</h1>
+                <p className="text-sm text-muted-foreground hidden md:block">{t.ideas.subtitle}</p>
               </div>
             </div>
 
@@ -51,7 +53,7 @@ const ParkingLotScreen = () => {
               <Input
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search thoughts..."
+                placeholder={t.ideas.search_placeholder}
                 className="pl-11 h-11 bg-card border-0 rounded-xl shadow-sm ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
               />
             </div>
@@ -77,12 +79,12 @@ const ParkingLotScreen = () => {
               <Lightbulb className="w-8 h-8 md:w-12 md:h-12 text-primary" />
             </div>
             <h3 className="font-semibold text-lg md:text-xl text-foreground mb-2">
-              {searchQuery ? 'No matching notes' : 'No ideas yet'}
+              {searchQuery ? t.ideas.no_results_title : t.ideas.empty_title}
             </h3>
             <p className="text-sm md:text-base text-muted-foreground">
               {searchQuery
-                ? 'Try a different search term'
-                : 'Capture your sudden thoughts and ideas here'}
+                ? t.ideas.no_results_desc
+                : t.ideas.empty_desc}
             </p>
           </div>
         )}

@@ -8,6 +8,7 @@ export const STORAGE_KEYS = {
     GOOGLE_SHEET_URL: 'urus-diri-sheet-url',
     CLOUD_SYNC_TOKEN: 'urus-diri-cloud-token',
     LOGS: 'urus-diri-logs',
+    OFFLINE_QUEUE: 'urus-diri-offline-queue', // Added for sync
 } as const;
 
 export const CATEGORY_LIST = [
@@ -18,4 +19,6 @@ export const CATEGORY_LIST = [
     'Spiritual',
     'Learning',
     'Other',
+    'Reading',    // Added common category
+    'Work',       // Added common category
 ] as const;

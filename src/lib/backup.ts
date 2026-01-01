@@ -1,14 +1,17 @@
-import { savePriorities, saveRoutines } from './storage';
+import { getAllAppDataAsync, initializeStorage, restoreData } from './storage';
+import { PriorityTask, Reflection, Note, RoutineItem, ActivityLog } from './types';
 
-import { STORAGE_KEYS } from './constants';
-
-export const exportData = () => {
+export const exportData = async () => {
     try {
+        await initializeStorage();
+        const appData = await getAllAppDataAsync();
+
         const data = {
-            priorities: JSON.parse(localStorage.getItem(STORAGE_KEYS.PRIORITIES) || '[]'),
-            reflections: JSON.parse(localStorage.getItem(STORAGE_KEYS.REFLECTIONS) || '[]'),
-            notes: JSON.parse(localStorage.getItem(STORAGE_KEYS.NOTES) || '[]'),
-            routines: JSON.parse(localStorage.getItem(STORAGE_KEYS.ROUTINES) || '[]'),
+            priorities: appData.priorities,
+            reflections: appData.reflections,
+            notes: appData.notes,
+            routines: appData.routines,
+            logs: appData.logs,
             version: 1,
             timestamp: new Date().toISOString(),
         };
@@ -32,7 +35,7 @@ export const exportData = () => {
 export const importData = (file: File): Promise<boolean> => {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
-        reader.onload = (e) => {
+        reader.onload = async (e) => {
             try {
                 const content = e.target?.result as string;
                 const data = JSON.parse(content);
@@ -42,13 +45,9 @@ export const importData = (file: File): Promise<boolean> => {
                     throw new Error('Invalid backup file format');
                 }
 
-                if (data.priorities) localStorage.setItem(STORAGE_KEYS.PRIORITIES, JSON.stringify(data.priorities));
-                if (data.reflections) localStorage.setItem(STORAGE_KEYS.REFLECTIONS, JSON.stringify(data.reflections));
-                if (data.notes) localStorage.setItem(STORAGE_KEYS.NOTES, JSON.stringify(data.notes));
-                if (data.routines) localStorage.setItem(STORAGE_KEYS.ROUTINES, JSON.stringify(data.routines));
+                await initializeStorage();
+                await restoreData(data);
 
-                // Trigger an event or reload to update UI?
-                // For now, caller needs to handle reload.
                 resolve(true);
             } catch (err) {
                 console.error('Import failed:', err);

@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { useNotes } from '@/hooks/useNotes';
 import { useToast } from '@/hooks/use-toast';
 import { triggerHaptic } from '@/lib/haptics';
+import { useLanguage } from '@/i18n/LanguageContext';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -24,6 +25,7 @@ const NoteEditorPage = () => {
     const navigate = useNavigate();
     const { notes, saveNote, updateNote, deleteNote } = useNotes();
     const { toast } = useToast();
+    const { t } = useLanguage();
 
     const isNew = id === 'new';
     const existingNote = notes.find(n => n.id === id);
@@ -57,7 +59,7 @@ const NoteEditorPage = () => {
             // Check if we just saved it (to avoid dupes if double triggered, purely defensive)
             saveNote(finalTitle, content);
             if (!silent) {
-                toast({ title: "Note saved ✨" });
+                toast({ title: t.note_editor.toast_saved });
                 triggerHaptic();
             }
         } else if (existingNote) {
@@ -65,7 +67,7 @@ const NoteEditorPage = () => {
             if (existingNote.title !== finalTitle || existingNote.content !== content) {
                 updateNote(existingNote.id, { title: finalTitle, content });
                 if (!silent) {
-                    toast({ title: "Note updated" });
+                    toast({ title: t.note_editor.toast_updated });
                     triggerHaptic();
                 }
             }
@@ -81,7 +83,7 @@ const NoteEditorPage = () => {
     const handleDelete = () => {
         if (!isNew && id) {
             deleteNote(id);
-            toast({ title: "Note deleted" });
+            toast({ title: t.note_editor.toast_deleted });
             triggerHaptic();
             navigate(-1);
         } else {
@@ -100,7 +102,7 @@ const NoteEditorPage = () => {
                         So X is fine. */}
                     <X className="w-6 h-6" />
                 </Button>
-                <h1 className="font-semibold text-lg">{isNew ? 'New Idea' : 'Edit Idea'}</h1>
+                <h1 className="font-semibold text-lg">{isNew ? t.note_editor.new_title : t.note_editor.edit_title}</h1>
                 <div className="w-10 flex justify-end">
                     {!isNew && (
                         <AlertDialog>
@@ -111,15 +113,15 @@ const NoteEditorPage = () => {
                             </AlertDialogTrigger>
                             <AlertDialogContent>
                                 <AlertDialogHeader>
-                                    <AlertDialogTitle>Delete Note?</AlertDialogTitle>
+                                    <AlertDialogTitle>{t.note_editor.delete_dialog_title}</AlertDialogTitle>
                                     <AlertDialogDescription>
-                                        This simple thought will be lost forever.
+                                        {t.note_editor.delete_dialog_desc}
                                     </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogCancel>{t.common.cancel}</AlertDialogCancel>
                                     <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                                        Delete
+                                        {t.common.delete}
                                     </AlertDialogAction>
                                 </AlertDialogFooter>
                             </AlertDialogContent>
@@ -134,7 +136,7 @@ const NoteEditorPage = () => {
                     autoFocus={isNew}
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
-                    placeholder="Title..."
+                    placeholder={t.note_editor.placeholder_title}
                     className="text-2xl font-bold border-0 border-b border-transparent focus-visible:border-primary/50 rounded-none px-0 bg-transparent h-auto py-2 focus-visible:ring-0 placeholder:text-muted-foreground/50"
                 />
 
@@ -145,8 +147,8 @@ const NoteEditorPage = () => {
                     ) : (
                         <span>
                             {existingNote?.updatedAt
-                                ? `Edited ${new Date(existingNote.updatedAt).toLocaleDateString('en-US', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}`
-                                : `Created ${new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'long' })}`
+                                ? `${t.note_editor.edited_prefix} ${new Date(existingNote.updatedAt).toLocaleDateString('en-US', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}`
+                                : `${t.note_editor.created_prefix} ${new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'long' })}`
                             }
                         </span>
                     )}
@@ -155,7 +157,7 @@ const NoteEditorPage = () => {
                 <Textarea
                     value={content}
                     onChange={(e) => setContent(e.target.value)}
-                    placeholder="What's on your mind?..."
+                    placeholder={t.note_editor.placeholder_content}
                     className="flex-1 min-h-[50vh] text-lg leading-relaxed border-0 resize-none p-0 bg-transparent focus-visible:ring-0 placeholder:text-muted-foreground/50"
                 />
             </div>
@@ -163,7 +165,7 @@ const NoteEditorPage = () => {
             {/* Save Button (Optional, since X saves, but good for UX clarity) */}
             <div className="p-4 border-t border-border/50 sticky bottom-0 bg-background/80 backdrop-blur-md">
                 <Button onClick={handleBack} className="w-full h-12 rounded-xl text-md font-semibold md:max-w-md md:mx-auto block">
-                    Done
+                    {t.note_editor.done}
                 </Button>
             </div>
         </div>

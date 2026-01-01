@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { TimePicker } from '@/components/ui/time-picker';
 import { ScheduleCard } from '@/components/routine/ScheduleCard';
 import { ScheduleForm } from '@/components/routine/ScheduleForm';
-import { getRoutines, saveRoutines, checkOverlap, parseTimeToMinutes, type RoutineItem } from '@/lib/storage';
+import { getRoutines, saveRoutines, checkOverlap, parseTimeToMinutes, initializeStorage, type RoutineItem } from '@/lib/storage';
 import { toast } from 'sonner';
 import BulkAddDialog from '@/components/routine/BulkAddDialog';
 import MainLayout from '@/components/layout/MainLayout';
@@ -35,7 +35,9 @@ const EditSchedule = () => {
     });
 
     useEffect(() => {
-        setItems(getRoutines());
+        initializeStorage().then(() => {
+            setItems(getRoutines());
+        });
     }, []);
 
     const startEdit = (item: RoutineItem) => {

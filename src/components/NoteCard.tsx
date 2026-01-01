@@ -1,5 +1,6 @@
 import type { Note } from '@/lib/storage';
 import { getRelativeDate } from '@/lib/storage';
+import { useLanguage } from '@/i18n/LanguageContext';
 
 interface NoteCardProps {
   note: Note;
@@ -8,8 +9,9 @@ interface NoteCardProps {
 }
 
 const NoteCard = ({ note, onClick, index }: NoteCardProps) => {
-  const snippet = note.content.length > 80 
-    ? note.content.substring(0, 80) + '...' 
+  const { language } = useLanguage();
+  const snippet = note.content.length > 80
+    ? note.content.substring(0, 80) + '...'
     : note.content;
 
   return (
@@ -24,7 +26,7 @@ const NoteCard = ({ note, onClick, index }: NoteCardProps) => {
           <p className="text-sm text-muted-foreground line-clamp-2">{snippet}</p>
         </div>
         <span className="text-xs text-muted-foreground whitespace-nowrap">
-          {getRelativeDate(note.updatedAt)}
+          {getRelativeDate(note.updatedAt, language)}
         </span>
       </div>
     </button>

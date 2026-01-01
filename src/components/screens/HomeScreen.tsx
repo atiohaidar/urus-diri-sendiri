@@ -15,6 +15,7 @@ import { useLanguage } from '@/i18n/LanguageContext';
 import GreetingOverlay from '@/components/GreetingOverlay';
 import { triggerHaptic } from '@/lib/haptics';
 import { isCheckinCompletedToday } from '@/lib/checkin-helper';
+// import DailyQuote from '@/components/DailyQuote';
 
 const HomeScreen = () => {
   const {
@@ -146,6 +147,7 @@ const HomeScreen = () => {
           )}
 
           <GreetingOverlay />
+          {/* <DailyQuote /> */}
 
           {/* Daily Routine (Left side on Desktop) */}
           <section className="flex flex-col h-full">
