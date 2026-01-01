@@ -120,4 +120,27 @@ export interface Translation {
         schedule_finished_desc: string;
         no_routines_text: string;
     };
+    ideas: {
+        title: string;
+        subtitle: string;
+        search_placeholder: string;
+        no_results_title: string;
+        no_results_desc: string;
+        empty_title: string;
+        empty_desc: string;
+    };
+    note_editor: {
+        new_title: string;
+        edit_title: string;
+        placeholder_title: string;
+        placeholder_content: string;
+        toast_saved: string;
+        toast_updated: string;
+        toast_deleted: string;
+        delete_dialog_title: string;
+        delete_dialog_desc: string;
+        done: string;
+        edited_prefix: string;
+        created_prefix: string;
+    };
 }

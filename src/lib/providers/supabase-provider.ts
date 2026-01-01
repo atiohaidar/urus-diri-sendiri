@@ -125,13 +125,22 @@ export class SupabaseProvider implements IStorageProvider {
     }
 
     // --- Priorities ---
-    async getPriorities(): Promise<PriorityTask[]> {
-        if (!this.isOnline()) return []; // Can't fetch if offline
-        const userId = await this.getUserId();
-        const { data, error } = await supabase
+    async getPriorities(since?: string): Promise<PriorityTask[]> {
+        if (!this.isOnline()) return [];
+        // We still need userId for inserts, but for selects RLS handles it.
+        // However, we still fetch userId to ensure we are authenticated before firing request?
+        // Actually getUserId() checks auth status.
+        await this.getUserId();
+
+        let query = supabase
             .from('priorities')
-            .select('*')
-            .eq('user_id', userId);
+            .select('*');
+
+        if (since) {
+            query = query.gt('updated_at', since);
+        }
+
+        const { data, error } = await query;
 
         if (error) {
             console.error('Error fetching priorities:', error);
@@ -142,7 +151,8 @@ export class SupabaseProvider implements IStorageProvider {
             id: row.id,
             text: row.text,
             completed: row.completed,
-            updatedAt: row.updated_at
+            updatedAt: row.updated_at,
+            deletedAt: row.deleted_at
         }));
     }
 
@@ -155,37 +165,58 @@ export class SupabaseProvider implements IStorageProvider {
 
     private async _savePriorities(priorities: PriorityTask[]) {
         const userId = await this.getUserId();
+        const activeIds = priorities.map(p => p.id);
+
+        // 1. Upsert Active Items
         const rows = priorities.map(p => ({
             id: p.id,
             text: p.text,
             completed: p.completed,
             updated_at: p.updatedAt,
+            deleted_at: p.deletedAt || null, // Ensure explicit null to un-delete if needed
             user_id: userId
         }));
 
-        const { error } = await supabase.from('priorities').upsert(rows);
-        if (error) throw error;
+        if (rows.length > 0) {
+            const { error } = await supabase.from('priorities').upsert(rows);
+            if (error) throw error;
+        }
 
-        // Cleanup deleted items logic (this one is tricky in queue due to race conditions,
-        // but generally acceptable for personal app)
-        const newIds = priorities.map(p => p.id);
-        if (newIds.length > 0) {
-            await supabase.from('priorities').delete().eq('user_id', userId).not('id', 'in', `(${newIds.join(',')})`);
+        // 2. Soft Delete Missing Items (Items in DB but not in our active list)
+        // We only mark as deleted if they are not already deleted
+        if (activeIds.length > 0) {
+            const { error: delError } = await supabase
+                .from('priorities')
+                .update({ deleted_at: new Date().toISOString() })
+                .not('id', 'in', `(${activeIds.join(',')})`)
+                .is('deleted_at', null);
+            if (delError) console.error("Error soft-syncing priorities:", delError);
         } else {
-            await supabase.from('priorities').delete().eq('user_id', userId);
+            // If local list is empty, soft delete ALL currently active items
+            const { error: delError } = await supabase
+                .from('priorities')
+                .update({ deleted_at: new Date().toISOString() })
+                .is('deleted_at', null);
+            if (delError) console.error("Error soft-clearing priorities:", delError);
         }
     }
 
     // --- Reflections ---
-    async getReflections(): Promise<Reflection[]> {
+    async getReflections(since?: string): Promise<Reflection[]> {
         if (!this.isOnline()) return [];
-        const userId = await this.getUserId();
-        const { data, error } = await supabase
+        await this.getUserId();
+
+        let query = supabase
             .from('reflections')
             .select('*')
-            .eq('user_id', userId)
             .order('date', { ascending: false });
 
+        if (since) {
+            query = query.gt('updated_at', since);
+        }
+
+        const { data, error } = await query;
+        // ...
         if (error) {
             console.error('Error fetching reflections:', error);
             return [];
@@ -201,7 +232,9 @@ export class SupabaseProvider implements IStorageProvider {
             todayRoutines: row.today_routines,
             todayPriorities: row.today_priorities,
             images: row.images || [],
-            imageIds: []
+            imageIds: [],
+            updatedAt: row.updated_at,
+            deletedAt: row.deleted_at
         }));
     }
 
@@ -232,9 +265,9 @@ export class SupabaseProvider implements IStorageProvider {
                     if (!error && data) {
                         const { data: { publicUrl } } = supabase.storage.from('images').getPublicUrl(fileName);
                         finalImageUrls.push(publicUrl);
-                        await deleteImage(id); // Only delete from local IDB after successful upload
+                        await deleteImage(id);
                     } else if (error) {
-                        throw error; // Propagate error so we retry later
+                        throw error;
                     }
                 }
             }
@@ -250,6 +283,8 @@ export class SupabaseProvider implements IStorageProvider {
             today_routines: reflection.todayRoutines,
             today_priorities: reflection.todayPriorities,
             images: finalImageUrls,
+            updated_at: reflection.updatedAt || new Date().toISOString(),
+            deleted_at: reflection.deletedAt || null,
             user_id: userId
         };
 
@@ -258,15 +293,20 @@ export class SupabaseProvider implements IStorageProvider {
     }
 
     // --- Notes ---
-    async getNotes(): Promise<Note[]> {
+    async getNotes(since?: string): Promise<Note[]> {
         if (!this.isOnline()) return [];
-        const userId = await this.getUserId();
-        const { data, error } = await supabase
+        await this.getUserId();
+
+        let query = supabase
             .from('notes')
             .select('*')
-            .eq('user_id', userId)
             .order('updated_at', { ascending: false });
 
+        if (since) {
+            query = query.gt('updated_at', since);
+        }
+
+        const { data, error } = await query;
         if (error) return [];
 
         return data.map((r: any) => ({
@@ -274,7 +314,8 @@ export class SupabaseProvider implements IStorageProvider {
             title: r.title,
             content: r.content,
             createdAt: r.created_at,
-            updatedAt: r.updated_at
+            updatedAt: r.updated_at,
+            deletedAt: r.deleted_at
         }));
     }
 
@@ -287,31 +328,54 @@ export class SupabaseProvider implements IStorageProvider {
 
     private async _saveNotes(notes: Note[]) {
         const userId = await this.getUserId();
+        const activeIds = notes.map(n => n.id);
+
         const rows = notes.map(n => ({
             id: n.id,
             title: n.title,
             content: n.content,
             created_at: n.createdAt,
             updated_at: n.updatedAt,
+            deleted_at: n.deletedAt || null,
             user_id: userId
         }));
 
-        const { error } = await supabase.from('notes').upsert(rows);
-        if (error) throw error;
+        if (rows.length > 0) {
+            const { error } = await supabase.from('notes').upsert(rows);
+            if (error) throw error;
+        }
 
-        const ids = notes.map(n => n.id);
-        if (ids.length > 0) {
-            await supabase.from('notes').delete().eq('user_id', userId).not('id', 'in', `(${ids.join(',')})`);
+        // Soft Delete Missing Items
+        if (activeIds.length > 0) {
+            const { error: delError } = await supabase
+                .from('notes')
+                .update({ deleted_at: new Date().toISOString() })
+                .not('id', 'in', `(${activeIds.join(',')})`)
+                .is('deleted_at', null);
+
+            if (delError) console.error("Error soft-syncing notes:", delError);
         } else {
-            await supabase.from('notes').delete().eq('user_id', userId);
+            const { error: delError } = await supabase
+                .from('notes')
+                .update({ deleted_at: new Date().toISOString() })
+                .is('deleted_at', null);
+            if (delError) console.error("Error soft-clearing notes:", delError);
         }
     }
 
     // --- Routines ---
-    async getRoutines(): Promise<RoutineItem[]> {
+    async getRoutines(since?: string): Promise<RoutineItem[]> {
         if (!this.isOnline()) return [];
-        const userId = await this.getUserId();
-        const { data } = await supabase.from('routines').select('*').eq('user_id', userId);
+        await this.getUserId();
+
+        let query = supabase.from('routines').select('*');
+
+        if (since) {
+            query = query.gt('updated_at', since);
+        }
+
+        const { data } = await query;
+
         return (data || []).map((r: any) => ({
             id: r.id,
             startTime: r.start_time,
@@ -320,7 +384,8 @@ export class SupabaseProvider implements IStorageProvider {
             category: r.category,
             completedAt: r.completed_at,
             updatedAt: r.updated_at,
-            description: r.description
+            description: r.description,
+            deletedAt: r.deleted_at
         }));
     }
 
@@ -333,6 +398,8 @@ export class SupabaseProvider implements IStorageProvider {
 
     private async _saveRoutines(routines: RoutineItem[]) {
         const userId = await this.getUserId();
+        const activeIds = routines.map(r => r.id);
+
         const rows = routines.map(r => ({
             id: r.id,
             start_time: r.startTime,
@@ -342,32 +409,57 @@ export class SupabaseProvider implements IStorageProvider {
             completed_at: r.completedAt,
             updated_at: r.updatedAt,
             description: r.description,
+            deleted_at: r.deletedAt || null,
             user_id: userId
         }));
 
-        const { error } = await supabase.from('routines').upsert(rows);
-        if (error) throw error;
+        if (rows.length > 0) {
+            const { error } = await supabase.from('routines').upsert(rows);
+            if (error) throw error;
+        }
 
-        const ids = routines.map(r => r.id);
-        if (ids.length > 0) {
-            await supabase.from('routines').delete().eq('user_id', userId).not('id', 'in', `(${ids.join(',')})`);
+        // Soft Delete Missing Items
+        if (activeIds.length > 0) {
+            const { error: delError } = await supabase
+                .from('routines')
+                .update({ deleted_at: new Date().toISOString() })
+                .not('id', 'in', `(${activeIds.join(',')})`)
+                .is('deleted_at', null);
+            if (delError) console.error("Error soft-syncing routines:", delError);
         } else {
-            await supabase.from('routines').delete().eq('user_id', userId);
+            const { error: delError } = await supabase
+                .from('routines')
+                .update({ deleted_at: new Date().toISOString() })
+                .is('deleted_at', null);
+            if (delError) console.error("Error soft-clearing routines:", delError);
         }
     }
 
     // --- Logs ---
-    async getLogs(): Promise<ActivityLog[]> {
+    async getLogs(since?: string): Promise<ActivityLog[]> {
         if (!this.isOnline()) return [];
-        const userId = await this.getUserId();
-        const { data } = await supabase.from('logs').select('*').eq('user_id', userId).order('timestamp', { ascending: false });
+        await this.getUserId();
+
+        let query = supabase
+            .from('logs')
+            .select('*')
+            .order('timestamp', { ascending: false });
+
+        if (since) {
+            query = query.gt('updated_at', since);
+        }
+
+        const { data } = await query;
+
         return (data || []).map((r: any) => ({
             id: r.id,
             timestamp: r.timestamp,
             type: r.type,
             content: r.content,
             mediaId: r.media_url,
-            category: r.category
+            category: r.category,
+            updatedAt: r.updated_at,
+            deletedAt: r.deleted_at
         }));
     }
 
@@ -407,6 +499,8 @@ export class SupabaseProvider implements IStorageProvider {
             content: log.content,
             media_url: contentOrUrl,
             category: log.category,
+            updated_at: log.updatedAt || new Date().toISOString(),
+            deleted_at: log.deletedAt || null,
             user_id: userId
         };
 
@@ -422,7 +516,13 @@ export class SupabaseProvider implements IStorageProvider {
     }
 
     private async _deleteLog(id: string) {
-        const { error } = await supabase.from('logs').delete().eq('id', id);
+        // Soft delete: just update deleted_at
+        // RLS will handle user_id check
+        const { error } = await supabase
+            .from('logs')
+            .update({ deleted_at: new Date().toISOString() })
+            .eq('id', id);
+
         if (error) throw error;
     }
 
@@ -431,3 +531,4 @@ export class SupabaseProvider implements IStorageProvider {
         // Safe implementation or empty
     }
 }
+

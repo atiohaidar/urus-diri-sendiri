@@ -2,16 +2,8 @@ import { useState, useEffect } from 'react';
 import { Quote } from 'lucide-react';
 
 const quotes = [
-    { text: "Small daily improvements are the key to staggering long-term results.", author: "Unknown" },
-    { text: "You don't have to be great to start, but you have to start to be great.", author: "Zig Ziglar" },
-    { text: "The secret of your future is hidden in your daily routine.", author: "Mike Murdock" },
-    { text: "Don't watch the clock; do what it does. Keep going.", author: "Sam Levenson" },
-    { text: "Success is the sum of small efforts, repeated day in and day out.", author: "Robert Collier" },
-    { text: "Your life changes the moment you make a new, congruent, and committed decision.", author: "Tony Robbins" },
-    { text: "Discipline is doing what needs to be done, even if you don't want to do it.", author: "Unknown" },
-    { text: "The only bad workout is the one that didn't happen.", author: "Unknown" },
-    { text: "Believe you can and you're halfway there.", author: "Theodore Roosevelt" },
-    { text: "Act as if what you do makes a difference. It does.", author: "William James" },
+    { text: "Kata-kata hari ini: Semangat", author: "Aku" },
+
 ];
 
 const DailyQuote = () => {
@@ -30,14 +22,20 @@ const DailyQuote = () => {
     }, []);
 
     return (
-        <div className="bg-gradient-to-br from-primary/5 to-primary/10 border border-primary/10 rounded-2xl p-4 md:p-6 mb-6 relative overflow-hidden">
-            <Quote className="absolute top-2 right-2 w-12 h-12 text-primary/5 rotate-12" />
-            <div className="relative z-10">
-                <p className="text-sm md:text-base font-medium text-foreground italic leading-relaxed">
+        <div className="bg-gradient-to-br from-indigo-500/10 via-purple-500/5 to-pink-500/10 border border-indigo-500/10 rounded-3xl p-6 mb-8 relative overflow-hidden backdrop-blur-sm group hover:shadow-lg hover:shadow-indigo-500/5 transition-all duration-500">
+            {/* Decorator */}
+            <div className="absolute top-0 right-0 p-3 opacity-20 group-hover:opacity-40 transition-opacity duration-300">
+                <Quote className="w-16 h-16 text-indigo-500 rotate-12" />
+            </div>
+
+            <div className="relative z-10 flex flex-col items-center text-center space-y-3">
+                <Quote className="w-6 h-6 text-indigo-500/50 mb-1" />
+                <p className="text-lg md:text-xl font-medium text-foreground leading-relaxed italic max-w-2xl">
                     "{quote.text}"
                 </p>
-                <p className="text-xs text-muted-foreground mt-2 font-semibold">
-                    — {quote.author}
+                <div className="h-1 w-12 bg-indigo-500/20 rounded-full my-2"></div>
+                <p className="text-xs md:text-sm text-muted-foreground font-semibold tracking-wider uppercase">
+                    {quote.author}
                 </p>
             </div>
         </div>

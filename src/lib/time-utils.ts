@@ -40,14 +40,16 @@ export const getCurrentTimeInMinutes = (): number => {
     return now.getHours() * 60 + now.getMinutes();
 };
 
-export const formatDate = (date: Date | string): string => {
+export const formatDate = (date: Date | string, locale: string = 'en'): string => {
     const d = typeof date === 'string' ? new Date(date) : date;
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const loc = locale === 'id' ? 'id-ID' : 'en-US';
+    return d.toLocaleDateString(loc, { month: 'short', day: 'numeric' });
 };
 
-export const formatTime = (date: Date | string): string => {
+export const formatTime = (date: Date | string, locale: string = 'en'): string => {
     const d = typeof date === 'string' ? new Date(date) : date;
-    return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    const loc = locale === 'id' ? 'id-ID' : 'en-US';
+    return d.toLocaleTimeString(loc, { hour: 'numeric', minute: '2-digit' });
 };
 
 export const isToday = (date: Date | string): boolean => {
@@ -63,10 +65,10 @@ export const isYesterday = (date: Date | string): boolean => {
     return d.toDateString() === yesterday.toDateString();
 };
 
-export const getRelativeDate = (date: Date | string): string => {
-    if (isToday(date)) return formatTime(date);
-    if (isYesterday(date)) return 'Yesterday';
-    return formatDate(date);
+export const getRelativeDate = (date: Date | string, locale: string = 'en'): string => {
+    if (isToday(date)) return formatTime(date, locale);
+    if (isYesterday(date)) return locale === 'id' ? 'Kemarin' : 'Yesterday';
+    return formatDate(date, locale);
 };
 
 // Helper to normalize to HH:mm 24h

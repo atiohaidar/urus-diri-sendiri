@@ -106,3 +106,33 @@ export const deleteImage = async (id: string): Promise<void> => {
 
 // Helper constants for external use
 export const IDB_STORES = STORES;
+
+export const cleanupImages = async (keepIds: string[]): Promise<void> => {
+    const db = await openDB();
+    const keepSet = new Set(keepIds);
+
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction(STORES.IMAGES, 'readwrite');
+        const store = transaction.objectStore(STORES.IMAGES);
+
+        // Optimize: Use getAllKeys if available (modern browsers) or cursor
+        const request = store.getAllKeys();
+
+        request.onsuccess = () => {
+            const allKeys = request.result as string[];
+            let deletedCount = 0;
+
+            allKeys.forEach((key) => {
+                if (!keepSet.has(key)) {
+                    store.delete(key);
+                    deletedCount++;
+                }
+            });
+
+            console.log(`🧹 IDB Cleanup: Removed ${deletedCount} orphaned images.`);
+        };
+
+        transaction.oncomplete = () => resolve();
+        transaction.onerror = () => reject(transaction.error);
+    });
+};

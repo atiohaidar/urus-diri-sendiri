@@ -6,7 +6,8 @@ import { getAllItems, putItem, deleteItem, IDB_STORES } from '../idb';
 export class LocalStorageProvider implements IStorageProvider {
 
     // --- Priorities ---
-    async getPriorities(): Promise<PriorityTask[]> {
+    async getPriorities(since?: string): Promise<PriorityTask[]> {
+        // Local storage always returns full set, 'since' is ignored
         const data = localStorage.getItem(STORAGE_KEYS.PRIORITIES);
         return data ? JSON.parse(data) : [];
     }
@@ -16,7 +17,7 @@ export class LocalStorageProvider implements IStorageProvider {
     }
 
     // --- Reflections ---
-    async getReflections(): Promise<Reflection[]> {
+    async getReflections(since?: string): Promise<Reflection[]> {
         const reflections = await getAllItems<Reflection>(IDB_STORES.REFLECTIONS);
         // Sort by date descending
         reflections.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -28,7 +29,7 @@ export class LocalStorageProvider implements IStorageProvider {
     }
 
     // --- Notes ---
-    async getNotes(): Promise<Note[]> {
+    async getNotes(since?: string): Promise<Note[]> {
         const data = localStorage.getItem(STORAGE_KEYS.NOTES);
         return data ? JSON.parse(data) : [];
     }
@@ -38,7 +39,7 @@ export class LocalStorageProvider implements IStorageProvider {
     }
 
     // --- Routines ---
-    async getRoutines(): Promise<RoutineItem[]> {
+    async getRoutines(since?: string): Promise<RoutineItem[]> {
         const data = localStorage.getItem(STORAGE_KEYS.ROUTINES);
         return data ? JSON.parse(data) : [];
     }
@@ -48,7 +49,7 @@ export class LocalStorageProvider implements IStorageProvider {
     }
 
     // --- Logs ---
-    async getLogs(): Promise<ActivityLog[]> {
+    async getLogs(since?: string): Promise<ActivityLog[]> {
         const logs = await getAllItems<ActivityLog>(IDB_STORES.LOGS);
         logs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
         return logs;

@@ -7,6 +7,7 @@ export interface PriorityTask {
     text: string;
     completed: boolean;
     updatedAt?: string; // ISO date string
+    deletedAt?: string | null; // For soft delete sync
 }
 
 export interface Reflection {
@@ -21,6 +22,8 @@ export interface Reflection {
     todayPriorities?: PriorityTask[];
     images?: string[]; // Base64 strings (Legacy) or URLs
     imageIds?: string[]; // IDs for IndexedDB
+    updatedAt?: string; // For sync
+    deletedAt?: string | null; // For soft delete
 }
 
 export interface Note {
@@ -29,6 +32,7 @@ export interface Note {
     content: string;
     createdAt: string;
     updatedAt: string;
+    deletedAt?: string | null;
 }
 
 export interface RoutineItem {
@@ -40,6 +44,7 @@ export interface RoutineItem {
     completedAt?: string | null; // ISO date string of TODAY if completed today
     updatedAt?: string; // Timestamp of when it was checked
     description?: string; // Optional detailed description
+    deletedAt?: string | null;
 }
 
 export interface ActivityLog {
@@ -49,4 +54,6 @@ export interface ActivityLog {
     content: string; // Caption or text body
     mediaId?: string; // ID for IndexedDB image if type is 'photo'
     category?: string; // Optional tag like 'Work', 'Chill', 'Ibadah'
+    updatedAt?: string; // For sync
+    deletedAt?: string | null;
 }
