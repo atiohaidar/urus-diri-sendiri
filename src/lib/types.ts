@@ -8,6 +8,7 @@ export interface PriorityTask {
     completed: boolean;
     completionNote?: string; // Note added when completed
     updatedAt?: string; // ISO date string
+    scheduledFor?: string; // "YYYY-MM-DD" - Date when this priority becomes active
     deletedAt?: string | null; // For soft delete sync
 }
 

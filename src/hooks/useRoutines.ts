@@ -13,7 +13,9 @@ import {
     type RoutineItem,
     type PriorityTask,
     deletePriority,
-    updatePriorityText
+    updatePriorityText,
+    registerListener,
+    getTodayDateString
 } from '@/lib/storage';
 
 export const useRoutines = () => {
@@ -38,7 +40,16 @@ export const useRoutines = () => {
 
             const loadedRoutines = getRoutines();
             setRoutines(loadedRoutines);
-            setPriorities(getPriorities());
+
+            // Filter priorities: Show if NO schedule OR schedule is Today/Past
+            const allPriorities = getPriorities();
+            const todayStr = getTodayDateString();
+
+            const visiblePriorities = allPriorities.filter(p =>
+                !p.scheduledFor || p.scheduledFor <= todayStr
+            );
+
+            setPriorities(visiblePriorities);
             setStats(getCompletionStats(loadedRoutines));
 
             // Find current routine index
@@ -52,9 +63,16 @@ export const useRoutines = () => {
     }, []);
 
     useEffect(() => {
-        // Initial load - don't force refresh every time component mounts
-        // Only fetch updates in the background or use cache
+        // Initial load
         loadData(false);
+
+        // Subscribe to storage changes (e.g. background sync or re-hydration)
+        const unsubscribe = registerListener(() => {
+            console.log("♻️ UI: Routines updated from storage event");
+            loadData(false);
+        });
+
+        return () => { unsubscribe(); };
     }, [loadData]);
 
     // Timer for current date updates - optimized to run once per minute

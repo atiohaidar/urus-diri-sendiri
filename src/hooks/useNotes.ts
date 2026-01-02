@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getNotes, saveNote as saveNoteStorage, updateNote as updateNoteStorage, deleteNote as deleteNoteStorage, initializeStorage, type Note } from '@/lib/storage';
+import { getNotes, saveNote as saveNoteStorage, updateNote as updateNoteStorage, deleteNote as deleteNoteStorage, initializeStorage, type Note, registerListener } from '@/lib/storage';
 
 export const useNotes = () => {
     const [notes, setNotes] = useState<Note[]>([]);
@@ -15,6 +15,12 @@ export const useNotes = () => {
             refreshNotes();
             setIsLoading(false);
         });
+
+        const unsubscribe = registerListener(() => {
+            refreshNotes();
+        });
+
+        return () => { unsubscribe(); };
     }, [refreshNotes]);
 
     const saveNote = useCallback((title: string, content: string) => {

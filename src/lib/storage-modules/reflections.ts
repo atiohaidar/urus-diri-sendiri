@@ -1,6 +1,7 @@
 import { Reflection, PriorityTask } from '../types';
 import { cache, provider, generateId, hydrateTable } from './core';
 import { savePriorities } from './priorities';
+import { getTomorrowDateString } from '../time-utils';
 
 /** @deprecated Use getReflectionsAsync for better performance */
 export const getReflections = (): Reflection[] => {
@@ -79,9 +80,12 @@ export const saveReflection = async (reflection: Omit<Reflection, 'id'>) => {
             .filter(p => p.trim())
             .filter(text => !existingTexts.has(text.toLowerCase().trim()));
 
+        // Calculate "Tomorrow"
+        const tomorrowStr = getTomorrowDateString();
+
         // Add each new priority individually (this preserves existing ones)
         for (const text of newPriorityTexts) {
-            addPriorityFn(text);
+            addPriorityFn(text, tomorrowStr);
         }
     }
 

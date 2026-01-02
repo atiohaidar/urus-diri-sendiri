@@ -99,7 +99,7 @@ export const id: Translation = {
         developed_by: "Dikembangkan oleh atiohaidar",
         credits_title: "Kredit & Apresiasi",
         credits_content: "Dibangun menggunakan ekosistem modern seperti React, Capacitor, Radix UI, TanStack Query, Recharts dan lainnya. Terima kasih khusus kepada komunitas open-source atas alat-alat luar biasa yang memungkinkan aplikasi ini terwujud.",
-        version: "Versi 1.1.0",
+        version: "Versi 1.0.0",
         mission_title: "Misi Kami",
         mission_content: "Iseng Aja",
         contact_title: "Hubungi Kami",

@@ -85,6 +85,7 @@ export class SupabaseProvider implements IStorageProvider {
             completed: row.completed,
             completionNote: row.completion_note,
             updatedAt: row.updated_at,
+            scheduledFor: row.scheduled_for, // Read from DB
             deletedAt: row.deleted_at
         }));
 
@@ -123,6 +124,7 @@ export class SupabaseProvider implements IStorageProvider {
             completed: p.completed,
             completion_note: p.completionNote || null,
             updated_at: p.updatedAt,
+            scheduled_for: p.scheduledFor || null, // Save to DB
             deleted_at: p.deletedAt || null, // Ensure explicit null to un-delete if needed
             user_id: userId
         }));

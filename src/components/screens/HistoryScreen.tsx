@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/i18n/LanguageContext';
 import { cn } from '@/lib/utils';
-import { getLogsAsync, deleteLog, ActivityLog, getReflectionsAsync, Reflection, initializeStorage } from '@/lib/storage';
+import { getLogsAsync, deleteLog, ActivityLog, getReflectionsAsync, Reflection, initializeStorage, registerListener } from '@/lib/storage';
 import { ReflectionsList } from '@/components/history/ReflectionsList';
 import { LogsList } from '@/components/history/LogsList';
 import { LazyImage } from '@/components/history/LazyImage';
@@ -34,13 +34,23 @@ const HistoryScreen = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    let isMounted = true;
     const init = async () => {
       setLoading(true);
       await initializeStorage();
-      await refreshData();
-      setLoading(false);
+      if (isMounted) await refreshData();
+      if (isMounted) setLoading(false);
     };
     init();
+
+    // Event-driven update: Only triggers when data actually changes/syncs
+    const unsubscribe = registerListener(() => {
+      if (!isMounted) return;
+      console.log("♻️ UI: History updated from storage event");
+      refreshData();
+    });
+
+    return () => { isMounted = false; unsubscribe(); };
   }, [activeTab]);
 
   const refreshData = async () => {

@@ -56,7 +56,7 @@ const AboutPage = () => {
                     <div className="mb-8">
                         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold mb-3 animate-bounce">
                             <Sparkles className="w-3 h-3" />
-                            <span>v1.1.0</span>
+                            <span>v1.0.0</span>
                         </div>
                         <h1 className="text-4xl md:text-5xl font-black tracking-tight text-foreground">
                             UrusDiri<span className="text-primary">Sendiri</span>

@@ -202,6 +202,7 @@ export const hydrateCache = async (force = false) => {
                 hydrateTable('routines', force),
                 hydrateTable('logs', force),
             ]);
+            notifyListeners(); // Notify UI that data is ready
         } finally {
             pendingHydrations.all = null;
         }

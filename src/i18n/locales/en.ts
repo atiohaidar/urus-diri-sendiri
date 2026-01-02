@@ -99,7 +99,7 @@ export const en: Translation = {
         developed_by: "Developed by atiohaidar",
         credits_title: "Credits & Appreciation",
         credits_content: "Built using a modern ecosystem including React, Capacitor, Radix UI, TanStack Query, Recharts, ect. Special thanks to the open-source community for the amazing tools that make this application possible.",
-        version: "Version 1.1.0",
+        version: "Version 1.0.0",
         mission_title: "Our Mission",
         mission_content: "Just Iseng v:",
         contact_title: "Get in Touch",

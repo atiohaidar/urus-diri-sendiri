@@ -91,3 +91,19 @@ export const normalizeTime = (t: string) => {
 
     return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
 };
+
+export const getTodayDateString = (): string => {
+    const d = new Date();
+    // Adjust for timezone offset to get "Local ISO"
+    const offset = d.getTimezoneOffset() * 60000;
+    const localISODate = new Date(d.getTime() - offset).toISOString().split('T')[0];
+    return localISODate;
+};
+
+export const getTomorrowDateString = (): string => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    const offset = d.getTimezoneOffset() * 60000;
+    const localISODate = new Date(d.getTime() - offset).toISOString().split('T')[0];
+    return localISODate;
+};

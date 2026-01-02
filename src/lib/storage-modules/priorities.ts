@@ -1,15 +1,22 @@
 import { PriorityTask } from '../types';
 import { cache, provider, generateId, notifyListeners, handleSaveError } from './core';
+import { getTodayDateString } from '../time-utils';
 
 export const getPriorities = (): PriorityTask[] => {
     // Fallback to empty array if cache not ready
     let priorities = cache.priorities || [];
     const today = new Date().toDateString();
+    const todayISO = getTodayDateString();
 
     // Check each priority individually and only reset the ones that are outdated
     let hasChanges = false;
     const updatedPriorities = priorities.map(p => {
-        // Only reset if this specific priority is from a previous day
+        // Skip reset if scheduled for future
+        if (p.scheduledFor && p.scheduledFor > todayISO) {
+            return p;
+        }
+
+        // Only reset if this specific priority is completed and from a previous day
         const priorityDate = p.updatedAt ? new Date(p.updatedAt).toDateString() : today;
         if (priorityDate !== today && p.completed) {
             hasChanges = true;
@@ -54,12 +61,13 @@ export const updatePriorityCompletion = (id: string, completed: boolean, note?: 
     return updated;
 };
 
-export const addPriority = (text: string) => {
+export const addPriority = (text: string, scheduledFor?: string) => {
     const priorities = getPriorities();
     const newPriority: PriorityTask = {
         id: generateId('priority'),
         text,
         completed: false,
+        scheduledFor,
         updatedAt: new Date().toISOString(),
     };
     const updated = [...priorities, newPriority];

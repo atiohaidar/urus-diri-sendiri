@@ -4,8 +4,10 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import type { Note } from '@/lib/storage';
 import { useToast } from '@/hooks/use-toast';
-import ReactQuill from 'react-quill';
-import 'react-quill/dist/quill.snow.css';
+import { lazy, Suspense } from 'react';
+import { Loader2 } from 'lucide-react';
+
+const LazyEditor = lazy(() => import('@/components/ui/LazyEditor'));
 
 interface NoteEditorProps {
   note?: Note | null;
@@ -87,14 +89,20 @@ const NoteEditor = ({ note, onClose, onSave, onDelete }: NoteEditorProps) => {
               className="text-lg font-semibold bg-transparent border-0 border-b border-border rounded-none px-0 focus-visible:ring-0 focus-visible:border-primary shrink-0"
             />
             <div className="flex-1 min-h-[400px]">
-              <ReactQuill
-                theme="snow"
-                value={content}
-                onChange={setContent}
-                modules={modules}
-                placeholder="Write your thoughts..."
-                className="h-full flex flex-col"
-              />
+              <Suspense fallback={
+                <div className="h-full flex items-center justify-center bg-secondary/50 rounded-xl animate-pulse">
+                  <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+                </div>
+              }>
+                <LazyEditor
+                  theme="snow"
+                  value={content}
+                  onChange={setContent}
+                  modules={modules}
+                  placeholder="Write your thoughts..."
+                  className="h-full flex flex-col"
+                />
+              </Suspense>
             </div>
           </div>
         </div>

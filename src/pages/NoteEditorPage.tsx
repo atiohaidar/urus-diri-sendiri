@@ -6,10 +6,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { useNotes } from '@/hooks/useNotes';
 import { useToast } from '@/hooks/use-toast';
-import ReactQuill from 'react-quill';
-import 'react-quill/dist/quill.snow.css';
 import { triggerHaptic } from '@/lib/haptics';
 import { useLanguage } from '@/i18n/LanguageContext';
+import { lazy, Suspense } from 'react';
+import { Loader2 } from 'lucide-react';
+
+const LazyEditor = lazy(() => import('@/components/ui/LazyEditor'));
 import {
     AlertDialog,
     AlertDialogAction,
@@ -158,21 +160,27 @@ const NoteEditorPage = () => {
                 </div>
 
                 <div className="flex-1 min-h-[60vh]">
-                    <ReactQuill
-                        theme="snow"
-                        value={content}
-                        onChange={setContent}
-                        modules={{
-                            toolbar: [
-                                [{ 'header': [1, 2, false] }],
-                                ['bold', 'italic', 'underline', 'strike'],
-                                [{ 'list': 'ordered' }, { 'list': 'bullet' }],
-                                ['link', 'clean']
-                            ],
-                        }}
-                        placeholder={t.note_editor.placeholder_content}
-                        className="h-full flex flex-col"
-                    />
+                    <Suspense fallback={
+                        <div className="h-full flex items-center justify-center bg-secondary/50 rounded-xl animate-pulse">
+                            <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+                        </div>
+                    }>
+                        <LazyEditor
+                            theme="snow"
+                            value={content}
+                            onChange={setContent}
+                            modules={{
+                                toolbar: [
+                                    [{ 'header': [1, 2, false] }],
+                                    ['bold', 'italic', 'underline', 'strike'],
+                                    [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+                                    ['link', 'clean']
+                                ],
+                            }}
+                            placeholder={t.note_editor.placeholder_content}
+                            className="h-full flex flex-col"
+                        />
+                    </Suspense>
                 </div>
             </div>
 

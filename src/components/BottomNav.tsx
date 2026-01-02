@@ -1,6 +1,6 @@
 import { Home, Lightbulb, Clock, Settings, Sparkles, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useLanguage } from '@/i18n/LanguageContext';
 
 interface BottomNavProps {
@@ -9,7 +9,13 @@ interface BottomNavProps {
 
 const BottomNav = ({ activeTab }: BottomNavProps) => {
   const navigate = useNavigate();
+  const { pathname } = useLocation(); // Add useLocation
   const { t } = useLanguage();
+
+  const handleNavigate = (path: string) => {
+    if (pathname === path) return;
+    navigate(path);
+  };
 
   const tabs = [
     { id: 'home' as const, icon: Home, label: t.navigation.home, path: '/' },
@@ -25,7 +31,7 @@ const BottomNav = ({ activeTab }: BottomNavProps) => {
         <div className="hidden md:flex flex-col items-start gap-1 mb-8 px-4">
           <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-medium border border-primary/20">
             <Sparkles className="w-3 h-3" />
-            <span>v1.1.0</span>
+            <span>v1.0.0</span>
           </div>
           <h1 className="text-2xl font-black tracking-tight flex items-center">
             <span className="text-foreground">UrusDiri</span>
@@ -37,7 +43,7 @@ const BottomNav = ({ activeTab }: BottomNavProps) => {
           {tabs.slice(0, 2).map(({ id, icon: Icon, label, path }) => (
             <button
               key={id}
-              onClick={() => navigate(path)}
+              onClick={() => handleNavigate(path)}
               className={cn(
                 "flex flex-col items-center gap-1 px-2 py-2 rounded-2xl transition-all duration-200 md:flex-row md:w-full md:px-4 md:py-3.5 md:gap-3",
                 activeTab === id
@@ -62,7 +68,7 @@ const BottomNav = ({ activeTab }: BottomNavProps) => {
           {/* Central Log Button (Mobile) */}
           <div className="md:hidden -mt-8">
             <button
-              onClick={() => navigate('/log-creator')}
+              onClick={() => handleNavigate('/log-creator')}
               className="h-14 w-14 rounded-full bg-gradient-to-tr from-primary to-lime-400 shadow-lg shadow-primary/40 flex items-center justify-center text-primary-foreground transform active:scale-95 transition-transform"
             >
               <Plus className="w-7 h-7" strokeWidth={3} />
@@ -77,7 +83,7 @@ const BottomNav = ({ activeTab }: BottomNavProps) => {
           {tabs.slice(2).map(({ id, icon: Icon, label, path }) => (
             <button
               key={id}
-              onClick={() => navigate(path)}
+              onClick={() => handleNavigate(path)}
               className={cn(
                 "flex flex-col items-center gap-1 px-2 py-2 rounded-2xl transition-all duration-200 md:flex-row md:w-full md:px-4 md:py-3.5 md:gap-3",
                 activeTab === id
