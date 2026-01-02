@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Urus Diri Sendiri</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <div class="logo-area">
+                <img src="icons/icon48.png" alt="Logo" class="mini-logo">
+                <h1>Urus Diri</h1>
+            </div>
+        </header>
+
+        <nav class="tabs">
+            <button class="tab-btn active" data-tab="priorities">Prioritas</button>
+            <button class="tab-btn" data-tab="notes">Catatan</button>
+            <button class="tab-btn" data-tab="routines">Rutin</button>
+        </nav>
+
+        <main id="tab-content">
+            <!-- Priorities Tab -->
+            <section id="priorities" class="tab-pane active">
+                <div class="section-header">
+                    <h2>Prioritas Hari Ini</h2>
+                </div>
+                <div id="priorities-list" class="list-container">
+                    <p class="loading">Memuat prioritas...</p>
+                </div>
+            </section>
+
+            <!-- Notes Tab -->
+            <section id="notes" class="tab-pane">
+                <div class="section-header">
+                    <h2>Catatan Cepat</h2>
+                </div>
+                <div class="input-group">
+                    <input type="text" id="note-title" placeholder="Judul (opsional)">
+                    <textarea id="note-content" placeholder="Tulis sesuatu..."></textarea>
+                    <button id="save-note-btn" class="primary-btn">Simpan Catatan</button>
+                </div>
+            </section>
+
+            <!-- Routines Tab -->
+            <section id="routines" class="tab-pane">
+                <div class="section-header">
+                    <h2>Rutin</h2>
+                </div>
+                <div id="routines-list" class="list-container">
+                    <p class="loading">Memuat rutin...</p>
+                </div>
+            </section>
+        </main>
+
+        <section id="auth-section" class="hidden">
+            <div class="auth-card" id="login-view">
+                <h3>Login</h3>
+                <p id="auth-desc">Masuk untuk sinkronisasi data Anda.</p>
+                <div class="input-group" id="email-step">
+                    <input type="email" id="login-email" placeholder="Email (name@example.com)">
+                    <button id="send-otp-btn" class="primary-btn">Kirim Kode</button>
+                </div>
+                <div class="input-group hidden" id="otp-step">
+                    <input type="text" id="login-otp" placeholder="Kode OTP 6-Digit" maxLength="8">
+                    <button id="verify-otp-btn" class="primary-btn">Verifikasi</button>
+                    <button id="back-to-email" class="secondary-btn">Kembali</button>
+                </div>
+            </div>
+        </section>
+
+        <footer id="status-footer">
+            <div class="user-info">
+                <span id="sync-status">Menghubungkan...</span>
+                <button id="logout-btn" class="hidden">Logout</button>
+            </div>
+        </footer>
+    </div>
+    <script src="popup.js"></script>
+</body>
+
+</html>
