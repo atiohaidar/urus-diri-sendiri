@@ -316,3 +316,23 @@ footer {
     transform: scale(1.02);
     transition: all 0.3s ease;
 }
+
+.completed-text {
+    text-decoration: line-through;
+    color: var(--text-muted);
+}
+
+.routine-time {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--primary);
+    margin-bottom: 2px;
+}
+
+.item-card input[type="checkbox"] {
+    cursor: pointer;
+    width: 16px;
+    height: 16px;
+    accent-color: var(--primary);
+}

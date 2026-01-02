@@ -4,8 +4,13 @@
     "version": "1.0",
     "description": "Akses cepat ke Urus Diri Sendiri",
     "permissions": [
-        "storage"
+        "storage",
+        "alarms",
+        "notifications"
     ],
+    "background": {
+        "service_worker": "background.js"
+    },
     "action": {
         "default_popup": "popup.html",
         "default_icon": {

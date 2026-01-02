@@ -1,21 +1,13 @@
-// State management
-let config = {
-    url: '',
-    key: '',
-    session: null,
-    cache: { priorities: [], routines: [] },
-    queue: []
-};
+import { config, loadConfig, saveConfig, loadEnvConfig } from './js/config.js';
+import { supabaseAuthRequest, supabaseRequest, syncOfflineQueue } from './js/api.js';
+import { showTab, showAuth, renderPriorities, renderRoutines } from './js/ui.js';
 
 let loginEmail = '';
 
 // DOM Elements
 const tabs = document.querySelectorAll('.tab-btn');
-const panes = document.querySelectorAll('.tab-pane');
 const saveNoteBtn = document.getElementById('save-note-btn');
 const syncStatus = document.getElementById('sync-status');
-const authSection = document.getElementById('auth-section');
-const tabContent = document.getElementById('tab-content');
 const emailStep = document.getElementById('email-step');
 const otpStep = document.getElementById('otp-step');
 const authDesc = document.getElementById('auth-desc');
@@ -26,74 +18,40 @@ const logoutBtn = document.getElementById('logout-btn');
 
 // Initialization
 document.addEventListener('DOMContentLoaded', async () => {
-    // 1. Load from local storage first
     await loadConfig();
-
-    // 2. Try to load from .env file (for automatic connection)
     await loadEnvConfig();
 
     setupEventListeners();
 
     if (!config.url || !config.key) {
-        syncStatus.textContent = 'Konfigurasi .env diperlukan';
+        if (syncStatus) syncStatus.textContent = 'Konfigurasi .env diperlukan';
         return;
     }
 
     if (!config.session) {
         showAuth(true);
-        syncStatus.textContent = 'Silakan login';
+        if (syncStatus) syncStatus.textContent = 'Silakan login';
     } else {
         showAuth(false);
         showTab('routines');
-        renderPriorities(config.cache.priorities);
-        renderRoutines(config.cache.routines);
+        // Render dari cache dulu (Instan!)
+        renderPriorities(config.cache.priorities, handleTogglePriority);
+        renderRoutines(config.cache.routines, handleToggleRoutine);
+
+        // Fetch data terbaru HANYA SEKALI saat popup dibuka
+        // Agar tidak boros API request setiap pindah tab
         fetchPriorities();
         fetchRoutines();
+
         syncOfflineQueue();
     }
 });
 
-async function loadEnvConfig() {
-    try {
-        const response = await fetch('.env');
-        if (!response.ok) return;
-
-        const text = await response.text();
-        const lines = text.split('\n');
-        let found = false;
-
-        lines.forEach(line => {
-            const [key, ...valueParts] = line.split('=');
-            if (!key || valueParts.length === 0) return;
-
-            const value = valueParts.join('=').trim().replace(/^["']|["']$/g, '');
-
-            if (key.trim() === 'VITE_SUPABASE_URL') {
-                config.url = value;
-                found = true;
-            }
-            if (key.trim() === 'VITE_SUPABASE_ANON_KEY') {
-                config.key = value;
-                found = true;
-            }
-        });
-
-        if (found) {
-            console.log('Konfigurasi dimuat dari .env');
-            await saveConfig();
-        }
-    } catch (err) {
-        console.warn('Tidak dapat membaca .env (mungkin belum dibuat?)');
-    }
-}
-
 function setupEventListeners() {
+    // Tab switching (Hanya ganti view, tidak fetch API lagi agar hemat)
     tabs.forEach(tab => {
         tab.addEventListener('click', () => {
-            const target = tab.dataset.tab;
-            showTab(target);
-            if (target === 'priorities') fetchPriorities();
-            if (target === 'routines') fetchRoutines();
+            showTab(tab.dataset.tab);
         });
     });
 
@@ -194,10 +152,9 @@ function setupEventListeners() {
             document.getElementById('note-title').value = '';
             document.getElementById('note-content').value = '';
         } catch (err) {
-            console.warn('Gagal sync, simpan ke antrean offline:', err.message);
-            config.queue.push(newNote);
+            config.queue.push({ action: 'upsert', table: 'notes', data: newNote });
             await saveConfig();
-            alert('Koneksi bermasalah. Catatan disimpan secara offline.');
+            alert('Mode offline: Catatan disimpan lokal.');
             document.getElementById('note-title').value = '';
             document.getElementById('note-content').value = '';
         } finally {
@@ -207,113 +164,17 @@ function setupEventListeners() {
     });
 }
 
-function showTab(tabId) {
-    panes.forEach(p => p.classList.remove('active'));
-    tabs.forEach(t => t.classList.remove('active'));
-    authSection.classList.add('hidden');
-    tabContent.classList.remove('hidden');
-    const targetPane = document.getElementById(tabId);
-    if (targetPane) targetPane.classList.add('active');
-    const targetTab = Array.from(tabs).find(t => t.dataset.tab === tabId);
-    if (targetTab) targetTab.classList.add('active');
-}
-
-function showAuth(visible) {
-    if (visible) {
-        authSection.classList.remove('hidden');
-        tabContent.classList.add('hidden');
-        logoutBtn.classList.add('hidden');
-        emailStep.classList.remove('hidden');
-        otpStep.classList.add('hidden');
-    } else {
-        authSection.classList.add('hidden');
-        tabContent.classList.remove('hidden');
-        if (config.session) logoutBtn.classList.remove('hidden');
-    }
-}
-
-async function loadConfig() {
-    return new Promise((resolve) => {
-        chrome.storage.local.get(['sb_url', 'sb_key', 'sb_session', 'sb_cache', 'sb_queue'], (result) => {
-            config.url = result.sb_url || '';
-            config.key = result.sb_key || '';
-            config.session = result.sb_session || null;
-            config.cache = result.sb_cache || { priorities: [], routines: [] };
-            config.queue = result.sb_queue || [];
-            resolve();
-        });
-    });
-}
-
-async function saveConfig() {
-    return new Promise((resolve) => {
-        chrome.storage.local.set({
-            'sb_url': config.url,
-            'sb_key': config.key,
-            'sb_session': config.session,
-            'sb_cache': config.cache,
-            'sb_queue': config.queue
-        }, resolve);
-    });
-}
-
-async function supabaseAuthRequest(endpoint, method = 'POST', body = null) {
-    const baseUrl = config.url.replace(/\/$/, '');
-    const url = `${baseUrl}/auth/v1/${endpoint}`;
-    const headers = { 'apikey': config.key, 'Content-Type': 'application/json' };
-    const options = { method, headers };
-    if (body) options.body = JSON.stringify(body);
-    const response = await fetch(url, options);
-    if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error_description || error.message || 'Auth request gagal');
-    }
-    return await response.json();
-}
-
-async function supabaseRequest(table, method = 'GET', body = null) {
-    if (!config.url || !config.key) throw new Error('Konfigurasi .env diperlukan');
-    const baseUrl = config.url.replace(/\/$/, '');
-    const url = `${baseUrl}/rest/v1/${table}`;
-    const headers = {
-        'apikey': config.key,
-        'Authorization': `Bearer ${config.session.access_token}`,
-        'Content-Type': 'application/json',
-        'Prefer': 'return=representation'
-    };
-    const options = { method, headers };
-    if (body) options.body = JSON.stringify(body);
-
-    syncStatus.textContent = 'Menyinkronkan...';
-    try {
-        const response = await fetch(url + (method === 'GET' ? '?select=*' : ''), options);
-        if (response.status === 401) {
-            config.session = null;
-            await saveConfig();
-            showAuth(true);
-            throw new Error('Sesi habis, silakan login kembali');
-        }
-        if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.message || 'Request gagal');
-        }
-        syncStatus.textContent = 'Tersinkronisasi';
-        return await response.json();
-    } catch (err) {
-        syncStatus.textContent = 'Mode Offline';
-        throw err;
-    }
-}
-
 async function fetchPriorities() {
     if (!config.session) return;
     try {
-        const data = await supabaseRequest('priorities');
+        const today = new Date().toISOString().split('T')[0];
+        const query = `scheduled_for=eq.${today}&select=*`;
+        const data = await supabaseRequest('priorities', 'GET', null, query);
         config.cache.priorities = data;
         await saveConfig();
-        renderPriorities(data);
+        renderPriorities(data, handleTogglePriority);
     } catch (err) {
-        renderPriorities(config.cache.priorities);
+        renderPriorities(config.cache.priorities, handleTogglePriority);
     }
 }
 
@@ -323,82 +184,50 @@ async function fetchRoutines() {
         const data = await supabaseRequest('routines');
         config.cache.routines = data;
         await saveConfig();
-        renderRoutines(data);
+        renderRoutines(data, handleToggleRoutine);
     } catch (err) {
-        renderRoutines(config.cache.routines);
+        renderRoutines(config.cache.routines, handleToggleRoutine);
     }
 }
 
-function renderPriorities(data) {
-    const list = document.getElementById('priorities-list');
-    list.innerHTML = '';
-    if (!data || data.length === 0) {
-        list.innerHTML = '<p class="loading">Tidak ada prioritas.</p>';
-        return;
+async function handleTogglePriority(id, completed) {
+    const updateData = { completed, updated_at: new Date().toISOString() };
+    const query = `id=eq.${id}`;
+
+    // Update cache immediately for smooth UI
+    const item = config.cache.priorities.find(p => p.id === id);
+    if (item) item.completed = completed;
+    renderPriorities(config.cache.priorities, handleTogglePriority);
+
+    try {
+        await supabaseRequest('priorities', 'PATCH', updateData, query);
+        await saveConfig();
+    } catch (err) {
+        console.warn('Gagal sync checklist, masuk antrean offline.');
+        config.queue.push({ action: 'update', table: 'priorities', data: updateData, query });
+        await saveConfig();
     }
-    data.forEach(item => {
-        const card = document.createElement('div');
-        card.className = 'item-card';
-        card.innerHTML = `
-            <input type="checkbox" ${item.completed ? 'checked' : ''} disabled>
-            <div class="item-text">${item.text}</div>
-        `;
-        list.appendChild(card);
-    });
 }
 
-function renderRoutines(data) {
-    const list = document.getElementById('routines-list');
-    list.innerHTML = '';
-    if (!data || data.length === 0) {
-        list.innerHTML = '<p class="loading">Tidak ada rutin.</p>';
-        return;
+async function handleToggleRoutine(id, completed) {
+    const now = new Date().toISOString();
+    const completedAt = completed ? now : null;
+    const updateData = { completed_at: completedAt, updated_at: now };
+    const query = `id=eq.${id}`;
+
+    // Update cache immediately
+    const item = config.cache.routines.find(r => r.id === id);
+    if (item) item.completed_at = completedAt;
+    renderRoutines(config.cache.routines, handleToggleRoutine);
+
+    try {
+        await supabaseRequest('routines', 'PATCH', updateData, query);
+        await saveConfig();
+    } catch (err) {
+        console.warn('Gagal sync rutin, masuk antrean offline.');
+        config.queue.push({ action: 'update', table: 'routines', data: updateData, query });
+        await saveConfig();
     }
-    const sorted = [...data].sort((a, b) => (a.start_time || '').localeCompare(b.start_time || ''));
-    const now = new Date();
-    const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-    let activeIndex = -1;
-
-    sorted.forEach((item, index) => {
-        const card = document.createElement('div');
-        card.className = 'item-card';
-        const isCurrent = item.start_time <= currentTime && (item.end_time ? currentTime < item.end_time : true);
-        const isNext = activeIndex === -1 && item.start_time > currentTime;
-        if (isCurrent) {
-            card.classList.add('active-routine');
-            activeIndex = index;
-        } else if (isNext && activeIndex === -1) {
-            card.id = 'next-routine';
-            activeIndex = index;
-        }
-        card.innerHTML = `
-            <div class="item-text">
-                <strong>${item.start_time || '--:--'}</strong> ${item.activity}
-                <span class="item-meta">${item.category || ''}</span>
-            </div>
-            ${item.completed_at ? '✅' : ''}
-        `;
-        list.appendChild(card);
-    });
-
-    setTimeout(() => {
-        const activeElem = list.querySelector('.active-routine') || list.querySelector('#next-routine');
-        if (activeElem) activeElem.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 100);
-}
-
-async function syncOfflineQueue() {
-    if (config.queue.length === 0 || !navigator.onLine) return;
-    const remainingQueue = [];
-    for (const note of config.queue) {
-        try {
-            await supabaseRequest('notes', 'POST', note);
-        } catch (err) {
-            remainingQueue.push(note);
-        }
-    }
-    config.queue = remainingQueue;
-    await saveConfig();
 }
 
 window.addEventListener('online', syncOfflineQueue);
