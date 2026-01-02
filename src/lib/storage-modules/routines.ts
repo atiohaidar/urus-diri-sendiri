@@ -33,8 +33,8 @@ export const saveRoutines = (routines: RoutineItem[]) => {
     provider.saveRoutines(routines).catch(console.error);
 };
 
-export const toggleRoutineCompletion = (id: string, routines: RoutineItem[]) => {
-    const updated = toggleRoutineHelper(id, routines);
+export const toggleRoutineCompletion = (id: string, routines: RoutineItem[], note?: string) => {
+    const updated = toggleRoutineHelper(id, routines, note);
     saveRoutines(updated);
     notifyListeners(); // Auto-update snapshot
     return updated;

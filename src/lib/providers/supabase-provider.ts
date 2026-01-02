@@ -153,6 +153,7 @@ export class SupabaseProvider implements IStorageProvider {
             id: row.id,
             text: row.text,
             completed: row.completed,
+            completionNote: row.completion_note,
             updatedAt: row.updated_at,
             deletedAt: row.deleted_at
         }));
@@ -190,6 +191,7 @@ export class SupabaseProvider implements IStorageProvider {
             id: p.id,
             text: p.text,
             completed: p.completed,
+            completion_note: p.completionNote || null,
             updated_at: p.updatedAt,
             deleted_at: p.deletedAt || null, // Ensure explicit null to un-delete if needed
             user_id: userId
@@ -431,6 +433,7 @@ export class SupabaseProvider implements IStorageProvider {
             completedAt: r.completed_at,
             updatedAt: r.updated_at,
             description: r.description,
+            completionNote: r.completion_note,
             deletedAt: r.deleted_at
         }));
 
@@ -467,6 +470,7 @@ export class SupabaseProvider implements IStorageProvider {
             completed_at: r.completedAt,
             updated_at: r.updatedAt,
             description: r.description,
+            completion_note: r.completionNote || null,
             deleted_at: r.deletedAt || null,
             user_id: userId
         }));

@@ -109,7 +109,7 @@ export const parseScheduleText = (text: string): RoutineItem[] => {
 };
 
 // Toggle completion
-export const toggleRoutineCompletion = (id: string, routines: RoutineItem[]) => {
+export const toggleRoutineCompletion = (id: string, routines: RoutineItem[], note?: string) => {
     const now = new Date().toISOString();
     const updated = routines.map(r => {
         if (r.id === id) {
@@ -117,6 +117,7 @@ export const toggleRoutineCompletion = (id: string, routines: RoutineItem[]) => 
             return {
                 ...r,
                 completedAt: isCompleted ? null : now,
+                completionNote: note !== undefined ? note : r.completionNote,
                 updatedAt: now
             };
         }

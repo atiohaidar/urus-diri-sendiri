@@ -13,7 +13,7 @@ interface HomeRoutineSectionProps {
     isLoading: boolean;
     activeIndex: number;
     currentDate: Date;
-    onCheckIn: (id: string) => void;
+    onCheckIn: (id: string, note?: string) => void;
 }
 
 export const HomeRoutineSection = ({
@@ -102,8 +102,8 @@ export const HomeRoutineSection = ({
                                 index={index}
                                 status={status}
                                 isOverlapping={isOverlapping}
-                                onToggle={() => {
-                                    onCheckIn(routine.id);
+                                onToggle={(note) => {
+                                    onCheckIn(routine.id, note);
                                     triggerHaptic();
                                 }}
                             />

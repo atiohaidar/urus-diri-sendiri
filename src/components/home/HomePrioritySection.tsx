@@ -7,7 +7,7 @@ import { PriorityTask } from '@/lib/storage';
 
 interface HomePrioritySectionProps {
     priorities: PriorityTask[];
-    onToggle: (id: string, completed: boolean) => void;
+    onToggle: (id: string, completed: boolean, note?: string) => void;
     onDelete: (id: string) => void;
     onUpdate: (id: string, text: string) => void;
     onAdd: (text: string) => void;

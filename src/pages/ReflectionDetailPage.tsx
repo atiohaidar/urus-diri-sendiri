@@ -167,27 +167,34 @@ const ReflectionDetailPage = () => {
                             </h2>
                             <div className="space-y-2">
                                 {reflection.todayRoutines.map((r) => (
-                                    <div key={r.id} className="flex items-center justify-between p-4 rounded-2xl bg-muted/20 border border-border/30">
-                                        <div className="flex flex-col">
-                                            <span className={cn("font-semibold", r.completedAt ? "text-foreground" : "text-muted-foreground/50")}>
-                                                {r.activity}
-                                            </span>
-                                            <span className="text-[10px] text-muted-foreground">
-                                                {r.startTime} - {r.endTime}
-                                            </span>
-                                        </div>
-                                        <div className="flex items-center gap-3">
-                                            {r.updatedAt && r.completedAt && (
-                                                <span className="text-[10px] bg-emerald-500/10 text-emerald-600 px-2 py-0.5 rounded-full font-bold">
-                                                    {new Date(r.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    <div key={r.id} className="p-4 rounded-2xl bg-muted/20 border border-border/30">
+                                        <div className="flex items-center justify-between mb-2 last:mb-0">
+                                            <div className="flex flex-col">
+                                                <span className={cn("font-semibold", r.completedAt ? "text-foreground" : "text-muted-foreground/50")}>
+                                                    {r.activity}
                                                 </span>
-                                            )}
-                                            {r.completedAt ? (
-                                                <CheckCircle2 className="w-5 h-5 text-emerald-500" />
-                                            ) : (
-                                                <Circle className="w-5 h-5 text-muted-foreground/20" />
-                                            )}
+                                                <span className="text-[10px] text-muted-foreground">
+                                                    {r.startTime} - {r.endTime}
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center gap-3">
+                                                {r.updatedAt && r.completedAt && (
+                                                    <span className="text-[10px] bg-emerald-500/10 text-emerald-600 px-2 py-0.5 rounded-full font-bold">
+                                                        {new Date(r.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                    </span>
+                                                )}
+                                                {r.completedAt ? (
+                                                    <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                                                ) : (
+                                                    <Circle className="w-5 h-5 text-muted-foreground/20" />
+                                                )}
+                                            </div>
                                         </div>
+                                        {r.completionNote && (
+                                            <div className="mt-2 text-xs text-muted-foreground bg-background/50 p-2 rounded-lg italic border border-border/20">
+                                                "{r.completionNote}"
+                                            </div>
+                                        )}
                                     </div>
                                 ))}
                             </div>
@@ -202,17 +209,24 @@ const ReflectionDetailPage = () => {
                             </h2>
                             <div className="space-y-2">
                                 {reflection.todayPriorities.map((p) => (
-                                    <div key={p.id} className="flex items-center justify-between p-4 rounded-2xl bg-secondary/10 border border-border/30">
-                                        <span className={cn("font-medium text-sm", p.completed ? "text-foreground" : "text-muted-foreground/60")}>
-                                            {p.text}
-                                        </span>
-                                        <div className="flex items-center gap-3">
-                                            {p.completed ? (
-                                                <CheckCircle2 className="w-5 h-5 text-emerald-500" />
-                                            ) : (
-                                                <Circle className="w-5 h-5 text-muted-foreground/20" />
-                                            )}
+                                    <div key={p.id} className="p-4 rounded-2xl bg-secondary/10 border border-border/30">
+                                        <div className="flex items-center justify-between mb-2 last:mb-0">
+                                            <span className={cn("font-medium text-sm", p.completed ? "text-foreground" : "text-muted-foreground/60")}>
+                                                {p.text}
+                                            </span>
+                                            <div className="flex items-center gap-3">
+                                                {p.completed ? (
+                                                    <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                                                ) : (
+                                                    <Circle className="w-5 h-5 text-muted-foreground/20" />
+                                                )}
+                                            </div>
                                         </div>
+                                        {p.completionNote && (
+                                            <div className="mt-2 text-xs text-muted-foreground bg-background/50 p-2 rounded-lg italic border border-border/20">
+                                                "{p.completionNote}"
+                                            </div>
+                                        )}
                                     </div>
                                 ))}
                             </div>

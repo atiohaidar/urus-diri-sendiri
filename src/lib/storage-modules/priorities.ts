@@ -28,11 +28,16 @@ export const savePriorities = (priorities: PriorityTask[]) => {
     provider.savePriorities(priorities).catch(console.error);
 };
 
-export const updatePriorityCompletion = (id: string, completed: boolean) => {
+export const updatePriorityCompletion = (id: string, completed: boolean, note?: string) => {
     const priorities = getPriorities();
     const now = new Date().toISOString();
     const updated = priorities.map(p =>
-        p.id === id ? { ...p, completed, updatedAt: now } : p
+        p.id === id ? {
+            ...p,
+            completed,
+            completionNote: note !== undefined ? note : p.completionNote,
+            updatedAt: now
+        } : p
     );
     savePriorities(updated);
     notifyListeners(); // Auto-update snapshot

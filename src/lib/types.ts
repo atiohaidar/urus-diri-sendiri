@@ -6,6 +6,7 @@ export interface PriorityTask {
     id: string;
     text: string;
     completed: boolean;
+    completionNote?: string; // Note added when completed
     updatedAt?: string; // ISO date string
     deletedAt?: string | null; // For soft delete sync
 }
@@ -42,6 +43,7 @@ export interface RoutineItem {
     activity: string;
     category: Category | string; // Allow string for backward compatibility or custom categories
     completedAt?: string | null; // ISO date string of TODAY if completed today
+    completionNote?: string; // Note added when completed
     updatedAt?: string; // Timestamp of when it was checked
     description?: string; // Optional detailed description
     deletedAt?: string | null;

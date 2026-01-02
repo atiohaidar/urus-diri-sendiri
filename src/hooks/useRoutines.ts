@@ -73,8 +73,8 @@ export const useRoutines = () => {
     }, [currentDate.getMinutes(), routines]);
 
     // Handlers
-    const handleTogglePriority = (id: string, completed: boolean) => {
-        const updated = updatePriorityCompletion(id, completed);
+    const handleTogglePriority = (id: string, completed: boolean, note?: string) => {
+        const updated = updatePriorityCompletion(id, completed, note);
         setPriorities(updated);
 
         if (completed) {
@@ -104,8 +104,8 @@ export const useRoutines = () => {
         setPriorities(updated);
     };
 
-    const handleCheckIn = (id: string) => {
-        const updated = toggleRoutineCompletion(id, routines);
+    const handleCheckIn = (id: string, note?: string) => {
+        const updated = toggleRoutineCompletion(id, routines, note);
         setRoutines(updated);
         setStats(getCompletionStats(updated));
 
