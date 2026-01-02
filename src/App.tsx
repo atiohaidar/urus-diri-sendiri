@@ -19,6 +19,7 @@ import AppLayout from "./components/layout/AppLayout";
 
 // Lazy Load Pages
 const HomeScreen = lazy(() => import("./components/screens/HomeScreen"));
+const HabitsScreen = lazy(() => import("./components/screens/HabitsScreen"));
 const ParkingLotScreen = lazy(() => import("./components/screens/ParkingLotScreen"));
 const HistoryScreen = lazy(() => import("./components/screens/HistoryScreen"));
 const SettingsScreen = lazy(() => import("./components/screens/SettingsScreen"));
@@ -144,10 +145,13 @@ const App = () => {
                   <Routes>
                     <Route element={<AppLayout />}>
                       <Route path="/" element={<HomeScreen />} />
+                      <Route path="/habits" element={<HabitsScreen />} />
                       <Route path="/ideas" element={<ParkingLotScreen />} />
                       <Route path="/history" element={<HistoryScreen />} />
-                      <Route path="/settings" element={<SettingsScreen />} />
                     </Route>
+
+                    {/* Settings is now a standalone page */}
+                    <Route path="/settings" element={<SettingsScreen />} />
 
                     <Route path="/schedule-editor" element={<EditSchedule />} />
                     <Route path="/note-editor/:id" element={<NoteEditorPage />} />

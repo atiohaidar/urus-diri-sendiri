@@ -1,5 +1,5 @@
 import { IStorageProvider } from '../storage-interface';
-import { PriorityTask, Reflection, Note, RoutineItem, ActivityLog } from '../types';
+import { PriorityTask, Reflection, Note, RoutineItem, ActivityLog, Habit, HabitLog } from '../types';
 import { STORAGE_KEYS } from '../constants';
 import { getAllItems, putItem, deleteItem, IDB_STORES } from '../idb';
 
@@ -7,7 +7,7 @@ import { getAllItems, putItem, deleteItem, IDB_STORES } from '../idb';
  * TODO: ARCHITECTURE CONCERN - Hybrid Storage Inconsistency
  * 
  * Current State:
- * - Priorities, Notes, Routines: localStorage (sync, ~5-10MB limit)
+ * - Priorities, Notes, Routines, Habits: localStorage (sync, ~5-10MB limit)
  * - Reflections, Logs, Images: IndexedDB (async, larger capacity)
  * 
  * Issues:
@@ -78,13 +78,59 @@ export class LocalStorageProvider implements IStorageProvider {
         await deleteItem(IDB_STORES.LOGS, id);
     }
 
+    // --- Habits ---
+    async getHabits(since?: string): Promise<Habit[]> {
+        const data = localStorage.getItem(STORAGE_KEYS.HABITS);
+        return data ? JSON.parse(data) : [];
+    }
+
+    async saveHabits(habits: Habit[]): Promise<void> {
+        localStorage.setItem(STORAGE_KEYS.HABITS, JSON.stringify(habits));
+    }
+
+    // --- Habit Logs ---
+    async getHabitLogs(since?: string): Promise<HabitLog[]> {
+        const data = localStorage.getItem(STORAGE_KEYS.HABIT_LOGS);
+        return data ? JSON.parse(data) : [];
+    }
+
+    async saveHabitLogs(habitLogs: HabitLog[]): Promise<void> {
+        localStorage.setItem(STORAGE_KEYS.HABIT_LOGS, JSON.stringify(habitLogs));
+    }
+
+    // --- Generic Save ---
+    async save(table: string, data: any[]): Promise<void> {
+        switch (table) {
+            case 'habits':
+                await this.saveHabits(data);
+                break;
+            case 'habitLogs':
+                await this.saveHabitLogs(data);
+                break;
+            case 'priorities':
+                await this.savePriorities(data);
+                break;
+            case 'notes':
+                await this.saveNotes(data);
+                break;
+            case 'routines':
+                await this.saveRoutines(data);
+                break;
+            default:
+                console.warn(`LocalStorageProvider: Unknown table ${table}`);
+        }
+    }
+
     // --- Config / Utils ---
     async clearAll(): Promise<void> {
         localStorage.removeItem(STORAGE_KEYS.PRIORITIES);
         localStorage.removeItem(STORAGE_KEYS.NOTES);
         localStorage.removeItem(STORAGE_KEYS.ROUTINES);
+        localStorage.removeItem(STORAGE_KEYS.HABITS);
+        localStorage.removeItem(STORAGE_KEYS.HABIT_LOGS);
         // Note: IDB clearing might be too aggressive for just "clearAll" locally if we want to preserve images, 
         // but typically a full reset means full reset.
         // For now, we'll leave IDB alone or implementing a specific clear method if requested.
     }
 }
+

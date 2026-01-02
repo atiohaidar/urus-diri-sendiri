@@ -1,8 +1,10 @@
-import { RotateCcw } from 'lucide-react';
+import { RotateCcw, Settings } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '@/i18n/LanguageContext';
 import { isCheckinCompletedToday } from '@/lib/checkin-helper';
 import { getCompletionStats } from '@/lib/storage';
 import { RoutineItem, PriorityTask } from '@/lib/storage';
+import { Button } from '@/components/ui/button';
 
 interface HomeHeaderProps {
     currentDate: Date;
@@ -20,6 +22,7 @@ export const HomeHeader = ({
     priorities
 }: HomeHeaderProps) => {
     const { t, language } = useLanguage();
+    const navigate = useNavigate();
 
     const greeting = () => {
         const hour = currentDate.getHours();
@@ -62,37 +65,49 @@ export const HomeHeader = ({
                         </p>
                     </div>
 
-                    {/* Daily Progress Rings (Apple Activity Style) */}
-                    <div className="flex flex-col items-center justify-center gap-1">
-                        <div className="relative w-12 h-12 flex items-center justify-center">
-                            <svg className="w-full h-full transform -rotate-90">
-                                {/* Outer Ring Background (Routine) */}
-                                <circle cx="24" cy="24" r={outerRadius} stroke="currentColor" strokeWidth="3" fill="transparent" className="text-muted/20" />
-                                {/* Inner Ring Background (Priority) */}
-                                <circle cx="24" cy="24" r={innerRadius} stroke="currentColor" strokeWidth="3" fill="transparent" className="text-muted/20" />
+                    <div className="flex items-center gap-3">
+                        {/* Settings Button */}
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => navigate('/settings')}
+                            className="text-muted-foreground hover:text-foreground"
+                        >
+                            <Settings className="w-5 h-5" />
+                        </Button>
 
-                                {/* Outer Ring Progress (Routine - Primary Green) */}
-                                <circle
-                                    cx="24" cy="24" r={outerRadius}
-                                    stroke="currentColor" strokeWidth="3" fill="transparent"
-                                    strokeDasharray={outerCircumference} strokeDashoffset={outerStrokeDashoffset} strokeLinecap="round"
-                                    className="text-primary transition-all duration-1000 ease-out"
-                                />
-                                {/* Inner Ring Progress (Priority - Amber/Gold) */}
-                                <circle
-                                    cx="24" cy="24" r={innerRadius}
-                                    stroke="currentColor" strokeWidth="3" fill="transparent"
-                                    strokeDasharray={innerCircumference} strokeDashoffset={innerStrokeDashoffset} strokeLinecap="round"
-                                    className="text-amber-500 transition-all duration-1000 ease-out"
-                                />
+                        {/* Daily Progress Rings (Apple Activity Style) */}
+                        <div className="flex flex-col items-center justify-center gap-1">
+                            <div className="relative w-12 h-12 flex items-center justify-center">
+                                <svg className="w-full h-full transform -rotate-90">
+                                    {/* Outer Ring Background (Routine) */}
+                                    <circle cx="24" cy="24" r={outerRadius} stroke="currentColor" strokeWidth="3" fill="transparent" className="text-muted/20" />
+                                    {/* Inner Ring Background (Priority) */}
+                                    <circle cx="24" cy="24" r={innerRadius} stroke="currentColor" strokeWidth="3" fill="transparent" className="text-muted/20" />
 
-                                {/* Center Dot (Maghrib Check-in Status) */}
-                                <circle
-                                    cx="24" cy="24" r="6"
-                                    fill="currentColor"
-                                    className={`transition-all duration-1000 ease-out ${isCheckinCompletedToday() ? 'text-indigo-500' : 'text-muted/20'}`}
-                                />
-                            </svg>
+                                    {/* Outer Ring Progress (Routine - Primary Green) */}
+                                    <circle
+                                        cx="24" cy="24" r={outerRadius}
+                                        stroke="currentColor" strokeWidth="3" fill="transparent"
+                                        strokeDasharray={outerCircumference} strokeDashoffset={outerStrokeDashoffset} strokeLinecap="round"
+                                        className="text-primary transition-all duration-1000 ease-out"
+                                    />
+                                    {/* Inner Ring Progress (Priority - Amber/Gold) */}
+                                    <circle
+                                        cx="24" cy="24" r={innerRadius}
+                                        stroke="currentColor" strokeWidth="3" fill="transparent"
+                                        strokeDasharray={innerCircumference} strokeDashoffset={innerStrokeDashoffset} strokeLinecap="round"
+                                        className="text-amber-500 transition-all duration-1000 ease-out"
+                                    />
+
+                                    {/* Center Dot (Maghrib Check-in Status) */}
+                                    <circle
+                                        cx="24" cy="24" r="6"
+                                        fill="currentColor"
+                                        className={`transition-all duration-1000 ease-out ${isCheckinCompletedToday() ? 'text-indigo-500' : 'text-muted/20'}`}
+                                    />
+                                </svg>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -100,3 +115,4 @@ export const HomeHeader = ({
         </header>
     );
 };
+

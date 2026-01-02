@@ -3,6 +3,8 @@ export const STORAGE_KEYS = {
     REFLECTIONS: 'urus-diri-reflections',
     NOTES: 'urus-diri-notes',
     ROUTINES: 'urus-diri-routines',
+    HABITS: 'urus-diri-habits',
+    HABIT_LOGS: 'urus-diri-habit-logs',
     LAST_OPEN_DATE: 'last_open_date',
     LANGUAGE: 'urus-diri-language',
     GOOGLE_SHEET_URL: 'urus-diri-sheet-url',

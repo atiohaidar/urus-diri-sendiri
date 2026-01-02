@@ -3,7 +3,7 @@ import { STORAGE_KEYS } from '../constants';
 /**
  * Queue item types for offline sync
  */
-export type QueueItemType = 'priorities' | 'reflection' | 'notes' | 'routines' | 'log' | 'delete_log';
+export type QueueItemType = 'priorities' | 'reflection' | 'notes' | 'routines' | 'log' | 'delete_log' | 'habits' | 'habitLogs';
 
 export type QueueItem =
     | { type: 'priorities'; data: any[] }
@@ -11,7 +11,9 @@ export type QueueItem =
     | { type: 'notes'; data: any[] }
     | { type: 'routines'; data: any[] }
     | { type: 'log'; data: any }
-    | { type: 'delete_log'; data: string };
+    | { type: 'delete_log'; data: string }
+    | { type: 'habits'; data: any[] }
+    | { type: 'habitLogs'; data: any[] };
 
 export type QueueProcessor = (item: QueueItem) => Promise<void>;
 

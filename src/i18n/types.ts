@@ -31,6 +31,7 @@ export interface Translation {
     };
     navigation: {
         home: string;
+        habits: string;
         ideas: string;
         history: string;
         settings: string;
@@ -165,5 +166,27 @@ export interface Translation {
         discard_desc: string;
         discard_confirm: string;
         saved: string;
+    };
+    habits: {
+        title: string;
+        subtitle: string;
+        add_habit: string;
+        edit_habit: string;
+        delete_habit: string;
+        streak: string;
+        completed_today: string;
+        not_completed: string;
+        frequency_daily: string;
+        frequency_weekly: string;
+        frequency_every_n_days: string;
+        frequency_specific_days: string;
+        stats_current_streak: string;
+        stats_longest_streak: string;
+        stats_completion_rate: string;
+        stats_this_week: string;
+        stats_this_month: string;
+        empty_title: string;
+        empty_desc: string;
+        create_first: string;
     };
 }

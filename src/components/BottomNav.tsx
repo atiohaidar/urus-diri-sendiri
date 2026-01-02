@@ -1,15 +1,15 @@
-import { Home, Lightbulb, Clock, Settings, Sparkles, Plus } from 'lucide-react';
+import { Home, Lightbulb, Clock, Flame, Sparkles, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useLanguage } from '@/i18n/LanguageContext';
 
 interface BottomNavProps {
-  activeTab: 'home' | 'parking' | 'history' | 'settings';
+  activeTab: 'home' | 'habits' | 'parking' | 'history';
 }
 
 const BottomNav = ({ activeTab }: BottomNavProps) => {
   const navigate = useNavigate();
-  const { pathname } = useLocation(); // Add useLocation
+  const { pathname } = useLocation();
   const { t } = useLanguage();
 
   const handleNavigate = (path: string) => {
@@ -17,11 +17,12 @@ const BottomNav = ({ activeTab }: BottomNavProps) => {
     navigate(path);
   };
 
+  // New order: Home → Habits → Parking (Notes) → History
   const tabs = [
     { id: 'home' as const, icon: Home, label: t.navigation.home, path: '/' },
+    { id: 'habits' as const, icon: Flame, label: t.navigation.habits || 'Habits', path: '/habits' },
     { id: 'parking' as const, icon: Lightbulb, label: t.navigation.ideas, path: '/ideas' },
     { id: 'history' as const, icon: Clock, label: t.navigation.history, path: '/history' },
-    { id: 'settings' as const, icon: Settings, label: t.navigation.settings, path: '/settings' },
   ];
 
   return (
@@ -75,10 +76,6 @@ const BottomNav = ({ activeTab }: BottomNavProps) => {
             </button>
           </div>
 
-          {/* Desktop Log Button (Hidden in flex map above, added here specific for Desktop sidebar layout if needed, 
-              but since we slice 0,2 and then need rest, let's just do standard mapping for desktop and special layout for mobile)
-           */}
-
           {/* Right Tabs */}
           {tabs.slice(2).map(({ id, icon: Icon, label, path }) => (
             <button
@@ -111,3 +108,4 @@ const BottomNav = ({ activeTab }: BottomNavProps) => {
 };
 
 export default BottomNav;
+

@@ -1,4 +1,4 @@
-import { PriorityTask, Reflection, Note, RoutineItem, ActivityLog } from './types';
+import { PriorityTask, Reflection, Note, RoutineItem, ActivityLog, Habit, HabitLog } from './types';
 
 export interface IStorageProvider {
     // Priorities
@@ -22,6 +22,18 @@ export interface IStorageProvider {
     saveLog(log: ActivityLog): Promise<void>;
     deleteLog(id: string): Promise<void>;
 
+    // Habits
+    getHabits?(since?: string): Promise<Habit[]>;
+    saveHabits?(habits: Habit[]): Promise<void>;
+
+    // Habit Logs
+    getHabitLogs?(since?: string): Promise<HabitLog[]>;
+    saveHabitLogs?(habitLogs: HabitLog[]): Promise<void>;
+
+    // Generic save (for new tables without specific methods)
+    save?(table: string, data: any[]): Promise<void>;
+
     // Generic/Config
     clearAll?(): Promise<void>;
 }
+

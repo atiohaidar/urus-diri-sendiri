@@ -29,3 +29,5 @@ export * from './storage-modules/routines'; // Contains stateful toggleRoutineCo
 export * from './storage-modules/logs';
 export * from './storage-modules/cloud';
 export * from './storage-modules/snapshot';
+export * from './storage-modules/habits';
+

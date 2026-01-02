@@ -1,4 +1,4 @@
-import { PriorityTask, Reflection, Note, RoutineItem, ActivityLog } from '../types';
+import { PriorityTask, Reflection, Note, RoutineItem, ActivityLog, Habit, HabitLog } from '../types';
 import { IStorageProvider } from '../storage-interface';
 import { LocalStorageProvider } from '../providers/local-storage-provider';
 import { SupabaseProvider } from '../providers/supabase-provider';
@@ -42,12 +42,16 @@ export const cache: {
     notes: Note[] | null;
     routines: RoutineItem[] | null;
     logs: ActivityLog[] | null;
+    habits: Habit[] | null;
+    habitLogs: HabitLog[] | null;
 } = {
     priorities: null,
     reflections: null,
     notes: null,
     routines: null,
     logs: null,
+    habits: null,
+    habitLogs: null,
 };
 
 // Request Deduplication
@@ -58,6 +62,8 @@ export const pendingHydrations: Record<string, Promise<any> | null> = {
     notes: null,
     routines: null,
     logs: null,
+    habits: null,
+    habitLogs: null,
 };
 
 // Event Listeners for cross-module communication
@@ -201,6 +207,8 @@ export const hydrateCache = async (force = false) => {
                 hydrateTable('notes', force),
                 hydrateTable('routines', force),
                 hydrateTable('logs', force),
+                hydrateTable('habits', force),
+                hydrateTable('habitLogs', force),
             ]);
             notifyListeners(); // Notify UI that data is ready
         } finally {
@@ -278,6 +286,8 @@ export async function hydrateTable(table: keyof typeof cache, force = false): Pr
                 case 'notes': incoming = await provider.getNotes(lastSync); break;
                 case 'routines': incoming = await provider.getRoutines(lastSync); break;
                 case 'logs': incoming = await provider.getLogs(lastSync); break;
+                case 'habits': incoming = await provider.getHabits?.(lastSync) ?? []; break;
+                case 'habitLogs': incoming = await provider.getHabitLogs?.(lastSync) ?? []; break;
             }
 
             // If we are in Cloud mode, strictly merge.

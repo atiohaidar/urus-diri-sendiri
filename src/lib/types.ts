@@ -60,3 +60,43 @@ export interface ActivityLog {
     updatedAt?: string; // For sync
     deletedAt?: string | null;
 }
+
+// --- Habits Tracker ---
+
+export type HabitFrequency = 'daily' | 'weekly' | 'every_n_days' | 'specific_days';
+
+export interface Habit {
+    id: string;
+    name: string;
+    description?: string;
+    icon?: string; // emoji like "💪" or "📚"
+    color?: string; // hex color for personalization
+
+    // Frequency Configuration
+    frequency: HabitFrequency;
+    interval?: number;        // For 'every_n_days' (e.g., 3 = every 3 days)
+    specificDays?: number[];  // For 'specific_days' (0=Sunday, 1=Monday, etc.)
+
+    // Streak Settings
+    allowedDayOff?: number;   // How many days can skip without breaking streak (default: 1)
+
+    // Tracking
+    createdAt: string;
+    updatedAt?: string;
+    deletedAt?: string | null;
+    isArchived?: boolean;     // Soft archive instead of delete
+}
+
+export interface HabitLog {
+    id: string;
+    habitId: string;
+    date: string;             // "YYYY-MM-DD" - the date being tracked
+    completed: boolean;
+    completedAt?: string;     // ISO timestamp when checked in
+    note?: string;            // Optional note
+
+    // Metadata
+    createdAt: string;
+    updatedAt?: string;
+    deletedAt?: string | null;
+}

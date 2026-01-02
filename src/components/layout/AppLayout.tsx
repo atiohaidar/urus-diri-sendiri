@@ -7,12 +7,13 @@ const AppLayout = () => {
     const navigate = useNavigate();
 
     // Determine active tab based on path
-    const getActiveTab = () => {
+    // New order: Home → Habits → Parking (Notes) → History
+    const getActiveTab = (): 'home' | 'habits' | 'parking' | 'history' => {
         const path = location.pathname;
         if (path === '/') return 'home';
+        if (path.startsWith('/habits')) return 'habits';
         if (path.startsWith('/ideas')) return 'parking';
         if (path.startsWith('/history')) return 'history';
-        if (path.startsWith('/settings')) return 'settings';
         return 'home';
     };
 
@@ -34,3 +35,4 @@ const AppLayout = () => {
 };
 
 export default AppLayout;
+

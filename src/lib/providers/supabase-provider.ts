@@ -1,5 +1,5 @@
 import { IStorageProvider } from '../storage-interface';
-import { PriorityTask, Reflection, Note, RoutineItem, ActivityLog } from '../types';
+import { PriorityTask, Reflection, Note, RoutineItem, ActivityLog, Habit, HabitLog } from '../types';
 import { supabase } from '../supabase';
 import { getImage, deleteImage } from '../idb';
 import { LocalStorageProvider } from './local-storage-provider';
@@ -20,6 +20,8 @@ export class SupabaseProvider implements IStorageProvider {
                 case 'routines': await this._saveRoutines(item.data); break;
                 case 'log': await this._saveLog(item.data); break;
                 case 'delete_log': await this._deleteLog(item.data); break;
+                case 'habits': await this._saveHabits(item.data); break;
+                case 'habitLogs': await this._saveHabitLogs(item.data); break;
             }
         });
 
@@ -562,6 +564,171 @@ export class SupabaseProvider implements IStorageProvider {
             .eq('id', id);
 
         if (error) throw error;
+    }
+
+    // --- Habits ---
+    async getHabits(since?: string): Promise<Habit[]> {
+        if (!this.isOnline()) return this.localProvider.getHabits(since);
+        await this.getUserId();
+
+        let query = supabase.from('habits').select('*');
+        if (since) {
+            query = query.gt('updated_at', since);
+        }
+
+        const { data, error } = await query;
+        if (error) {
+            if (await this.handleAuthError(error)) return [];
+            console.error('Error fetching habits:', error);
+            return this.localProvider.getHabits(since);
+        }
+
+        const habits = (data || []).map((r: any) => ({
+            id: r.id,
+            name: r.name,
+            description: r.description,
+            icon: r.icon,
+            color: r.color,
+            frequency: r.frequency,
+            interval: r.interval,
+            specificDays: r.specific_days,
+            allowedDayOff: r.allowed_day_off,
+            isArchived: r.is_archived,
+            createdAt: r.created_at,
+            updatedAt: r.updated_at,
+            deletedAt: r.deleted_at
+        }));
+
+        if (!since) {
+            await this.localProvider.saveHabits(habits);
+        } else if (habits.length > 0) {
+            const current = await this.localProvider.getHabits();
+            const mergedMap = new Map(current.map(h => [h.id, h]));
+            habits.forEach(h => mergedMap.set(h.id, h));
+            await this.localProvider.saveHabits(Array.from(mergedMap.values()));
+        }
+
+        return habits;
+    }
+
+    async saveHabits(habits: Habit[]): Promise<void> {
+        await this.localProvider.saveHabits(habits);
+        await this.executeOrQueue(
+            { type: 'habits', data: habits },
+            () => this._saveHabits(habits)
+        );
+    }
+
+    private async _saveHabits(habits: Habit[]) {
+        const userId = await this.getUserId();
+        const activeIds = habits.filter(h => !h.deletedAt).map(h => h.id);
+
+        const rows = habits.map(h => ({
+            id: h.id,
+            name: h.name,
+            description: h.description || null,
+            icon: h.icon || null,
+            color: h.color || null,
+            frequency: h.frequency,
+            interval: h.interval || null,
+            specific_days: h.specificDays || null,
+            allowed_day_off: h.allowedDayOff ?? 1,
+            is_archived: h.isArchived || false,
+            created_at: h.createdAt,
+            updated_at: h.updatedAt,
+            deleted_at: h.deletedAt || null,
+            user_id: userId
+        }));
+
+        if (rows.length > 0) {
+            const { error } = await supabase.from('habits').upsert(rows);
+            if (error) throw error;
+        }
+    }
+
+    // --- Habit Logs ---
+    async getHabitLogs(since?: string): Promise<HabitLog[]> {
+        if (!this.isOnline()) return this.localProvider.getHabitLogs(since);
+        await this.getUserId();
+
+        let query = supabase.from('habit_logs').select('*').order('date', { ascending: false });
+        if (since) {
+            query = query.gt('updated_at', since);
+        }
+
+        const { data, error } = await query;
+        if (error) {
+            if (await this.handleAuthError(error)) return [];
+            console.error('Error fetching habit_logs:', error);
+            return this.localProvider.getHabitLogs(since);
+        }
+
+        const habitLogs = (data || []).map((r: any) => ({
+            id: r.id,
+            habitId: r.habit_id,
+            date: r.date,
+            completed: r.completed,
+            completedAt: r.completed_at,
+            note: r.note,
+            createdAt: r.created_at,
+            updatedAt: r.updated_at,
+            deletedAt: r.deleted_at
+        }));
+
+        if (!since) {
+            await this.localProvider.saveHabitLogs(habitLogs);
+        } else if (habitLogs.length > 0) {
+            const current = await this.localProvider.getHabitLogs();
+            const mergedMap = new Map(current.map(l => [l.id, l]));
+            habitLogs.forEach(l => mergedMap.set(l.id, l));
+            await this.localProvider.saveHabitLogs(Array.from(mergedMap.values()));
+        }
+
+        return habitLogs;
+    }
+
+    async saveHabitLogs(habitLogs: HabitLog[]): Promise<void> {
+        await this.localProvider.saveHabitLogs(habitLogs);
+        await this.executeOrQueue(
+            { type: 'habitLogs', data: habitLogs },
+            () => this._saveHabitLogs(habitLogs)
+        );
+    }
+
+    private async _saveHabitLogs(habitLogs: HabitLog[]) {
+        const userId = await this.getUserId();
+
+        const rows = habitLogs.map(l => ({
+            id: l.id,
+            habit_id: l.habitId,
+            date: l.date,
+            completed: l.completed,
+            completed_at: l.completedAt || null,
+            note: l.note || null,
+            created_at: l.createdAt,
+            updated_at: l.updatedAt,
+            deleted_at: l.deletedAt || null,
+            user_id: userId
+        }));
+
+        if (rows.length > 0) {
+            const { error } = await supabase.from('habit_logs').upsert(rows);
+            if (error) throw error;
+        }
+    }
+
+    // --- Generic Save ---
+    async save(table: string, data: any[]): Promise<void> {
+        switch (table) {
+            case 'habits':
+                await this.saveHabits(data);
+                break;
+            case 'habitLogs':
+                await this.saveHabitLogs(data);
+                break;
+            default:
+                console.warn(`SupabaseProvider: Unknown table ${table}`);
+        }
     }
 
     // --- Config / Utils ---
