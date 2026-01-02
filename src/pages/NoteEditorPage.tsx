@@ -100,7 +100,7 @@ const NoteEditorPage = () => {
     return (
         <div className="min-h-screen bg-background flex flex-col animate-in slide-in-from-bottom-4 duration-300">
             {/* Header */}
-            <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b border-border p-4 flex items-center justify-between">
+            <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b border-border p-4 flex items-center justify-between pt-safe">
                 <Button variant="ghost" size="icon" onClick={handleBack} className="-ml-2 rounded-full">
                     {/* User asked for 'X' behavior, but usually Back arrow is safer for full page. 
                         However, let's stick to X or ArrowLeft. X implies discard usually, but user explicitely asked for SAVE on X.
@@ -185,7 +185,7 @@ const NoteEditorPage = () => {
             </div>
 
             {/* Save Button (Optional, since X saves, but good for UX clarity) */}
-            <div className="p-4 border-t border-border/50 sticky bottom-0 bg-background/80 backdrop-blur-md">
+            <div className="p-4 border-t border-border/50 sticky bottom-0 bg-background/80 backdrop-blur-md pb-safe">
                 <Button onClick={handleBack} className="w-full h-12 rounded-xl text-md font-semibold md:max-w-md md:mx-auto block">
                     {t.note_editor.done}
                 </Button>

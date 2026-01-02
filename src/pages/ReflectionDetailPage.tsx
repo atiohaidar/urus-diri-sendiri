@@ -58,7 +58,7 @@ const ReflectionDetailPage = () => {
     return (
         <div className="min-h-screen bg-background pb-12 animate-in fade-in slide-in-from-bottom-4 duration-300">
             {/* Header */}
-            <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-lg border-b border-border/50">
+            <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-lg border-b border-border/50 pt-safe">
                 <div className="container max-w-2xl mx-auto px-4 py-4 flex items-center gap-4">
                     <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="rounded-full">
                         <ArrowLeft className="w-6 h-6" />

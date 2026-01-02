@@ -43,7 +43,7 @@ export const HomeHeader = ({
     const innerStrokeDashoffset = innerCircumference - (priorityPercent / 100) * innerCircumference;
 
     return (
-        <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-lg border-b border-border/50">
+        <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-lg border-b border-border/50 pt-safe">
             <div className="container px-4 py-4 md:max-w-7xl">
                 <div className="flex items-center justify-between">
                     <div>

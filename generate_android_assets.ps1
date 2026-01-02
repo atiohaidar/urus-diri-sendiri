@@ -28,6 +28,14 @@ foreach ($folder in $icons.Keys) {
            `( -size "${size}x${size}" xc:none -fill white -draw "circle $cx,$cy $cx,0" `) `
            -compose DstIn -composite $targetRound
     Write-Host "Generated round icon: $targetRound"
+
+    # Adaptive Icon Foreground (Modern Android)
+    $targetForeground = Join-Path $folderPath "ic_launcher_foreground.png"
+    # Adaptive icons need a bit more padding/safe area buffer (66% of the 108dp icon is the safe zone)
+    # We'll resize the logo to be roughly 80% of the icon size to ensure it fits well in the safe zone
+    $foregroundSize = [int]($size * 0.8)
+    magick $source -resize "${foregroundSize}x${foregroundSize}" -gravity center -background none -extent "${size}x${size}" $targetForeground
+    Write-Host "Generated foreground icon: $targetForeground"
 }
 
 # Splash Screens (Portrait)

@@ -34,7 +34,7 @@ const ParkingLotScreen = () => {
   return (
     <div className="min-h-screen pb-24 md:pb-8">
       {/* Header */}
-      <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-lg border-b border-border/50">
+      <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-lg border-b border-border/50 pt-safe">
         <div className="container max-w-md md:max-w-5xl mx-auto px-4 py-4">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
@@ -93,7 +93,7 @@ const ParkingLotScreen = () => {
       {/* Floating Action Button */}
       <button
         onClick={openNewNote}
-        className="fixed bottom-24 right-4 md:bottom-12 md:right-12 w-14 h-14 md:w-16 md:h-16 bg-primary rounded-full shadow-lg shadow-primary/30 flex items-center justify-center hover:scale-105 active:scale-95 transition-transform z-40 hover:bg-primary/90"
+        className="fixed bottom-[calc(6rem+env(safe-area-inset-bottom))] right-4 md:bottom-12 md:right-12 w-14 h-14 md:w-16 md:h-16 bg-primary rounded-full shadow-lg shadow-primary/30 flex items-center justify-center hover:scale-105 active:scale-95 transition-transform z-40 hover:bg-primary/90"
       >
         <Plus className="w-6 h-6 md:w-8 md:h-8 text-primary-foreground" />
       </button>

@@ -137,8 +137,37 @@
     text-decoration-thickness: 2px;
   }
 
+  .safe-top {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+
   .safe-bottom {
-    padding-bottom: env(safe-area-inset-bottom, 20px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .pt-safe {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .mt-safe {
+    margin-top: env(safe-area-inset-top, 0px);
+  }
+
+  .mb-safe {
+    margin-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  /* For elements that need to be pushed down/up but already have padding */
+  .top-safe-offset {
+    top: env(safe-area-inset-top, 0px);
+  }
+
+  .bottom-safe-offset {
+    bottom: env(safe-area-inset-bottom, 0px);
   }
 }
 

@@ -86,7 +86,7 @@ const HistoryScreen = () => {
     <>
       <PullToRefresh onRefresh={refreshData} className="min-h-screen pb-24 md:pb-8">
         {/* Header */}
-        <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-lg border-b border-border/50">
+        <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-lg border-b border-border/50 pt-safe">
           <div className="container md:max-w-5xl mx-auto px-4 py-4 space-y-4">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-xl bg-primary/10">
@@ -153,7 +153,7 @@ const HistoryScreen = () => {
         </main>
 
         {/* Floating Action Button (FAB) for Maghrib Check-in */}
-        <div className="fixed bottom-24 right-4 md:bottom-8 md:right-8 z-50">
+        <div className="fixed bottom-[calc(6rem+env(safe-area-inset-bottom))] right-4 md:bottom-8 md:right-8 z-50">
           <Button
             onClick={() => navigate('/maghrib-checkin')}
             size="icon"

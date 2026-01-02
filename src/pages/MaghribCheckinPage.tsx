@@ -180,7 +180,7 @@ const MaghribCheckinPage = () => {
     }
 
     return (
-        <div className="min-h-screen bg-background pb-24 md:pb-8 animate-in fade-in slide-in-from-bottom-4 duration-300 md:pl-64">
+        <div className="min-h-screen bg-background pb-24 md:pb-8 animate-in fade-in slide-in-from-bottom-4 duration-300 md:pl-64 pt-safe">
             <div className="container max-w-4xl mx-auto px-4 py-6">
                 <div className="flex items-center justify-between mb-6">
                     <Button
@@ -401,7 +401,7 @@ const MaghribCheckinPage = () => {
                 </div>
             </div>
 
-            <div className="fixed bottom-0 left-0 right-0 md:left-64 p-4 bg-background/80 backdrop-blur-lg border-t border-border safe-bottom md:static md:bg-transparent md:border-0 md:p-0 md:mt-4">
+            <div className="fixed bottom-0 left-0 right-0 md:left-64 p-4 bg-background/80 backdrop-blur-lg border-t border-border pb-safe md:static md:bg-transparent md:border-0 md:p-0 md:mt-4">
                 <div className="container max-w-4xl mx-auto md:px-4">
                     <Button
                         onClick={handleSave}
