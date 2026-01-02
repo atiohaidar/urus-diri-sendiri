@@ -115,10 +115,10 @@ export const HomeRoutineSection = ({
                         <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4">
                             <Sparkles className="w-8 h-8 text-primary" />
                         </div>
-                        <h3 className="text-lg font-bold mb-2">Start Your Journey</h3>
-                        <p className="text-sm text-muted-foreground mb-6">You haven't set up any routines yet. Create your first routine to build better habits.</p>
+                        <h3 className="text-lg font-bold mb-2">{t.home.no_routines_title}</h3>
+                        <p className="text-sm text-muted-foreground mb-6">{t.home.no_routines_desc}</p>
                         <Button onClick={() => navigate('/schedule-editor')} className="rounded-xl">
-                            ✨ Create First Routine
+                            ✨ {t.home.create_first_routine}
                         </Button>
                     </div>
                 )}

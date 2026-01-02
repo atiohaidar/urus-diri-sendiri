@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
@@ -26,6 +27,7 @@ export const HomePrioritySection = ({
 }: HomePrioritySectionProps) => {
     const { t } = useLanguage();
     const isDesktop = variant === 'desktop';
+    const inputRef = useRef<HTMLInputElement>(null);
 
     // Helper handling input submission
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -38,15 +40,13 @@ export const HomePrioritySection = ({
         }
     };
 
-    const handleButtonClick = (inputId: string) => {
-        const input = document.getElementById(inputId) as HTMLInputElement;
-        if (input && input.value.trim()) {
-            onAdd(input.value.trim());
-            input.value = '';
+    const handleButtonClick = () => {
+        if (inputRef.current && inputRef.current.value.trim()) {
+            onAdd(inputRef.current.value.trim());
+            inputRef.current.value = '';
+            inputRef.current.focus();
         }
     };
-
-    const inputId = `priority-input-${variant}`;
 
     return (
         <section className={`${isDesktop ? 'bg-card/50 rounded-3xl p-6 border border-border/50 h-full' : ''} ${className}`}>
@@ -77,7 +77,7 @@ export const HomePrioritySection = ({
                     {/* Add Priority Input */}
                     <div className={`flex gap-2 ${!isDesktop ? 'animate-in fade-in slide-in-from-top-2 duration-300' : 'pt-4'}`}>
                         <Input
-                            id={inputId}
+                            ref={inputRef}
                             placeholder={t.home.add_priority_placeholder}
                             className={`${isDesktop ? 'h-14 text-lg' : 'h-12'} bg-card rounded-xl border-dashed border-2 border-border/50 focus-visible:ring-primary/30`}
                             onKeyDown={handleKeyDown}
@@ -85,7 +85,8 @@ export const HomePrioritySection = ({
                         <Button
                             variant="outline"
                             className={`${isDesktop ? 'h-14 w-14' : 'h-12 w-12'} rounded-xl border-dashed border-2`}
-                            onClick={() => handleButtonClick(inputId)}
+                            onClick={handleButtonClick}
+                            aria-label={t.home.add_priority_placeholder}
                         >
                             <Plus className={`${isDesktop ? 'w-6 h-6' : 'w-5 h-5'}`} />
                         </Button>
@@ -103,6 +104,7 @@ export const HomePrioritySection = ({
                     </div>
                     <div className="flex gap-2">
                         <Input
+                            ref={inputRef}
                             placeholder={t.home.first_priority_placeholder}
                             className={`${isDesktop ? 'h-14 text-lg' : 'h-12'} bg-card rounded-xl border-dashed border-2 border-border/50`}
                             onKeyDown={handleKeyDown}

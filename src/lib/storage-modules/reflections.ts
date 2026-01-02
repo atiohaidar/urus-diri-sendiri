@@ -67,17 +67,22 @@ export const saveReflection = async (reflection: Omit<Reflection, 'id'>) => {
 
     await provider.saveReflection(savedItem);
 
-    // Update tomorrow's priorities based on reflection
-    if (reflection.priorities) {
-        const newPriorities: PriorityTask[] = reflection.priorities
+    // Add tomorrow's priorities from reflection (MERGE, not replace!)
+    // Only add new priorities that don't already exist
+    if (reflection.priorities && reflection.priorities.length > 0) {
+        const { getPriorities, addPriority: addPriorityFn } = await import('./priorities');
+        const existingPriorities = getPriorities();
+        const existingTexts = new Set(existingPriorities.map(p => p.text.toLowerCase().trim()));
+
+        // Filter to only truly new priorities (not duplicates)
+        const newPriorityTexts = reflection.priorities
             .filter(p => p.trim())
-            .map((text, index) => ({
-                id: `priority-${Date.now()}-${index}`,
-                text,
-                completed: false,
-                updatedAt: new Date().toISOString(),
-            }));
-        savePriorities(newPriorities);
+            .filter(text => !existingTexts.has(text.toLowerCase().trim()));
+
+        // Add each new priority individually (this preserves existing ones)
+        for (const text of newPriorityTexts) {
+            addPriorityFn(text);
+        }
     }
 
     return savedItem;

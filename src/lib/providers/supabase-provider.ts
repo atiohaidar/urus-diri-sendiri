@@ -2,109 +2,39 @@ import { IStorageProvider } from '../storage-interface';
 import { PriorityTask, Reflection, Note, RoutineItem, ActivityLog } from '../types';
 import { supabase } from '../supabase';
 import { getImage, deleteImage } from '../idb';
-import { STORAGE_KEYS } from '../constants';
 import { LocalStorageProvider } from './local-storage-provider';
-
-type QueueItem =
-    | { type: 'priorities'; data: PriorityTask[] }
-    | { type: 'reflection'; data: Reflection }
-    | { type: 'notes'; data: Note[] }
-    | { type: 'routines'; data: RoutineItem[] }
-    | { type: 'log'; data: ActivityLog }
-    | { type: 'delete_log'; data: string };
+import { offlineQueue, QueueItem } from './offline-queue';
 
 export class SupabaseProvider implements IStorageProvider {
 
     private userIdPromise: Promise<string> | null = null;
-    private queueKey = STORAGE_KEYS.OFFLINE_QUEUE;
     private localProvider = new LocalStorageProvider();
 
     constructor() {
-        // Auto-process queue when coming back online
-        if (typeof window !== 'undefined') {
-            window.addEventListener('online', () => {
-                console.log("Network back online. Processing sync queue...");
-                this.processSyncQueue();
-            });
-
-            // Try processing on init too, in case we just reloaded and are online
-            this.processSyncQueue();
-        }
-    }
-
-    // --- Offline Queue Logic ---
-
-    private getQueue(): QueueItem[] {
-        const raw = localStorage.getItem(this.queueKey);
-        return raw ? JSON.parse(raw) : [];
-    }
-
-    private saveQueue(queue: QueueItem[]) {
-        localStorage.setItem(this.queueKey, JSON.stringify(queue));
-    }
-
-    private addToQueue(item: QueueItem) {
-        const queue = this.getQueue();
-        queue.push(item);
-        this.saveQueue(queue);
-        console.log(`🔌 Offline: Action queued (${item.type}). Will sync when online.`);
-    }
-
-    private async processSyncQueue() {
-        if (!navigator.onLine) return;
-
-        const queue = this.getQueue();
-        if (queue.length === 0) return;
-
-        console.log(`🔄 Syncing ${queue.length} offline actions...`);
-
-        const remainingQueue: QueueItem[] = [];
-
-        for (const item of queue) {
-            try {
-                switch (item.type) {
-                    case 'priorities': await this._savePriorities(item.data); break;
-                    case 'reflection': await this._saveReflection(item.data); break;
-                    case 'notes': await this._saveNotes(item.data); break;
-                    case 'routines': await this._saveRoutines(item.data); break;
-                    case 'log': await this._saveLog(item.data); break;
-                    case 'delete_log': await this._deleteLog(item.data); break;
-                }
-            } catch (err) {
-                console.error(`Failed to process queue item (${item.type}) during sync:`, err);
-                // Keep in queue if it seems like a retryable error?
-                // For simplicity, we keep it in queue to retry later.
-                // Assuming generic error could be transient.
-                remainingQueue.push(item);
+        // Set up the queue processor
+        offlineQueue.setProcessor(async (item: QueueItem) => {
+            switch (item.type) {
+                case 'priorities': await this._savePriorities(item.data); break;
+                case 'reflection': await this._saveReflection(item.data); break;
+                case 'notes': await this._saveNotes(item.data); break;
+                case 'routines': await this._saveRoutines(item.data); break;
+                case 'log': await this._saveLog(item.data); break;
+                case 'delete_log': await this._deleteLog(item.data); break;
             }
-        }
+        });
 
-        this.saveQueue(remainingQueue);
-        if (remainingQueue.length === 0) {
-            console.log("✅ Offline queue synced successfully!");
-        } else {
-            console.warn(`⚠️ ${remainingQueue.length} items failed to sync. check console.`);
-        }
+        // Try processing any pending items
+        offlineQueue.process();
     }
+
+    // --- Helper Methods ---
 
     private isOnline() {
-        return typeof navigator !== 'undefined' ? navigator.onLine : true;
+        return offlineQueue.isOnline();
     }
 
     private async executeOrQueue(item: QueueItem, fn: () => Promise<void>) {
-        if (!this.isOnline()) {
-            this.addToQueue(item);
-            return;
-        }
-
-        try {
-            await fn();
-        } catch (err: any) {
-            console.error(`Operation failed (will queue):`, err);
-            // If error is network related, queue it.
-            // Detecting exact network error is hard, but usually safe to queue.
-            this.addToQueue(item);
-        }
+        return offlineQueue.executeOrQueue(item, fn);
     }
 
     // --- Helper for User ID ---

@@ -27,6 +27,7 @@ export interface Translation {
         save_toast_desc: string;
         add_images: string;
         image_limit: string;
+        add_priority: string;
     };
     navigation: {
         home: string;
@@ -47,6 +48,8 @@ export interface Translation {
         daily_photos: string;
         load_more: string;
         view_detail: string;
+        reflections_tab: string;
+        activity_log_tab: string;
     };
     settings: {
         title: string;
@@ -126,6 +129,9 @@ export interface Translation {
         schedule_finished_title: string;
         schedule_finished_desc: string;
         no_routines_text: string;
+        no_routines_title: string;
+        no_routines_desc: string;
+        create_first_routine: string;
     };
     ideas: {
         title: string;
@@ -149,5 +155,15 @@ export interface Translation {
         done: string;
         edited_prefix: string;
         created_prefix: string;
+    };
+    log_creator: {
+        placeholder_text: string;
+        placeholder_caption: string;
+        camera_error: string;
+        save_error: string;
+        discard_title: string;
+        discard_desc: string;
+        discard_confirm: string;
+        saved: string;
     };
 }

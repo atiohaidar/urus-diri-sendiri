@@ -76,7 +76,7 @@ export const deleteItem = async (storeName: string, id: string): Promise<void> =
 
 export const saveImage = async (base64: string): Promise<string> => {
     const db = await openDB();
-    const id = `img-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const id = `img-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
 
     return new Promise((resolve, reject) => {
         const transaction = db.transaction(STORES.IMAGES, 'readwrite');

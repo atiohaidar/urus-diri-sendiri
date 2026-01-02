@@ -3,6 +3,21 @@ import { PriorityTask, Reflection, Note, RoutineItem, ActivityLog } from '../typ
 import { STORAGE_KEYS } from '../constants';
 import { getAllItems, putItem, deleteItem, IDB_STORES } from '../idb';
 
+/**
+ * TODO: ARCHITECTURE CONCERN - Hybrid Storage Inconsistency
+ * 
+ * Current State:
+ * - Priorities, Notes, Routines: localStorage (sync, ~5-10MB limit)
+ * - Reflections, Logs, Images: IndexedDB (async, larger capacity)
+ * 
+ * Issues:
+ * 1. Inconsistent API behavior (sync vs async)
+ * 2. localStorage can hit quota limits with large datasets
+ * 3. Potential data loss on browser crash before IndexedDB commit
+ * 
+ * Recommendation: Migrate all data to IndexedDB for consistency.
+ * This requires refactoring storage modules to handle async operations.
+ */
 export class LocalStorageProvider implements IStorageProvider {
 
     // --- Priorities ---

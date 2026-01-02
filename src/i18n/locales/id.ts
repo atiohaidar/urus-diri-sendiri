@@ -27,6 +27,7 @@ export const id: Translation = {
         save_toast_desc: "Prioritasmu untuk besok telah ditetapkan.",
         add_images: "Tambah Foto Hari Ini (Opsional)",
         image_limit: "Maksimal 3 foto",
+        add_priority: "Tambah Prioritas",
     },
     navigation: {
         home: "Beranda",
@@ -47,6 +48,8 @@ export const id: Translation = {
         daily_photos: "Foto Hari Ini",
         load_more: "Lihat Riwayat Lebih Lama",
         view_detail: "Lihat Detail",
+        reflections_tab: "Refleksi",
+        activity_log_tab: "Log Aktivitas",
     },
     settings: {
         title: "Pengaturan",
@@ -126,6 +129,9 @@ export const id: Translation = {
         schedule_finished_title: "Jadwal Selesai",
         schedule_finished_desc: "Selamat beristirahat!",
         no_routines_text: "Belum ada rutinitas. Tambahkan sekarang!",
+        no_routines_title: "Mulai Perjalananmu",
+        no_routines_desc: "Kamu belum membuat rutinitas. Buat rutinitas pertamamu untuk membangun kebiasaan baik.",
+        create_first_routine: "Buat Rutinitas Pertama",
     },
     ideas: {
         title: "Tempat Parkir Ide",
@@ -149,5 +155,15 @@ export const id: Translation = {
         done: "Selesai",
         edited_prefix: "Diedit",
         created_prefix: "Dibuat",
+    },
+    log_creator: {
+        placeholder_text: "Ada cerita apa?",
+        placeholder_caption: "Tambah keterangan...",
+        camera_error: "Kamera tidak dapat diakses",
+        save_error: "Gagal menyimpan",
+        discard_title: "Hapus perubahan?",
+        discard_desc: "Tulisan atau foto yang belum disimpan akan hilang jika Anda keluar.",
+        discard_confirm: "Keluar",
+        saved: "Tersimpan!",
     },
 };

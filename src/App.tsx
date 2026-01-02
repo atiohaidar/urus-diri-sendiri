@@ -53,9 +53,26 @@ const App = () => {
       try {
         console.log('Deep link received:', url);
 
-        // Normalize URL to handle custom schemes correctly in URL constructor if needed
-        // But Capacitor usually passes a full valid URL string.
+        // Validate URL scheme for security
         const urlObj = new URL(url);
+        const allowedSchemes = ['urusdiri', 'http', 'https'];
+        const allowedHosts = ['localhost', '127.0.0.1', 'urusdiri.app'];
+
+        // Check scheme
+        if (!allowedSchemes.includes(urlObj.protocol.replace(':', ''))) {
+          console.warn('Deep link rejected: Invalid scheme', urlObj.protocol);
+          return;
+        }
+
+        // For http/https, also check host
+        if (urlObj.protocol === 'http:' || urlObj.protocol === 'https:') {
+          const host = urlObj.hostname.toLowerCase();
+          if (!allowedHosts.some(allowed => host === allowed || host.endsWith('.' + allowed))) {
+            console.warn('Deep link rejected: Invalid host', urlObj.hostname);
+            toast.error('Login gagal: URL tidak valid');
+            return;
+          }
+        }
 
         // 1. Handle PKCE Flow (code in query params)
         const code = urlObj.searchParams.get('code');
@@ -69,9 +86,8 @@ const App = () => {
         }
 
         // 2. Handle Implicit Flow (tokens in hash)
-        // new URL(url).hash returns string starting with #
         if (urlObj.hash) {
-          const hashParams = new URLSearchParams(urlObj.hash.substring(1)); // remove #
+          const hashParams = new URLSearchParams(urlObj.hash.substring(1));
           const access_token = hashParams.get('access_token');
           const refresh_token = hashParams.get('refresh_token');
 
@@ -86,7 +102,7 @@ const App = () => {
           }
         }
 
-        // 3. Fallback: Parse query params for implicit tokens (sometimes happens)
+        // 3. Fallback: Parse query params for implicit tokens
         const access_token_query = urlObj.searchParams.get('access_token');
         const refresh_token_query = urlObj.searchParams.get('refresh_token');
         if (access_token_query && refresh_token_query) {

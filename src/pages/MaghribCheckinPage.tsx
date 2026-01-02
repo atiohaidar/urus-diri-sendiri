@@ -277,7 +277,7 @@ const MaghribCheckinPage = () => {
                                     className="w-full h-11 rounded-xl border-dashed border-2 bg-transparent hover:bg-secondary/50 gap-2 border-primary/30 text-primary"
                                 >
                                     <Plus className="w-4 h-4" />
-                                    Tambah Prioritas
+                                    {t.checkin.add_priority}
                                 </Button>
                             </div>
                         </div>

@@ -6,10 +6,11 @@ import { toast } from 'sonner';
 import { supabase, signInWithGoogle, signInWithEmail, verifyEmailOtp, signOut, isSupabaseConfigured } from '@/lib/supabase';
 import { useLanguage } from '@/i18n/LanguageContext';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import type { User } from '@supabase/supabase-js';
 
 export const AuthSection = () => {
     const { t } = useLanguage();
-    const [user, setUser] = useState<any>(null);
+    const [user, setUser] = useState<User | null>(null);
     const [loginLoading, setLoginLoading] = useState(false);
     const [email, setEmail] = useState('');
     const [otp, setOtp] = useState('');
@@ -39,8 +40,8 @@ export const AuthSection = () => {
         setLoginLoading(true);
         try {
             await signInWithGoogle();
-        } catch (error: any) {
-            toast.error(error.message || "Failed to login");
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : "Failed to login");
             setLoginLoading(false);
         }
     };
@@ -52,8 +53,8 @@ export const AuthSection = () => {
             await signInWithEmail(email);
             toast.success("Code sent! Check your email.");
             setShowOtpInput(true);
-        } catch (error: any) {
-            toast.error(error.message || "Failed to send code");
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : "Failed to send code");
         } finally {
             setLoginLoading(false);
         }
@@ -66,8 +67,8 @@ export const AuthSection = () => {
             await verifyEmailOtp(email, otp);
             toast.success("Login successful!");
             // Dialog will close automatically as user state updates
-        } catch (error: any) {
-            toast.error(error.message || "Invalid code");
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : "Invalid code");
         } finally {
             setLoginLoading(false);
         }
@@ -78,8 +79,8 @@ export const AuthSection = () => {
             await signOut();
             toast.success("Signed out successfully");
             setTimeout(() => window.location.reload(), 500);
-        } catch (error: any) {
-            toast.error(error.message || "Failed to logout");
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : "Failed to logout");
         }
     };
 

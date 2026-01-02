@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { Camera, Send, X, Image as ImageIcon, Type, Sparkles, ChevronLeft, FlipHorizontal, Palette, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -21,6 +21,8 @@ import {
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { App as CapacitorApp } from '@capacitor/app';
+import { useCamera } from '@/hooks/useCamera';
+import { useLanguage } from '@/i18n/LanguageContext';
 
 const LogCreatorPage = () => {
     const navigate = useNavigate();
@@ -28,8 +30,6 @@ const LogCreatorPage = () => {
     const [imagePreview, setImagePreview] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showSuccess, setShowSuccess] = useState(false);
-    const [showCamera, setShowCamera] = useState(false);
-    const [cameraFacing, setCameraFacing] = useState<'user' | 'environment'>('environment');
     const [flashEffect, setFlashEffect] = useState(false);
     const [showExitDialog, setShowExitDialog] = useState(false);
 
@@ -46,9 +46,10 @@ const LogCreatorPage = () => {
     ];
     const [bgColor, setBgColor] = useState(statusColors[0]);
 
-    const videoRef = useRef<HTMLVideoElement>(null);
-    const streamRef = useRef<MediaStream | null>(null);
+    // Use the camera hook
+    const camera = useCamera({ initialFacing: 'environment' });
     const { toast } = useToast();
+    const { t } = useLanguage();
 
     // Keyboard handling for mobile
     const [keyboardHeight, setKeyboardHeight] = useState(0);
@@ -65,17 +66,14 @@ const LogCreatorPage = () => {
         return () => window.visualViewport?.removeEventListener('resize', handleResize);
     }, []);
 
-    // Cleanup camera on unmount
+    // Show error if camera access failed
     useEffect(() => {
-        return () => {
-            if (streamRef.current) {
-                streamRef.current.getTracks().forEach(track => track.stop());
-            }
-        };
-    }, []);
+        if (camera.error) {
+            toast({ title: camera.error, variant: "destructive" });
+        }
+    }, [camera.error, toast]);
 
     const handleBack = () => {
-        // Only trigger dialog if there is content AND it is not submitting AND not successfully saved
         const isDirty = (caption.trim().length > 0 || imagePreview !== null);
         if (isDirty && !isSubmitting && !showSuccess) {
             setShowExitDialog(true);
@@ -89,8 +87,8 @@ const LogCreatorPage = () => {
         let listener: any;
         const setupListener = async () => {
             listener = await CapacitorApp.addListener('backButton', () => {
-                if (showCamera) {
-                    stopCamera();
+                if (camera.isActive) {
+                    camera.stop();
                 } else if (showExitDialog) {
                     setShowExitDialog(false);
                 } else {
@@ -103,56 +101,18 @@ const LogCreatorPage = () => {
         return () => {
             if (listener) listener.remove();
         };
-    }, [caption, imagePreview, showCamera, showSuccess, showExitDialog]);
+    }, [caption, imagePreview, camera.isActive, showSuccess, showExitDialog]);
 
-
-    const startCamera = async (facing: 'user' | 'environment') => {
-        try {
-            if (streamRef.current) {
-                streamRef.current.getTracks().forEach(track => track.stop());
-            }
-
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: facing, width: { ideal: 1920 }, height: { ideal: 1080 } },
-                audio: false
-            });
-
-            streamRef.current = stream;
-            if (videoRef.current) videoRef.current.srcObject = stream;
-            setShowCamera(true);
-        } catch (error) {
-            toast({ title: "Kamera tidak dapat diakses", variant: "destructive" });
-        }
-    };
-
-    const stopCamera = () => {
-        if (streamRef.current) {
-            streamRef.current.getTracks().forEach(track => track.stop());
-        }
-        setShowCamera(false);
-    };
-
-    const capturePhoto = async () => {
-        if (!videoRef.current) return;
+    const handleCapturePhoto = async () => {
         setFlashEffect(true);
         setTimeout(() => setFlashEffect(false), 150);
         triggerHaptic();
 
-        const video = videoRef.current;
-        const canvas = document.createElement('canvas');
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-            if (cameraFacing === 'user') {
-                ctx.translate(canvas.width, 0);
-                ctx.scale(-1, 1);
-            }
-            ctx.drawImage(video, 0, 0);
-            const base64 = canvas.toDataURL('image/jpeg', 0.85);
+        const base64 = await camera.capturePhoto(0.85);
+        if (base64) {
             const compressed = await compressImage(base64, 1080, 0.7);
             setImagePreview(compressed);
-            stopCamera();
+            camera.stop();
         }
     };
 
@@ -175,7 +135,7 @@ const LogCreatorPage = () => {
                 const base64Data = `data:image/${image.format};base64,${image.base64String}`;
                 const compressed = await compressImage(base64Data, 1080, 0.7);
                 setImagePreview(compressed);
-                if (showCamera) stopCamera();
+                if (camera.isActive) camera.stop();
             }
         } catch (e) {
             console.log('Pick cancelled');
@@ -207,7 +167,7 @@ const LogCreatorPage = () => {
             }, 1200);
 
         } catch (e) {
-            toast({ title: "Gagal menyimpan", variant: "destructive" });
+            toast({ title: t.log_creator.save_error, variant: "destructive" });
             setIsSubmitting(false);
         }
     };
@@ -226,25 +186,25 @@ const LogCreatorPage = () => {
                                 <Check className="w-12 h-12 text-white animate-in zoom-in duration-300 delay-200" strokeWidth={3} />
                             </div>
                             <h2 className="text-2xl font-bold text-white tracking-tight animate-in fade-in slide-in-from-bottom-2 delay-300">
-                                Saved!
+                                {t.log_creator.saved}
                             </h2>
                         </div>
                     </div>
                 )}
 
                 {/* Native Camera View */}
-                {showCamera && (
+                {camera.isActive && (
                     <div className="absolute inset-0 z-10 bg-black">
                         <video
-                            ref={videoRef}
+                            ref={camera.videoRef}
                             autoPlay
                             playsInline
-                            className={cn("w-full h-full object-cover", cameraFacing === 'user' && "scale-x-[-1]")}
+                            className={cn("w-full h-full object-cover", camera.facing === 'user' && "scale-x-[-1]")}
                         />
                         {flashEffect && <div className="absolute inset-0 bg-white z-20" />}
 
                         <div className="absolute top-0 left-0 right-0 p-6 flex justify-between items-center z-30 safe-top">
-                            <button onClick={stopCamera} className="p-3 bg-black/30 backdrop-blur-md rounded-full text-white">
+                            <button onClick={camera.stop} className="p-3 bg-black/30 backdrop-blur-md rounded-full text-white">
                                 <X className="w-6 h-6" />
                             </button>
                         </div>
@@ -255,18 +215,14 @@ const LogCreatorPage = () => {
                             </button>
 
                             <button
-                                onClick={capturePhoto}
+                                onClick={handleCapturePhoto}
                                 className="w-20 h-20 rounded-full border-4 border-white flex items-center justify-center p-1 active:scale-95 transition-all shadow-xl"
                             >
                                 <div className="w-full h-full bg-white rounded-full" />
                             </button>
 
                             <button
-                                onClick={() => {
-                                    const next = cameraFacing === 'user' ? 'environment' : 'user';
-                                    setCameraFacing(next);
-                                    startCamera(next);
-                                }}
+                                onClick={camera.switchCamera}
                                 className="p-4 bg-white/10 backdrop-blur-md rounded-full text-white active:scale-90 transition-transform"
                             >
                                 <FlipHorizontal className="w-7 h-7" />
@@ -276,7 +232,7 @@ const LogCreatorPage = () => {
                 )}
 
                 {/* Header Controls */}
-                {!showCamera && (
+                {!camera.isActive && (
                     <div className="relative z-30 px-6 py-4 flex items-center justify-between safe-top">
                         <Button variant="ghost" size="icon" onClick={handleBack} className="rounded-full text-white hover:bg-white/10 h-12 w-12">
                             <ChevronLeft className="w-8 h-8" strokeWidth={2.5} />
@@ -298,7 +254,7 @@ const LogCreatorPage = () => {
                 )}
 
                 {/* Immersive Canvas Area */}
-                {!showCamera && (
+                {!camera.isActive && (
                     <div className="flex-1 relative flex flex-col items-center pt-10 px-6 md:px-8">
                         {imagePreview && (
                             <img
@@ -320,7 +276,7 @@ const LogCreatorPage = () => {
                                 autoFocus
                                 value={caption}
                                 onChange={(e) => setCaption(e.target.value)}
-                                placeholder={imagePreview ? "Tambah keterangan..." : "Ada cerita apa?"}
+                                placeholder={imagePreview ? t.log_creator.placeholder_caption : t.log_creator.placeholder_text}
                                 className={cn(
                                     "w-full text-center text-white placeholder:text-white/30 border-none bg-transparent resize-none focus-visible:ring-0 leading-snug transition-all duration-300 pointer-events-auto",
                                     imagePreview
@@ -334,11 +290,11 @@ const LogCreatorPage = () => {
                 )}
 
                 {/* Bottom Floating Post Area */}
-                {!showCamera && (
+                {!camera.isActive && (
                     <div className="relative z-30 p-8 flex items-end justify-between safe-bottom">
                         <div className="flex gap-4">
                             <button
-                                onClick={() => startCamera(cameraFacing)}
+                                onClick={() => camera.start()}
                                 className="p-5 bg-white/10 backdrop-blur-2xl rounded-full text-white border border-white/20 shadow-xl active:scale-90 transition-all hover:bg-white/20"
                             >
                                 <Camera className="w-7 h-7" />
@@ -373,15 +329,15 @@ const LogCreatorPage = () => {
 
             <AlertDialogContent className="rounded-2xl max-w-[80vw]">
                 <AlertDialogHeader>
-                    <AlertDialogTitle>Hapus perubahan?</AlertDialogTitle>
+                    <AlertDialogTitle>{t.log_creator.discard_title}</AlertDialogTitle>
                     <AlertDialogDescription>
-                        Tulisan atau foto yang belum disimpan akan hilang jika Anda keluar.
+                        {t.log_creator.discard_desc}
                     </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                    <AlertDialogCancel>Batal</AlertDialogCancel>
+                    <AlertDialogCancel>{t.common.cancel}</AlertDialogCancel>
                     <AlertDialogAction onClick={() => navigate(-1)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                        Keluar
+                        {t.log_creator.discard_confirm}
                     </AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>

@@ -6,14 +6,16 @@ import { PreferencesSection } from '@/components/settings/PreferencesSection';
 import { CloudLegacySection } from '@/components/settings/CloudLegacySection';
 import { DataBackupSection } from '@/components/settings/DataBackupSection';
 import { PullToRefresh } from '@/components/ui/pull-to-refresh';
+import packageJson from '../../../package.json';
 
 const SettingsScreen = () => {
     const navigate = useNavigate();
     const { t } = useLanguage();
 
     const handleRefresh = async () => {
-        // Minimal delay to simulate refresh feel or actual refresh logic if needed
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // Force re-render by triggering a small state update
+        // In a real app, this could sync with cloud or reload settings
+        window.location.reload();
     };
 
     return (
@@ -63,7 +65,7 @@ const SettingsScreen = () => {
 
                     <div className="text-center space-y-1">
                         <p className="text-[10px] font-bold text-muted-foreground/40 tracking-widest uppercase">
-                            UrusDiriSendiri v1.1.0
+                            UrusDiriSendiri v{packageJson.version}
                         </p>
                         <p className="text-[10px] text-muted-foreground/30">
                             © 2025 • Made with Vibe Coding
@@ -76,3 +78,4 @@ const SettingsScreen = () => {
 };
 
 export default SettingsScreen;
+

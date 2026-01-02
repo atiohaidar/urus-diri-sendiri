@@ -5,6 +5,31 @@ import { SupabaseProvider } from '../providers/supabase-provider';
 import { supabase } from '../supabase';
 import { cleanupImages } from '../idb';
 import { STORAGE_KEYS } from '../constants';
+import { toast } from 'sonner';
+
+// --- Error Handling Helper ---
+// Provides user feedback when save operations fail
+export const handleSaveError = (error: any, context: string, retryFn?: () => void) => {
+    console.error(`Save error (${context}):`, error);
+
+    const message = error?.message || 'Gagal menyimpan data';
+
+    if (retryFn) {
+        toast.error(`${message}`, {
+            description: context,
+            action: {
+                label: 'Coba Lagi',
+                onClick: retryFn
+            },
+            duration: 5000
+        });
+    } else {
+        toast.error(`${message}`, {
+            description: context,
+            duration: 4000
+        });
+    }
+};
 
 // --- State Management ---
 export let provider: IStorageProvider = new LocalStorageProvider();
@@ -54,9 +79,22 @@ supabase.auth.onAuthStateChange((event, session) => {
     const newUserId = session?.user?.id || null;
     const isInitial = event === 'INITIAL_SESSION';
     const identityChanged = newUserId !== currentUserId;
+    const previousProvider = provider;
 
     if (isInitial || identityChanged) {
         currentUserId = newUserId;
+
+        // Clear offline queue before switching providers (prevent stale data sync)
+        if (previousProvider instanceof SupabaseProvider && !session) {
+            // Switching from cloud to local - clear any pending offline queue
+            try {
+                localStorage.removeItem(STORAGE_KEYS.OFFLINE_QUEUE);
+                console.log('Storage: Cleared offline queue on logout');
+            } catch (e) {
+                console.warn('Failed to clear offline queue:', e);
+            }
+        }
+
         if (session) {
             provider = new SupabaseProvider();
             console.log(`Storage: Cloud Mode (${event}) - User: ${newUserId}`);
@@ -68,6 +106,14 @@ supabase.auth.onAuthStateChange((event, session) => {
         // Clear cache if identity actually changed
         if (identityChanged) {
             Object.keys(cache).forEach(key => (cache[key as keyof typeof cache] = null));
+
+            // Also clear sync tokens for previous user to ensure fresh sync
+            if (currentUserId) {
+                ['priorities', 'reflections', 'notes', 'routines', 'logs'].forEach(table => {
+                    const oldKey = `sync_token_${previousProvider instanceof SupabaseProvider ? session?.user?.id : 'local'}_${table}`;
+                    localStorage.removeItem(oldKey);
+                });
+            }
         }
 
         hydrateCache();
@@ -177,10 +223,20 @@ const getSyncToken = (table: string): string | undefined => {
 const setSyncToken = (table: string, timestamp: string) => {
     if (!(provider instanceof SupabaseProvider)) return;
 
-    // Add a small buffer (e.g., 1 second) to ensure we don't miss concurrently valid transactions?
-    // Or just use the exact timestamp. Supabase returns updated_at.
-    const key = `sync_token_${currentUserId}_${table}`;
-    localStorage.setItem(key, timestamp);
+    // Subtract 1 second buffer to avoid missing concurrent updates
+    // This handles edge case where two items update at exact same millisecond
+    try {
+        const date = new Date(timestamp);
+        date.setSeconds(date.getSeconds() - 1);
+        const bufferedTimestamp = date.toISOString();
+
+        const key = `sync_token_${currentUserId}_${table}`;
+        localStorage.setItem(key, bufferedTimestamp);
+    } catch (e) {
+        // Fallback to original timestamp if parsing fails
+        const key = `sync_token_${currentUserId}_${table}`;
+        localStorage.setItem(key, timestamp);
+    }
 };
 
 // Generic Merge Logic

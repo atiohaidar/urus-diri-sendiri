@@ -27,6 +27,7 @@ export const en: Translation = {
         save_toast_desc: "Your priorities for tomorrow are set.",
         add_images: "Add Today's Photos (Optional)",
         image_limit: "Maximum 3 photos",
+        add_priority: "Add Priority",
     },
     navigation: {
         home: "Home",
@@ -47,6 +48,8 @@ export const en: Translation = {
         daily_photos: "Today's Photos",
         load_more: "Load More History",
         view_detail: "View Detail",
+        reflections_tab: "Reflections",
+        activity_log_tab: "Activity Log",
     },
     settings: {
         title: "Settings",
@@ -126,6 +129,9 @@ export const en: Translation = {
         schedule_finished_title: "Schedule Complete",
         schedule_finished_desc: "Have a good rest!",
         no_routines_text: "No routines yet. Add some!",
+        no_routines_title: "Start Your Journey",
+        no_routines_desc: "You haven't set up any routines yet. Create your first routine to build better habits.",
+        create_first_routine: "Create First Routine",
     },
     ideas: {
         title: "Parking Lot",
@@ -149,5 +155,15 @@ export const en: Translation = {
         done: "Done",
         edited_prefix: "Edited",
         created_prefix: "Created",
+    },
+    log_creator: {
+        placeholder_text: "What's on your mind?",
+        placeholder_caption: "Add caption...",
+        camera_error: "Camera not accessible",
+        save_error: "Failed to save",
+        discard_title: "Discard changes?",
+        discard_desc: "Unsaved text or photos will be lost if you leave.",
+        discard_confirm: "Leave",
+        saved: "Saved!",
     },
 };

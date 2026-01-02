@@ -1,7 +1,7 @@
 import { RoutineItem } from '../types';
 import { STORAGE_KEYS } from '../constants';
 import { toggleRoutineCompletion as toggleRoutineHelper } from '../routine-helpers';
-import { cache, provider, notifyListeners } from './core';
+import { cache, provider, notifyListeners, handleSaveError } from './core';
 
 export const getRoutines = (): RoutineItem[] => {
     const today = new Date().toDateString();
@@ -20,7 +20,9 @@ export const getRoutines = (): RoutineItem[] => {
         }));
 
         cache.routines = resetRoutines;
-        provider.saveRoutines(resetRoutines).catch(console.error);
+        provider.saveRoutines(resetRoutines).catch((error) => {
+            handleSaveError(error, 'Reset rutinitas harian');
+        });
         localStorage.setItem(STORAGE_KEYS.LAST_OPEN_DATE, today);
         return resetRoutines;
     }
@@ -30,7 +32,9 @@ export const getRoutines = (): RoutineItem[] => {
 
 export const saveRoutines = (routines: RoutineItem[]) => {
     cache.routines = routines;
-    provider.saveRoutines(routines).catch(console.error);
+    provider.saveRoutines(routines).catch((error) => {
+        handleSaveError(error, 'Menyimpan rutinitas', () => saveRoutines(routines));
+    });
 };
 
 export const toggleRoutineCompletion = (id: string, routines: RoutineItem[], note?: string) => {
@@ -39,3 +43,4 @@ export const toggleRoutineCompletion = (id: string, routines: RoutineItem[], not
     notifyListeners(); // Auto-update snapshot
     return updated;
 };
+

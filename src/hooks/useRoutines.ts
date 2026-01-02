@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
 import {
     getRoutines,
@@ -23,6 +23,7 @@ export const useRoutines = () => {
     const [activeIndex, setActiveIndex] = useState(0);
     const [currentDate, setCurrentDate] = useState(new Date());
     const [isLoading, setIsLoading] = useState(true);
+    const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
     const loadData = useCallback(async (force = false) => {
         setIsLoading(true);
@@ -56,12 +57,33 @@ export const useRoutines = () => {
         loadData(false);
     }, [loadData]);
 
-    // Timer for current date updates
+    // Timer for current date updates - optimized to run once per minute
+    // instead of every second to reduce unnecessary re-renders
     useEffect(() => {
-        const timer = setInterval(() => {
+        // Calculate ms until next minute boundary for precise alignment
+        const now = new Date();
+        const msUntilNextMinute = (60 - now.getSeconds()) * 1000 - now.getMilliseconds();
+
+        // Initial update aligned to next minute
+        const initialTimeout = setTimeout(() => {
             setCurrentDate(new Date());
-        }, 1000);
-        return () => clearInterval(timer);
+
+            // Then set regular interval every 60 seconds
+            const timer = setInterval(() => {
+                setCurrentDate(new Date());
+            }, 60000);
+
+            // Store timer ID in ref for cleanup
+            intervalRef.current = timer;
+        }, msUntilNextMinute);
+
+        return () => {
+            clearTimeout(initialTimeout);
+            if (intervalRef.current !== null) {
+                clearInterval(intervalRef.current);
+                intervalRef.current = null;
+            }
+        };
     }, []);
 
     // Update active index when minutes change

@@ -1,22 +1,30 @@
 import { PriorityTask } from '../types';
-import { cache, provider, generateId, notifyListeners } from './core';
+import { cache, provider, generateId, notifyListeners, handleSaveError } from './core';
 
 export const getPriorities = (): PriorityTask[] => {
     // Fallback to empty array if cache not ready
     let priorities = cache.priorities || [];
-
-    // Check if these priorities are from a previous day
     const today = new Date().toDateString();
-    const needsReset = priorities.some(p => p.updatedAt && new Date(p.updatedAt).toDateString() !== today);
 
-    if (needsReset) {
-        const resetPriorities = priorities.map(p => ({
-            ...p,
-            completed: false, // Reset for the new day
-            updatedAt: new Date().toISOString()
-        }));
-        savePriorities(resetPriorities);
-        return resetPriorities;
+    // Check each priority individually and only reset the ones that are outdated
+    let hasChanges = false;
+    const updatedPriorities = priorities.map(p => {
+        // Only reset if this specific priority is from a previous day
+        const priorityDate = p.updatedAt ? new Date(p.updatedAt).toDateString() : today;
+        if (priorityDate !== today && p.completed) {
+            hasChanges = true;
+            return {
+                ...p,
+                completed: false,
+                updatedAt: new Date().toISOString()
+            };
+        }
+        return p;
+    });
+
+    if (hasChanges) {
+        savePriorities(updatedPriorities);
+        return updatedPriorities;
     }
 
     return priorities;
@@ -24,8 +32,10 @@ export const getPriorities = (): PriorityTask[] => {
 
 export const savePriorities = (priorities: PriorityTask[]) => {
     cache.priorities = priorities;
-    // Fire and forget async save
-    provider.savePriorities(priorities).catch(console.error);
+    // Async save with proper error handling
+    provider.savePriorities(priorities).catch((error) => {
+        handleSaveError(error, 'Menyimpan prioritas', () => savePriorities(priorities));
+    });
 };
 
 export const updatePriorityCompletion = (id: string, completed: boolean, note?: string) => {

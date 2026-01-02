@@ -1,5 +1,5 @@
 import { Note } from '../types';
-import { cache, provider, generateId } from './core';
+import { cache, provider, generateId, handleSaveError } from './core';
 
 export const getNotes = (): Note[] => {
     return cache.notes || [];
@@ -17,7 +17,9 @@ export const saveNote = (note: Omit<Note, 'id' | 'createdAt' | 'updatedAt'>) => 
     const updated = [newNote, ...notes];
 
     cache.notes = updated;
-    provider.saveNotes(updated).catch(console.error);
+    provider.saveNotes(updated).catch((error) => {
+        handleSaveError(error, 'Menyimpan catatan');
+    });
 
     return newNote;
 };
@@ -31,7 +33,9 @@ export const updateNote = (id: string, updates: Partial<Pick<Note, 'title' | 'co
     );
 
     cache.notes = updated;
-    provider.saveNotes(updated).catch(console.error);
+    provider.saveNotes(updated).catch((error) => {
+        handleSaveError(error, 'Memperbarui catatan');
+    });
 
     return updated;
 };
@@ -41,7 +45,10 @@ export const deleteNote = (id: string) => {
     const filtered = notes.filter(n => n.id !== id);
 
     cache.notes = filtered;
-    provider.saveNotes(filtered).catch(console.error);
+    provider.saveNotes(filtered).catch((error) => {
+        handleSaveError(error, 'Menghapus catatan');
+    });
 
     return filtered;
 };
+
