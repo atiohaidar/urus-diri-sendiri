@@ -72,7 +72,7 @@ export default defineConfig(({ mode }) => ({
       output: {
         manualChunks: {
           'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-          'vendor-ui': ['@radix-ui', 'framer-motion', 'lucide-react', 'clsx', 'tailwind-merge', 'react-virtuoso'],
+          'vendor-ui': ['framer-motion', 'lucide-react', 'clsx', 'tailwind-merge', 'react-virtuoso', 'react-quill'],
           'vendor-utils': ['date-fns', 'zod', 'react-hook-form'],
           'vendor-db': ['@supabase/supabase-js', '@tanstack/react-query'],
           'vendor-charts': ['recharts'],

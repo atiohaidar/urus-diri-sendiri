@@ -46,6 +46,7 @@ export interface Translation {
         evening_reflection: string;
         daily_photos: string;
         load_more: string;
+        view_detail: string;
     };
     settings: {
         title: string;

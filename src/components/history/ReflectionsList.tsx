@@ -1,5 +1,6 @@
 import { Reflection } from '@/lib/storage';
 import { formatDate } from '@/lib/time-utils';
+import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '@/i18n/LanguageContext';
 import { LazyImage } from '@/components/history/LazyImage';
 import { Button } from '@/components/ui/button';
@@ -17,6 +18,7 @@ interface ReflectionsListProps {
 // Memoized Card Component for performance
 const ReflectionCard = memo(({ reflection, index }: { reflection: Reflection, index: number }) => {
     const { t } = useLanguage();
+    const navigate = useNavigate();
     const [expanded, setExpanded] = useState(false);
 
     return (
@@ -151,70 +153,19 @@ const ReflectionCard = memo(({ reflection, index }: { reflection: Reflection, in
                         </div>
                     )}
 
-                    {/* Snapshot: Today's Achievement */}
-                    <div className="pt-4 border-t border-border space-y-4">
-                        {reflection.todayPriorities && reflection.todayPriorities.length > 0 && (
-                            <div>
-                                <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground mb-2">
-                                    Status Prioritas Hari Ini
-                                </p>
-                                <div className="space-y-1.5">
-                                    {reflection.todayPriorities.map((p) => (
-                                        <div key={p.id} className="flex items-center justify-between p-2 rounded-xl bg-secondary/20 text-xs">
-                                            <span className={cn(p.completed ? "text-foreground font-medium" : "text-muted-foreground/70")}>
-                                                {p.text}
-                                            </span>
-                                            <div className="flex items-center gap-2">
-                                                {p.updatedAt && p.completed && (
-                                                    <span className="text-[9px] text-muted-foreground">
-                                                        {new Date(p.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                                    </span>
-                                                )}
-                                                {p.completed ? (
-                                                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                                                ) : (
-                                                    <Circle className="w-3.5 h-3.5 text-muted-foreground/30" />
-                                                )}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        {reflection.todayRoutines && reflection.todayRoutines.length > 0 && (
-                            <div>
-                                <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground mb-2">
-                                    Log Rutinitas Harian
-                                </p>
-                                <div className="grid grid-cols-1 gap-1.5">
-                                    {reflection.todayRoutines.map((r) => (
-                                        <div key={r.id} className="flex items-center justify-between p-2 rounded-xl bg-muted/30 text-xs">
-                                            <div className="flex flex-col">
-                                                <span className={cn(r.completedAt ? "text-foreground font-medium" : "text-muted-foreground/70")}>
-                                                    {r.activity}
-                                                </span>
-                                                <span className="text-[9px] text-muted-foreground">
-                                                    {r.startTime} - {r.endTime}
-                                                </span>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                {r.updatedAt && r.completedAt && (
-                                                    <span className="text-[9px] text-muted-foreground">
-                                                        {new Date(r.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                                    </span>
-                                                )}
-                                                {r.completedAt ? (
-                                                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                                                ) : (
-                                                    <Circle className="w-3.5 h-3.5 text-muted-foreground/30" />
-                                                )}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
+                    {/* View Detail Button */}
+                    <div className="pt-4 border-t border-border mt-2">
+                        <Button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/reflection/${reflection.id}`);
+                            }}
+                            variant="outline"
+                            className="w-full h-11 rounded-2xl gap-2 font-semibold border-primary/20 text-primary hover:bg-primary/5 active:scale-[0.98] transition-all"
+                        >
+                            {t.history.view_detail}
+                            <ExternalLink className="w-4 h-4" />
+                        </Button>
                     </div>
                 </div>
             )}

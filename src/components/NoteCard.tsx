@@ -10,9 +10,15 @@ interface NoteCardProps {
 
 const NoteCard = ({ note, onClick, index }: NoteCardProps) => {
   const { language } = useLanguage();
-  const snippet = note.content.length > 80
-    ? note.content.substring(0, 80) + '...'
-    : note.content;
+  // Strip HTML tags and entities for preview
+  const plainText = note.content
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const snippet = plainText.length > 80
+    ? plainText.substring(0, 80) + '...'
+    : plainText;
 
   return (
     <button

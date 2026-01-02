@@ -46,6 +46,7 @@ export const id: Translation = {
         evening_reflection: "Refleksi Malam",
         daily_photos: "Foto Hari Ini",
         load_more: "Lihat Riwayat Lebih Lama",
+        view_detail: "Lihat Detail",
     },
     settings: {
         title: "Pengaturan",

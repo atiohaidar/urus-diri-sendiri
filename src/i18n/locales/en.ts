@@ -46,6 +46,7 @@ export const en: Translation = {
         evening_reflection: "Evening Reflection",
         daily_photos: "Today's Photos",
         load_more: "Load More History",
+        view_detail: "View Detail",
     },
     settings: {
         title: "Settings",

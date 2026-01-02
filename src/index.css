@@ -100,17 +100,22 @@
   body {
     @apply bg-background text-foreground font-sans antialiased;
     font-family: 'Inter', sans-serif;
-    
+
     /* Mobile Native Feel */
-    -webkit-tap-highlight-color: transparent; /* Remove blue tap flash */
-    touch-action: manipulation; /* Improve touch response */
-    overscroll-behavior-y: none; /* Prevent rubber-banding */
-    user-select: none; /* Prevent text selection */
+    -webkit-tap-highlight-color: transparent;
+    /* Remove blue tap flash */
+    touch-action: manipulation;
+    /* Improve touch response */
+    overscroll-behavior-y: none;
+    /* Prevent rubber-banding */
+    user-select: none;
+    /* Prevent text selection */
     -webkit-user-select: none;
   }
-  
+
   /* Allow selection on inputs */
-  input, textarea {
+  input,
+  textarea {
     user-select: text;
     -webkit-user-select: text;
   }
@@ -153,4 +158,62 @@
 
 ::-webkit-scrollbar-thumb:hover {
   background: hsl(var(--primary) / 0.6);
+}
+
+/* Quill Editor Customizations */
+.quill {
+  display: flex !important;
+  flex-direction: column;
+  height: 100%;
+}
+
+.ql-toolbar.ql-snow {
+  border: none !important;
+  border-bottom: 1px solid hsl(var(--border)) !important;
+  padding: 8px !important;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: hsl(var(--background));
+}
+
+.ql-container.ql-snow {
+  border: none !important;
+  font-family: 'Inter', sans-serif !important;
+  font-size: 1rem !important;
+  flex: 1;
+}
+
+.ql-editor {
+  padding: 1rem 0 !important;
+  min-height: 200px;
+}
+
+.ql-editor.ql-blank::before {
+  left: 0 !important;
+  font-style: normal !important;
+  color: hsl(var(--muted-foreground)) !important;
+  opacity: 0.5;
+}
+
+/* Dark mode support for Quill */
+.dark .ql-snow .ql-stroke {
+  stroke: hsl(var(--foreground)) !important;
+}
+
+.dark .ql-snow .ql-fill {
+  fill: hsl(var(--foreground)) !important;
+}
+
+.dark .ql-snow .ql-picker {
+  color: hsl(var(--foreground)) !important;
+}
+
+.dark .ql-snow .ql-picker-options {
+  background-color: hsl(var(--card)) !important;
+  border-color: hsl(var(--border)) !important;
+}
+
+.dark .ql-editor {
+  color: hsl(var(--foreground));
 }

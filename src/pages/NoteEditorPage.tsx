@@ -6,6 +6,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { useNotes } from '@/hooks/useNotes';
 import { useToast } from '@/hooks/use-toast';
+import ReactQuill from 'react-quill';
+import 'react-quill/dist/quill.snow.css';
 import { triggerHaptic } from '@/lib/haptics';
 import { useLanguage } from '@/i18n/LanguageContext';
 import {
@@ -52,7 +54,8 @@ const NoteEditorPage = () => {
         // If title is empty but content exists, use truncated content as title
         let finalTitle = title;
         if (!finalTitle.trim() && content.trim()) {
-            finalTitle = content.split('\n')[0].substring(0, 30) + '...';
+            const plainContent = content.replace(/<[^>]*>/g, ' ').trim();
+            finalTitle = plainContent.substring(0, 30) + (plainContent.length > 30 ? '...' : '');
         }
 
         if (isNew) {
@@ -154,12 +157,23 @@ const NoteEditorPage = () => {
                     )}
                 </div>
 
-                <Textarea
-                    value={content}
-                    onChange={(e) => setContent(e.target.value)}
-                    placeholder={t.note_editor.placeholder_content}
-                    className="flex-1 min-h-[50vh] text-lg leading-relaxed border-0 resize-none p-0 bg-transparent focus-visible:ring-0 placeholder:text-muted-foreground/50"
-                />
+                <div className="flex-1 min-h-[60vh]">
+                    <ReactQuill
+                        theme="snow"
+                        value={content}
+                        onChange={setContent}
+                        modules={{
+                            toolbar: [
+                                [{ 'header': [1, 2, false] }],
+                                ['bold', 'italic', 'underline', 'strike'],
+                                [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+                                ['link', 'clean']
+                            ],
+                        }}
+                        placeholder={t.note_editor.placeholder_content}
+                        className="h-full flex flex-col"
+                    />
+                </div>
             </div>
 
             {/* Save Button (Optional, since X saves, but good for UX clarity) */}
