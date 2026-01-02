@@ -1,6 +1,5 @@
 import { useRoutines } from '@/hooks/useRoutines';
 import GreetingOverlay from '@/components/GreetingOverlay';
-import { PullToRefresh } from '@/components/ui/pull-to-refresh';
 import { HomeHeader } from '@/components/home/HomeHeader';
 import { HomeRoutineSection } from '@/components/home/HomeRoutineSection';
 import { HomePrioritySection } from '@/components/home/HomePrioritySection';
@@ -23,7 +22,7 @@ const HomeScreen = () => {
   } = useRoutines();
 
   return (
-    <PullToRefresh onRefresh={async () => { await refreshData(); }} className="min-h-screen pb-24 md:pb-8">
+    <div className="min-h-screen pb-24 md:pb-8">
       {/* Header */}
       <HomeHeader
         currentDate={currentDate}
@@ -41,7 +40,7 @@ const HomeScreen = () => {
           {/* Smart Maghrib Button (Mobile Only) */}
           <CheckInButton variant="mobile" currentDate={currentDate} />
 
-          <GreetingOverlay />
+          {/* <GreetingOverlay /> */}
 
           {/* Google Search (Desktop Only) */}
           <div className="hidden md:block">
@@ -88,7 +87,7 @@ const HomeScreen = () => {
         </div>
 
       </main >
-    </PullToRefresh >
+    </div>
   );
 };
 

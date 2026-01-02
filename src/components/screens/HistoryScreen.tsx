@@ -84,7 +84,7 @@ const HistoryScreen = () => {
 
   return (
     <>
-      <PullToRefresh onRefresh={refreshData} className="min-h-screen pb-24 md:pb-8">
+      <div className="min-h-screen pb-24 md:pb-8">
         {/* Header */}
         <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-lg border-b border-border/50 pt-safe">
           <div className="container md:max-w-5xl mx-auto px-4 py-4 space-y-4">
@@ -163,7 +163,7 @@ const HistoryScreen = () => {
             <span className="sr-only">New Check-in</span>
           </Button>
         </div>
-      </PullToRefresh>
+      </div>
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={!!deleteLogId} onOpenChange={(open) => !open && setDeleteLogId(null)}>

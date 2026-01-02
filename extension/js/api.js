@@ -2,6 +2,7 @@ import { config, saveConfig } from './config.js';
 import { showAuth } from './ui.js';
 
 const syncStatus = document.getElementById('sync-status');
+let isRefreshing = false;
 
 export async function supabaseAuthRequest(endpoint, method = 'POST', body = null) {
     const baseUrl = config.url.replace(/\/$/, '');
@@ -17,6 +18,37 @@ export async function supabaseAuthRequest(endpoint, method = 'POST', body = null
     return await response.json();
 }
 
+async function refreshSession() {
+    if (isRefreshing) return;
+    if (!config.session || !config.session.refresh_token) {
+        throw new Error('No refresh token available');
+    }
+
+    isRefreshing = true;
+    try {
+        const data = await supabaseAuthRequest('token?grant_type=refresh_token', 'POST', {
+            refresh_token: config.session.refresh_token
+        });
+
+        config.session = {
+            access_token: data.access_token,
+            refresh_token: data.refresh_token,
+            user: data.user
+        };
+        await saveConfig();
+        console.log('Session refreshed successfully');
+        return config.session;
+    } catch (err) {
+        console.error('Failed to refresh session:', err);
+        config.session = null;
+        await saveConfig();
+        showAuth(true);
+        throw err;
+    } finally {
+        isRefreshing = false;
+    }
+}
+
 export async function supabaseRequest(table, method = 'GET', body = null, queryParams = '') {
     if (!config.url || !config.key) throw new Error('Konfigurasi .env diperlukan');
     const baseUrl = config.url.replace(/\/$/, '');
@@ -30,7 +62,7 @@ export async function supabaseRequest(table, method = 'GET', body = null, queryP
 
     const headers = {
         'apikey': config.key,
-        'Authorization': `Bearer ${config.session.access_token}`,
+        'Authorization': `Bearer ${config.session?.access_token}`,
         'Content-Type': 'application/json',
         'Prefer': 'return=representation'
     };
@@ -41,22 +73,48 @@ export async function supabaseRequest(table, method = 'GET', body = null, queryP
     }
 
     if (syncStatus) syncStatus.textContent = 'Menyinkronkan...';
+
     try {
-        const response = await fetch(url, options);
+        let response = await fetch(url, options);
+
+        // Handle 401 Unauthorized (Token expired)
+        if (response.status === 401 && config.session?.refresh_token) {
+            console.log('Token expired, attempting refresh...');
+            try {
+                const newSession = await refreshSession();
+                if (newSession) {
+                    // Retry with new token
+                    options.headers['Authorization'] = `Bearer ${newSession.access_token}`;
+                    response = await fetch(url, options);
+                }
+            } catch (refreshErr) {
+                // Refresh failed, show login
+                showAuth(true);
+                throw new Error('Sesi habis, silakan login kembali');
+            }
+        }
+
         if (response.status === 401) {
             config.session = null;
             await saveConfig();
             showAuth(true);
-            throw new Error('Sesi habis, silakan login kembali');
+            throw new Error('Sesi tidak valid, silakan login kembali');
         }
+
         if (!response.ok) {
             const error = await response.json();
             throw new Error(error.message || 'Request gagal');
         }
+
         if (syncStatus) syncStatus.textContent = 'Tersinkronisasi';
         return await response.json();
     } catch (err) {
-        if (syncStatus) syncStatus.textContent = 'Mode Offline';
+        // Only show "Mode Offline" if it's a network error, not an auth error
+        if (err.message.includes('login kembali') || err.message.includes('auth')) {
+            if (syncStatus) syncStatus.textContent = 'Sesi Berakhir';
+        } else {
+            if (syncStatus) syncStatus.textContent = 'Mode Offline';
+        }
         throw err;
     }
 }

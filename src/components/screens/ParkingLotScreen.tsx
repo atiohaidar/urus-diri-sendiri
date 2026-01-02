@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, forwardRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, Plus, Lightbulb } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -6,6 +6,25 @@ import NoteCard from '@/components/NoteCard';
 import { useNotes } from '@/hooks/useNotes';
 import { type Note } from '@/lib/storage';
 import { useLanguage } from '@/i18n/LanguageContext';
+import { VirtuosoGrid } from 'react-virtuoso';
+
+// Custom components for VirtuosoGrid to maintain Tailwind styling
+const ListComponent = forwardRef<HTMLDivElement, any>(({ style, children, ...props }, ref) => (
+  <div
+    {...props}
+    ref={ref}
+    style={style}
+    className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+  >
+    {children}
+  </div>
+));
+
+const ItemComponent = ({ children, ...props }: any) => (
+  <div {...props} className="w-full">
+    {children}
+  </div>
+);
 
 const ParkingLotScreen = () => {
   const navigate = useNavigate();
@@ -63,16 +82,23 @@ const ParkingLotScreen = () => {
 
       <main className="container max-w-md md:max-w-5xl mx-auto px-4 py-6 md:py-8">
         {filteredNotes.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredNotes.map((note, index) => (
+          <VirtuosoGrid
+            useWindowScroll
+            data={filteredNotes}
+            components={{
+              List: ListComponent,
+              Item: ItemComponent as any
+            }}
+            itemContent={(index, note) => (
               <NoteCard
-                key={note.id}
                 note={note}
                 onClick={() => openEditNote(note)}
                 index={index}
               />
-            ))}
-          </div>
+            )}
+            // Add spacing for FAB at the bottom
+            style={{ minHeight: '400px' }}
+          />
         ) : (
           <div className="text-center py-12 md:py-24">
             <div className="w-16 h-16 md:w-24 md:h-24 rounded-full bg-secondary mx-auto mb-6 flex items-center justify-center">

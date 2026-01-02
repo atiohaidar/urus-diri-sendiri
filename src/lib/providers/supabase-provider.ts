@@ -27,6 +27,17 @@ export class SupabaseProvider implements IStorageProvider {
         offlineQueue.process();
     }
 
+    private async handleAuthError(error: any) {
+        if (error && (error.code === 'PGRST301' || error.message?.includes('JWT') || error.status === 401)) {
+            console.warn('Auth session expired or invalid, signing out...');
+            this.userIdPromise = null;
+            await supabase.auth.signOut();
+            window.location.reload(); // Refresh to clear state
+            return true;
+        }
+        return false;
+    }
+
     // --- Helper Methods ---
 
     private isOnline() {
@@ -75,6 +86,7 @@ export class SupabaseProvider implements IStorageProvider {
         const { data, error } = await query;
 
         if (error) {
+            if (await this.handleAuthError(error)) return [];
             console.error('Error fetching priorities:', error);
             return this.localProvider.getPriorities(since);
         }
@@ -168,8 +180,9 @@ export class SupabaseProvider implements IStorageProvider {
         }
 
         const { data, error } = await query;
-        // ...
+
         if (error) {
+            if (await this.handleAuthError(error)) return [];
             console.error('Error fetching reflections:', error);
             return this.localProvider.getReflections(since);
         }
@@ -275,7 +288,10 @@ export class SupabaseProvider implements IStorageProvider {
         }
 
         const { data, error } = await query;
-        if (error) return this.localProvider.getNotes(since);
+        if (error) {
+            if (await this.handleAuthError(error)) return [];
+            return this.localProvider.getNotes(since);
+        }
 
         const notes = data.map((r: any) => ({
             id: r.id,
@@ -354,7 +370,13 @@ export class SupabaseProvider implements IStorageProvider {
             query = query.gt('updated_at', since);
         }
 
-        const { data } = await query;
+        const { data, error } = await query;
+
+        if (error) {
+            if (await this.handleAuthError(error)) return [];
+            console.error('Error fetching routines:', error);
+            return this.localProvider.getRoutines(since);
+        }
 
         const routines = (data || []).map((r: any) => ({
             id: r.id,
@@ -443,7 +465,13 @@ export class SupabaseProvider implements IStorageProvider {
             query = query.gt('updated_at', since);
         }
 
-        const { data } = await query;
+        const { data, error } = await query;
+
+        if (error) {
+            if (await this.handleAuthError(error)) return [];
+            console.error('Error fetching logs:', error);
+            return this.localProvider.getLogs(since);
+        }
 
         const logs = (data || []).map((r: any) => ({
             id: r.id,

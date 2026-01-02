@@ -19,7 +19,7 @@ const SettingsScreen = () => {
     };
 
     return (
-        <PullToRefresh onRefresh={handleRefresh} className="min-h-screen pb-24 md:pb-8">
+        <div className="min-h-screen pb-24 md:pb-8">
             {/* Header */}
             <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-lg border-b border-border/50 pt-safe">
                 <div className="container md:max-w-5xl mx-auto px-4 py-4">
@@ -73,7 +73,7 @@ const SettingsScreen = () => {
                     </div>
                 </div>
             </main>
-        </PullToRefresh>
+        </div>
     );
 };
 

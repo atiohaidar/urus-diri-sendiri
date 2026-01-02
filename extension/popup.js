@@ -96,6 +96,7 @@ function setupEventListeners() {
             });
             config.session = {
                 access_token: data.access_token,
+                refresh_token: data.refresh_token, // Added refresh_token
                 user: data.user
             };
             await saveConfig();
