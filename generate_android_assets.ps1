@@ -1,4 +1,4 @@
-$source = "public/PP-Tio.jpg"
+$source = "public/logo-dark.png"
 $baseDir = "android/app/src/main/res"
 
 # Mipmap Icon Sizes
@@ -20,12 +20,13 @@ foreach ($folder in $icons.Keys) {
     magick $source -resize "${size}x${size}^" -gravity center -extent "${size}x${size}" $target
     Write-Host "Generated square icon: $target"
     
-    # Round Icon
+    # Round Icon (preserving original colors)
     $targetRound = Join-Path $folderPath "ic_launcher_round.png"
+    $cx = [int]($size / 2)
+    $cy = [int]($size / 2)
     magick $source -resize "${size}x${size}^" -gravity center -extent "${size}x${size}" `
-           -format 'png' -write mpr:img -delete 0 `
-           -size "${size}x${size}" xc:black -fill white -draw "circle $($size/2),$($size/2) $($size/2),0" `
-           mpr:img -alpha off -compose CopyOpacity -composite $targetRound
+           `( -size "${size}x${size}" xc:none -fill white -draw "circle $cx,$cy $cx,0" `) `
+           -compose DstIn -composite $targetRound
     Write-Host "Generated round icon: $targetRound"
 }
 
