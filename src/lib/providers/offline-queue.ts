@@ -118,6 +118,8 @@ export class OfflineQueue {
         for (const item of queue) {
             try {
                 await this.processor(item);
+                // Throttle requests to prevent rate limiting / freezing UI
+                await new Promise(resolve => setTimeout(resolve, 150));
             } catch (err) {
                 console.error(`Failed to process queue item (${item.type}) during sync:`, err);
                 remainingQueue.push(item);

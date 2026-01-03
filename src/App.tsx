@@ -9,7 +9,7 @@ import { LanguageProvider } from "@/i18n/LanguageContext";
 import { useBackButton } from "@/hooks/useBackButton";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { initializeStorage } from "@/lib/storage";
-import { useEffect, Suspense, lazy } from "react";
+import { useEffect, Suspense, lazy, useState } from "react";
 import { App as CapacitorApp } from '@capacitor/app';
 import { supabase } from '@/lib/supabase';
 import { Loader2 } from "lucide-react";
@@ -46,47 +46,53 @@ const PageLoader = () => (
 );
 
 const App = () => {
-  useEffect(() => {
-    initializeStorage();
+  const [isReady, setIsReady] = useState(false);
 
-    // Listen for Deep Links (Supabase Auth)
+  useEffect(() => {
+    // 1. Initialize Storage & Capacitor
+    const initApp = async () => {
+      try {
+        await initializeStorage();
+        setIsReady(true);
+
+        // Hide Splash Screen manually ONLY after React state is ready
+        try {
+          const { SplashScreen } = await import('@capacitor/splash-screen');
+          await SplashScreen.hide();
+        } catch (e) {
+          // Ignore on web
+        }
+      } catch (error) {
+        console.error("Failed to initialize app:", error);
+        setIsReady(true); // Proceed anyway to show ErrorBoundary if needed
+      }
+    };
+
+    initApp();
+
+    // 2. Setup Deep Link Listener for Supabase Auth
     const handleDeepLink = async (url: string) => {
       try {
         console.log('Deep link received:', url);
 
-        // Validate URL scheme for security
         const urlObj = new URL(url);
+        // Validasi sederhana
         const allowedSchemes = ['urusdiri', 'http', 'https'];
-        const allowedHosts = ['localhost', '127.0.0.1', 'urusdiri.app'];
-
-        // Check scheme
         if (!allowedSchemes.includes(urlObj.protocol.replace(':', ''))) {
-          console.warn('Deep link rejected: Invalid scheme', urlObj.protocol);
           return;
         }
 
-        // For http/https, also check host
-        if (urlObj.protocol === 'http:' || urlObj.protocol === 'https:') {
-          const host = urlObj.hostname.toLowerCase();
-          if (!allowedHosts.some(allowed => host === allowed || host.endsWith('.' + allowed))) {
-            console.warn('Deep link rejected: Invalid host', urlObj.hostname);
-            toast.error('Login gagal: URL tidak valid');
-            return;
-          }
-        }
-
-        // 1. Handle PKCE Flow (code in query params)
+        // Handle PKCE Flow (code in query params)
         const code = urlObj.searchParams.get('code');
         if (code) {
           console.log('Detected PKCE code, exchanging for session...');
           const { error } = await supabase.auth.exchangeCodeForSession(code);
           if (error) throw error;
-
           toast.success("Login berhasil! (PKCE)");
           return;
         }
 
-        // 2. Handle Implicit Flow (tokens in hash)
+        // Handle Implicit Flow (tokens in hash)
         if (urlObj.hash) {
           const hashParams = new URLSearchParams(urlObj.hash.substring(1));
           const access_token = hashParams.get('access_token');
@@ -94,20 +100,16 @@ const App = () => {
 
           if (access_token && refresh_token) {
             console.log('Detected Implicit tokens, setting session...');
-            await supabase.auth.setSession({
-              access_token,
-              refresh_token,
-            });
+            await supabase.auth.setSession({ access_token, refresh_token });
             toast.success("Login berhasil!");
             return;
           }
         }
 
-        // 3. Fallback: Parse query params for implicit tokens
+        // Fallback: Parse query params for implicit tokens
         const access_token_query = urlObj.searchParams.get('access_token');
         const refresh_token_query = urlObj.searchParams.get('refresh_token');
         if (access_token_query && refresh_token_query) {
-          console.log('Detected Implicit tokens in query, setting session...');
           await supabase.auth.setSession({
             access_token: access_token_query,
             refresh_token: refresh_token_query,
@@ -122,55 +124,48 @@ const App = () => {
       }
     };
 
-    const listener = CapacitorApp.addListener('appUrlOpen', (data) => {
+    const deepLinkListener = CapacitorApp.addListener('appUrlOpen', (data) => {
       handleDeepLink(data.url);
     });
 
-    // Initialize Capacitor Plugins
-    const initCapacitor = async () => {
+    // 3. Initialize Standard Capacitor Plugins
+    const initCapacitorPlugins = async () => {
       try {
-        // Only run on native platforms
-        if ((await CapacitorApp.getInfo()).name) { // Simple check, or better try/catch block 
-          // Implemented inside try catch, so safe to call
-        }
-
-        // 1. Status Bar - Match Notebook Theme
-        // Dynamic import to avoid SSR/Browser issues if package not present (though we installed it)
         const { StatusBar, Style } = await import('@capacitor/status-bar');
-        await StatusBar.setStyle({ style: Style.Light }); // Dark text
-        await StatusBar.setBackgroundColor({ color: '#F4F1EA' }); // Matches --paper color exactly
+        await StatusBar.setStyle({ style: Style.Light });
+        await StatusBar.setBackgroundColor({ color: '#F4F1EA' });
         await StatusBar.setOverlaysWebView({ overlay: false });
 
-        // 2. Keyboard - Prevent UI breaking
         const { Keyboard, KeyboardResize } = await import('@capacitor/keyboard');
         await Keyboard.setResizeMode({ mode: KeyboardResize.Body });
-
-        // 3. Splash Screen - Hide manually for seamless transition
-        const { SplashScreen } = await import('@capacitor/splash-screen');
-        await SplashScreen.hide();
-
       } catch (e) {
-        // Silent fail in browser or if plugins missing
         console.debug('Capacitor plugins not available or browser environment');
       }
     };
+    initCapacitorPlugins();
 
-    initCapacitor();
-
-    // Smart Resume: Refresh data when app comes to foreground
+    // 4. Smart Resume: Refresh data
     const resumeListener = CapacitorApp.addListener('appStateChange', ({ isActive }) => {
       if (isActive) {
         console.log('📱 App resumed - refreshing data...');
-        queryClient.invalidateQueries(); // Refresh server data if any
-        // Force re-render of components sensitive to date/time could be done here if needed
+        queryClient.invalidateQueries();
       }
     });
 
     return () => {
-      listener.then(handle => handle.remove());
+      deepLinkListener.then(handle => handle.remove());
       resumeListener.then(handle => handle.remove());
     };
   }, []);
+
+  // Show white screen / loader until storage is ready
+  if (!isReady) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-[#F4F1EA]">
+        <Loader2 className="w-10 h-10 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -191,9 +186,7 @@ const App = () => {
                       <Route path="/history" element={<HistoryScreen />} />
                     </Route>
 
-                    {/* Settings is now a standalone page */}
                     <Route path="/settings" element={<SettingsScreen />} />
-
                     <Route path="/schedule-editor" element={<EditSchedule />} />
                     <Route path="/note-editor/:id" element={<NoteEditorPage />} />
                     <Route path="/maghrib-checkin" element={<MaghribCheckinPage />} />

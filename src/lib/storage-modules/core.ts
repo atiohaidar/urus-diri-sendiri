@@ -172,21 +172,27 @@ export const initializeStorage = () => {
 
         // 3. GC Images (Guest Mode Optimization)
         try {
-            const usedIds: string[] = [];
+            // Safety: Only run GC if we have loaded the reference data
+            if (!cache.reflections || !cache.logs) {
+                console.warn("Storage: Skipping Image GC because cache is incomplete.");
+            } else {
+                const usedIds: string[] = [];
 
-            // From Reflections
-            cache.reflections?.forEach(r => {
-                if (r.imageIds) usedIds.push(...r.imageIds);
-            });
 
-            // From Logs
-            cache.logs?.forEach(l => {
-                if (l.type === 'photo' && l.mediaId && !l.mediaId.startsWith('http')) {
-                    usedIds.push(l.mediaId);
-                }
-            });
+                // From Reflections
+                cache.reflections?.forEach(r => {
+                    if (r.imageIds) usedIds.push(...r.imageIds);
+                });
 
-            await cleanupImages(usedIds);
+                // From Logs
+                cache.logs?.forEach(l => {
+                    if (l.type === 'photo' && l.mediaId && !l.mediaId.startsWith('http')) {
+                        usedIds.push(l.mediaId);
+                    }
+                });
+
+                await cleanupImages(usedIds);
+            }
         } catch (err) {
             console.warn("Storage: Image GC skipped or failed:", err);
         }

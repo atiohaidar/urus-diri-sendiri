@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">urus-diri-sendiri</string>
-    <string name="title_activity_main">urus-diri-sendiri</string>
+    <string name="app_name">Urus Diri Sendiri</string>
+    <string name="title_activity_main">Urus Diri Sendiri</string>
     <string name="package_name">com.urusdirisendiri.app</string>
     <string name="custom_url_scheme">com.urusdirisendiri.app</string>
 </resources>

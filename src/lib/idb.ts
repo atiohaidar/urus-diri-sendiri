@@ -1,8 +1,9 @@
 /**
  * IndexedDB wrapper for application storage
+ * Optimized with Singleton connection pattern
  */
 
-const DB_NAME = 'urus-diri-db'; // Updated name for broader usage
+const DB_NAME = 'urus-diri-db';
 const STORES = {
     IMAGES: 'images',
     REFLECTIONS: 'reflections',
@@ -10,17 +11,42 @@ const STORES = {
 };
 const DB_VERSION = 2;
 
+// Singleton instance
+let dbInstance: IDBDatabase | null = null;
+let connectionPromise: Promise<IDBDatabase> | null = null;
+
 export const openDB = (): Promise<IDBDatabase> => {
-    return new Promise((resolve, reject) => {
+    // Return existing instance if active
+    if (dbInstance) return Promise.resolve(dbInstance);
+
+    // Return existing promise if connection is in progress
+    if (connectionPromise) return connectionPromise;
+
+    connectionPromise = new Promise((resolve, reject) => {
         const request = indexedDB.open(DB_NAME, DB_VERSION);
 
-        request.onerror = () => reject(request.error);
-        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => {
+            connectionPromise = null;
+            reject(request.error);
+        };
+
+        request.onsuccess = () => {
+            const db = request.result;
+            dbInstance = db;
+
+            // Handle unexpected closure
+            db.onclose = () => {
+                console.warn('Database connection closed unexpectedly. Resetting instance.');
+                dbInstance = null;
+                connectionPromise = null;
+            };
+
+            resolve(db);
+        };
 
         request.onupgradeneeded = (event) => {
             const db = (event.target as IDBOpenDBRequest).result;
 
-            // Create stores if they don't exist
             if (!db.objectStoreNames.contains(STORES.IMAGES)) {
                 db.createObjectStore(STORES.IMAGES);
             }
@@ -32,6 +58,8 @@ export const openDB = (): Promise<IDBDatabase> => {
             }
         };
     });
+
+    return connectionPromise;
 };
 
 // --- Generic Helpers ---
@@ -39,12 +67,18 @@ export const openDB = (): Promise<IDBDatabase> => {
 export const putItem = async <T>(storeName: string, item: T): Promise<T> => {
     const db = await openDB();
     return new Promise((resolve, reject) => {
-        const transaction = db.transaction(storeName, 'readwrite');
-        const store = transaction.objectStore(storeName);
-        const request = store.put(item);
+        try {
+            const transaction = db.transaction(storeName, 'readwrite');
+            const store = transaction.objectStore(storeName);
+            const request = store.put(item);
 
-        request.onerror = () => reject(request.error);
-        request.onsuccess = () => resolve(item);
+            request.onerror = () => reject(request.error);
+            request.onsuccess = () => resolve(item);
+        } catch (err) {
+            // Retry once if transaction fails (e.g. connection stale)
+            dbInstance = null;
+            reject(err);
+        }
     });
 };
 
@@ -72,7 +106,7 @@ export const deleteItem = async (storeName: string, id: string): Promise<void> =
     });
 };
 
-// --- Specific API (Backward Compatibility / Convenience) ---
+// --- Specific API ---
 
 export const saveImage = async (base64: string): Promise<string> => {
     const db = await openDB();
@@ -104,7 +138,6 @@ export const deleteImage = async (id: string): Promise<void> => {
     return deleteItem(STORES.IMAGES, id);
 };
 
-// Helper constants for external use
 export const IDB_STORES = STORES;
 
 export const cleanupImages = async (keepIds: string[]): Promise<void> => {
@@ -114,8 +147,6 @@ export const cleanupImages = async (keepIds: string[]): Promise<void> => {
     return new Promise((resolve, reject) => {
         const transaction = db.transaction(STORES.IMAGES, 'readwrite');
         const store = transaction.objectStore(STORES.IMAGES);
-
-        // Optimize: Use getAllKeys if available (modern browsers) or cursor
         const request = store.getAllKeys();
 
         request.onsuccess = () => {

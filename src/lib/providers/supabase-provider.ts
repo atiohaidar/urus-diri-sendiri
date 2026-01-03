@@ -1,9 +1,17 @@
 import { IStorageProvider } from '../storage-interface';
 import { PriorityTask, Reflection, Note, RoutineItem, ActivityLog, Habit, HabitLog } from '../types';
 import { supabase } from '../supabase';
-import { getImage, deleteImage } from '../idb';
 import { LocalStorageProvider } from './local-storage-provider';
 import { offlineQueue, QueueItem } from './offline-queue';
+
+// Handlers
+import { fetchPriorities, syncPriorities } from './supabase-handlers/priorities';
+import { fetchReflections, syncReflection } from './supabase-handlers/reflections';
+import { fetchNotes, syncNotes } from './supabase-handlers/notes';
+import { fetchRoutines, syncRoutines } from './supabase-handlers/routines';
+import { fetchLogs, syncLog, deleteRemoteLog } from './supabase-handlers/logs';
+import { fetchHabits, syncHabits } from './supabase-handlers/habits';
+import { fetchHabitLogs, syncHabitLogs } from './supabase-handlers/habit-logs';
 
 export class SupabaseProvider implements IStorageProvider {
 
@@ -13,15 +21,17 @@ export class SupabaseProvider implements IStorageProvider {
     constructor() {
         // Set up the queue processor
         offlineQueue.setProcessor(async (item: QueueItem) => {
+            const userId = await this.getUserId();
+            // Pass userId to handlers
             switch (item.type) {
-                case 'priorities': await this._savePriorities(item.data); break;
-                case 'reflection': await this._saveReflection(item.data); break;
-                case 'notes': await this._saveNotes(item.data); break;
-                case 'routines': await this._saveRoutines(item.data); break;
-                case 'log': await this._saveLog(item.data); break;
-                case 'delete_log': await this._deleteLog(item.data); break;
-                case 'habits': await this._saveHabits(item.data); break;
-                case 'habitLogs': await this._saveHabitLogs(item.data); break;
+                case 'priorities': await syncPriorities(userId, item.data); break;
+                case 'reflection': await syncReflection(userId, item.data); break;
+                case 'notes': await syncNotes(userId, item.data); break;
+                case 'routines': await syncRoutines(userId, item.data); break;
+                case 'log': await syncLog(userId, item.data); break;
+                case 'delete_log': await deleteRemoteLog(userId, item.data); break;
+                case 'habits': await syncHabits(userId, item.data); break;
+                case 'habitLogs': await syncHabitLogs(userId, item.data); break;
             }
         });
 
@@ -50,7 +60,6 @@ export class SupabaseProvider implements IStorageProvider {
         return offlineQueue.executeOrQueue(item, fn);
     }
 
-    // --- Helper for User ID ---
     private async getUserId(): Promise<string> {
         if (this.userIdPromise) return this.userIdPromise;
 
@@ -60,7 +69,13 @@ export class SupabaseProvider implements IStorageProvider {
 
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) {
+                // If not authenticated, we can't sync. Return a persistent error.
+                // But for guest mode compatibility, we might return 'guest'.
+                // However, guest data should not be synced to Supabase.
                 console.warn("No authenticated user found for Supabase storage operation.");
+                // Throw error to prevent sync attempts?
+                // Or return 'guest' to fail gracefully at RLS level?
+                // Let's stick to original behavior.
                 return 'guest';
             }
             return user.id;
@@ -72,649 +87,245 @@ export class SupabaseProvider implements IStorageProvider {
     // --- Priorities ---
     async getPriorities(since?: string): Promise<PriorityTask[]> {
         if (!this.isOnline()) return this.localProvider.getPriorities(since);
-        // We still need userId for inserts, but for selects RLS handles it.
-        // However, we still fetch userId to ensure we are authenticated before firing request?
-        // Actually getUserId() checks auth status.
-        await this.getUserId();
 
-        let query = supabase
-            .from('priorities')
-            .select('*');
+        try {
+            const userId = await this.getUserId();
+            const priorities = await fetchPriorities(userId, since);
 
-        if (since) {
-            query = query.gt('updated_at', since);
-        }
-
-        const { data, error } = await query;
-
-        if (error) {
+            // Cache Update Logic (Common pattern, maybe could be extracted too, but okay here)
+            if (!since) {
+                await this.localProvider.savePriorities(priorities);
+            } else if (priorities.length > 0) {
+                const current = await this.localProvider.getPriorities();
+                const mergedMap = new Map(current.map(p => [p.id, p]));
+                priorities.forEach(p => mergedMap.set(p.id, p));
+                await this.localProvider.savePriorities(Array.from(mergedMap.values()));
+            }
+            return priorities;
+        } catch (error) {
             if (await this.handleAuthError(error)) return [];
             console.error('Error fetching priorities:', error);
             return this.localProvider.getPriorities(since);
         }
-
-        const priorities = (data || []).map((row: any) => ({
-            id: row.id,
-            text: row.text,
-            completed: row.completed,
-            completionNote: row.completion_note,
-            updatedAt: row.updated_at,
-            scheduledFor: row.scheduled_for, // Read from DB
-            deletedAt: row.deleted_at
-        }));
-
-        // Update local cache with fetched results
-        // For incremental sync, we should ideally merge.
-        // However, SupabaseProvider.getPriorities(undefined) returns full set.
-        if (!since) {
-            await this.localProvider.savePriorities(priorities);
-        } else if (priorities.length > 0) {
-            // For incremental, we fetch current local, merge, and save.
-            const current = await this.localProvider.getPriorities();
-            const mergedMap = new Map(current.map(p => [p.id, p]));
-            priorities.forEach(p => mergedMap.set(p.id, p));
-            await this.localProvider.savePriorities(Array.from(mergedMap.values()));
-        }
-
-        return priorities;
     }
 
     async savePriorities(priorities: PriorityTask[]): Promise<void> {
         await this.localProvider.savePriorities(priorities);
         await this.executeOrQueue(
             { type: 'priorities', data: priorities },
-            () => this._savePriorities(priorities)
+            async () => {
+                const userId = await this.getUserId();
+                await syncPriorities(userId, priorities);
+            }
         );
-    }
-
-    private async _savePriorities(priorities: PriorityTask[]) {
-        const userId = await this.getUserId();
-        const activeIds = priorities.map(p => p.id);
-
-        // 1. Upsert Active Items
-        const rows = priorities.map(p => ({
-            id: p.id,
-            text: p.text,
-            completed: p.completed,
-            completion_note: p.completionNote || null,
-            updated_at: p.updatedAt,
-            scheduled_for: p.scheduledFor || null, // Save to DB
-            deleted_at: p.deletedAt || null, // Ensure explicit null to un-delete if needed
-            user_id: userId
-        }));
-
-        if (rows.length > 0) {
-            const { error } = await supabase.from('priorities').upsert(rows);
-            if (error) throw error;
-        }
-
-        // 2. Soft Delete Missing Items (Items in DB but not in our active list)
-        // We only mark as deleted if they are not already deleted
-        if (activeIds.length > 0) {
-            const { error: delError } = await supabase
-                .from('priorities')
-                .update({ deleted_at: new Date().toISOString() })
-                .not('id', 'in', `(${activeIds.join(',')})`)
-                .is('deleted_at', null);
-            if (delError) console.error("Error soft-syncing priorities:", delError);
-        } else {
-            // If local list is empty, soft delete ALL currently active items
-            const { error: delError } = await supabase
-                .from('priorities')
-                .update({ deleted_at: new Date().toISOString() })
-                .is('deleted_at', null);
-            if (delError) console.error("Error soft-clearing priorities:", delError);
-        }
     }
 
     // --- Reflections ---
     async getReflections(since?: string): Promise<Reflection[]> {
         if (!this.isOnline()) return this.localProvider.getReflections(since);
-        await this.getUserId();
+        try {
+            const userId = await this.getUserId();
+            const reflections = await fetchReflections(userId, since);
 
-        let query = supabase
-            .from('reflections')
-            .select('*')
-            .order('date', { ascending: false });
-
-        if (since) {
-            query = query.gt('updated_at', since);
-        }
-
-        const { data, error } = await query;
-
-        if (error) {
+            if (!since) {
+                for (const r of reflections) await this.localProvider.saveReflection(r);
+            } else if (reflections.length > 0) {
+                for (const r of reflections) await this.localProvider.saveReflection(r);
+            }
+            return reflections;
+        } catch (error) {
             if (await this.handleAuthError(error)) return [];
             console.error('Error fetching reflections:', error);
             return this.localProvider.getReflections(since);
         }
-
-        const reflections = (data || []).map((row: any) => ({
-            id: row.id,
-            date: row.date,
-            winOfDay: row.win_of_day,
-            hurdle: row.hurdle,
-            priorities: row.priorities || [],
-            smallChange: row.small_change,
-            todayRoutines: row.today_routines,
-            todayPriorities: row.today_priorities,
-            images: row.images || [],
-            imageIds: [],
-            updatedAt: row.updated_at,
-            deletedAt: row.deleted_at
-        }));
-
-        // Update local cache
-        if (!since) {
-            // Full refresh: ideally we should clear local reflections and put these,
-            // but for safety with images, we just upsert.
-            for (const r of reflections) {
-                await this.localProvider.saveReflection(r);
-            }
-        } else if (reflections.length > 0) {
-            for (const r of reflections) {
-                await this.localProvider.saveReflection(r);
-            }
-        }
-
-        return reflections;
     }
 
     async saveReflection(reflection: Reflection): Promise<void> {
         await this.localProvider.saveReflection(reflection);
         await this.executeOrQueue(
             { type: 'reflection', data: reflection },
-            () => this._saveReflection(reflection)
-        );
-    }
-
-    private async _saveReflection(reflection: Reflection) {
-        const userId = await this.getUserId();
-        let finalImageUrls = reflection.images || [];
-
-        // Upload images if they exist in IDB
-        if (reflection.imageIds && reflection.imageIds.length > 0) {
-            for (const id of reflection.imageIds) {
-                const blobBase64 = await getImage(id);
-                if (blobBase64) {
-                    const res = await fetch(blobBase64);
-                    const blob = await res.blob();
-                    const fileName = `${userId}/${Date.now()}-${id}.jpg`;
-
-                    const { data, error } = await supabase.storage
-                        .from('images')
-                        .upload(fileName, blob);
-
-                    if (!error && data) {
-                        const { data: { publicUrl } } = supabase.storage.from('images').getPublicUrl(fileName);
-                        finalImageUrls.push(publicUrl);
-                        await deleteImage(id);
-                    } else if (error) {
-                        throw error;
-                    }
-                }
+            async () => {
+                const userId = await this.getUserId();
+                await syncReflection(userId, reflection);
             }
-        }
-
-        const row = {
-            id: reflection.id,
-            date: reflection.date,
-            win_of_day: reflection.winOfDay,
-            hurdle: reflection.hurdle,
-            priorities: reflection.priorities,
-            small_change: reflection.smallChange,
-            today_routines: reflection.todayRoutines,
-            today_priorities: reflection.todayPriorities,
-            images: finalImageUrls,
-            updated_at: reflection.updatedAt || new Date().toISOString(),
-            deleted_at: reflection.deletedAt || null,
-            user_id: userId
-        };
-
-        const { error } = await supabase.from('reflections').upsert(row);
-        if (error) throw error;
+        );
     }
 
     // --- Notes ---
     async getNotes(since?: string): Promise<Note[]> {
         if (!this.isOnline()) return this.localProvider.getNotes(since);
-        await this.getUserId();
+        try {
+            const userId = await this.getUserId();
+            const notes = await fetchNotes(userId, since);
 
-        let query = supabase
-            .from('notes')
-            .select('*')
-            .order('updated_at', { ascending: false });
-
-        if (since) {
-            query = query.gt('updated_at', since);
-        }
-
-        const { data, error } = await query;
-        if (error) {
+            if (!since) {
+                await this.localProvider.saveNotes(notes);
+            } else if (notes.length > 0) {
+                const current = await this.localProvider.getNotes();
+                const mergedMap = new Map(current.map(n => [n.id, n]));
+                notes.forEach(n => mergedMap.set(n.id, n));
+                await this.localProvider.saveNotes(Array.from(mergedMap.values()));
+            }
+            return notes;
+        } catch (error) {
             if (await this.handleAuthError(error)) return [];
             return this.localProvider.getNotes(since);
         }
-
-        const notes = data.map((r: any) => ({
-            id: r.id,
-            title: r.title,
-            content: r.content,
-            createdAt: r.created_at,
-            updatedAt: r.updated_at,
-            deletedAt: r.deleted_at
-        }));
-
-        if (!since) {
-            await this.localProvider.saveNotes(notes);
-        } else if (notes.length > 0) {
-            const current = await this.localProvider.getNotes();
-            const mergedMap = new Map(current.map(n => [n.id, n]));
-            notes.forEach(n => mergedMap.set(n.id, n));
-            await this.localProvider.saveNotes(Array.from(mergedMap.values()));
-        }
-
-        return notes;
     }
 
     async saveNotes(notes: Note[]): Promise<void> {
         await this.localProvider.saveNotes(notes);
         await this.executeOrQueue(
             { type: 'notes', data: notes },
-            () => this._saveNotes(notes)
+            async () => {
+                const userId = await this.getUserId();
+                await syncNotes(userId, notes);
+            }
         );
-    }
-
-    private async _saveNotes(notes: Note[]) {
-        const userId = await this.getUserId();
-        const activeIds = notes.map(n => n.id);
-
-        const rows = notes.map(n => ({
-            id: n.id,
-            title: n.title,
-            content: n.content,
-            created_at: n.createdAt,
-            updated_at: n.updatedAt,
-            deleted_at: n.deletedAt || null,
-            user_id: userId
-        }));
-
-        if (rows.length > 0) {
-            const { error } = await supabase.from('notes').upsert(rows);
-            if (error) throw error;
-        }
-
-        // Soft Delete Missing Items
-        if (activeIds.length > 0) {
-            const { error: delError } = await supabase
-                .from('notes')
-                .update({ deleted_at: new Date().toISOString() })
-                .not('id', 'in', `(${activeIds.join(',')})`)
-                .is('deleted_at', null);
-
-            if (delError) console.error("Error soft-syncing notes:", delError);
-        } else {
-            const { error: delError } = await supabase
-                .from('notes')
-                .update({ deleted_at: new Date().toISOString() })
-                .is('deleted_at', null);
-            if (delError) console.error("Error soft-clearing notes:", delError);
-        }
     }
 
     // --- Routines ---
     async getRoutines(since?: string): Promise<RoutineItem[]> {
         if (!this.isOnline()) return this.localProvider.getRoutines(since);
-        await this.getUserId();
+        try {
+            const userId = await this.getUserId();
+            const routines = await fetchRoutines(userId, since);
 
-        let query = supabase.from('routines').select('*');
-
-        if (since) {
-            query = query.gt('updated_at', since);
-        }
-
-        const { data, error } = await query;
-
-        if (error) {
+            if (!since) {
+                await this.localProvider.saveRoutines(routines);
+            } else if (routines.length > 0) {
+                const current = await this.localProvider.getRoutines();
+                const mergedMap = new Map(current.map(r => [r.id, r]));
+                routines.forEach(r => mergedMap.set(r.id, r));
+                await this.localProvider.saveRoutines(Array.from(mergedMap.values()));
+            }
+            return routines;
+        } catch (error) {
             if (await this.handleAuthError(error)) return [];
             console.error('Error fetching routines:', error);
             return this.localProvider.getRoutines(since);
         }
-
-        const routines = (data || []).map((r: any) => ({
-            id: r.id,
-            startTime: r.start_time,
-            endTime: r.end_time,
-            activity: r.activity,
-            category: r.category,
-            completedAt: r.completed_at,
-            updatedAt: r.updated_at,
-            description: r.description,
-            completionNote: r.completion_note,
-            deletedAt: r.deleted_at
-        }));
-
-        if (!since) {
-            await this.localProvider.saveRoutines(routines);
-        } else if (routines.length > 0) {
-            const current = await this.localProvider.getRoutines();
-            const mergedMap = new Map(current.map(r => [r.id, r]));
-            routines.forEach(r => mergedMap.set(r.id, r));
-            await this.localProvider.saveRoutines(Array.from(mergedMap.values()));
-        }
-
-        return routines;
     }
 
     async saveRoutines(routines: RoutineItem[]): Promise<void> {
         await this.localProvider.saveRoutines(routines);
         await this.executeOrQueue(
             { type: 'routines', data: routines },
-            () => this._saveRoutines(routines)
+            async () => {
+                const userId = await this.getUserId();
+                await syncRoutines(userId, routines);
+            }
         );
-    }
-
-    private async _saveRoutines(routines: RoutineItem[]) {
-        const userId = await this.getUserId();
-        const activeIds = routines.map(r => r.id);
-
-        const rows = routines.map(r => ({
-            id: r.id,
-            start_time: r.startTime,
-            end_time: r.endTime,
-            activity: r.activity,
-            category: r.category,
-            completed_at: r.completedAt,
-            updated_at: r.updatedAt,
-            description: r.description,
-            completion_note: r.completionNote || null,
-            deleted_at: r.deletedAt || null,
-            user_id: userId
-        }));
-
-        if (rows.length > 0) {
-            const { error } = await supabase.from('routines').upsert(rows);
-            if (error) throw error;
-        }
-
-        // Soft Delete Missing Items
-        if (activeIds.length > 0) {
-            const { error: delError } = await supabase
-                .from('routines')
-                .update({ deleted_at: new Date().toISOString() })
-                .not('id', 'in', `(${activeIds.join(',')})`)
-                .is('deleted_at', null);
-            if (delError) console.error("Error soft-syncing routines:", delError);
-        } else {
-            const { error: delError } = await supabase
-                .from('routines')
-                .update({ deleted_at: new Date().toISOString() })
-                .is('deleted_at', null);
-            if (delError) console.error("Error soft-clearing routines:", delError);
-        }
     }
 
     // --- Logs ---
     async getLogs(since?: string): Promise<ActivityLog[]> {
         if (!this.isOnline()) return this.localProvider.getLogs(since);
-        await this.getUserId();
+        try {
+            const userId = await this.getUserId();
+            const logs = await fetchLogs(userId, since);
 
-        let query = supabase
-            .from('logs')
-            .select('*')
-            .order('timestamp', { ascending: false });
-
-        if (since) {
-            query = query.gt('updated_at', since);
-        }
-
-        const { data, error } = await query;
-
-        if (error) {
+            if (!since) {
+                for (const l of logs) await this.localProvider.saveLog(l);
+            } else if (logs.length > 0) {
+                for (const l of logs) await this.localProvider.saveLog(l);
+            }
+            return logs;
+        } catch (error) {
             if (await this.handleAuthError(error)) return [];
             console.error('Error fetching logs:', error);
             return this.localProvider.getLogs(since);
         }
-
-        const logs = (data || []).map((r: any) => ({
-            id: r.id,
-            timestamp: r.timestamp,
-            type: r.type,
-            content: r.content,
-            mediaId: r.media_url,
-            category: r.category,
-            updatedAt: r.updated_at,
-            deletedAt: r.deleted_at
-        }));
-
-        if (!since) {
-            // Similar to reflections, we upsert to avoid wiping IDB logs we might want to keep?
-            // But usually full set is the truth.
-            for (const l of logs) {
-                await this.localProvider.saveLog(l);
-            }
-        } else if (logs.length > 0) {
-            for (const l of logs) {
-                await this.localProvider.saveLog(l);
-            }
-        }
-
-        return logs;
     }
 
     async saveLog(log: ActivityLog): Promise<void> {
         await this.localProvider.saveLog(log);
         await this.executeOrQueue(
             { type: 'log', data: log },
-            () => this._saveLog(log)
-        );
-    }
-
-    private async _saveLog(log: ActivityLog) {
-        const userId = await this.getUserId();
-        let contentOrUrl = log.mediaId;
-
-        // Image handling for logs
-        if (log.type === 'photo' && log.mediaId && !log.mediaId.startsWith('http')) {
-            const blobBase64 = await getImage(log.mediaId);
-            if (blobBase64) {
-                const res = await fetch(blobBase64);
-                const blob = await res.blob();
-                const fileName = `${userId}/logs-${Date.now()}.jpg`;
-                const { data, error } = await supabase.storage.from('images').upload(fileName, blob);
-                if (error) throw error;
-
-                if (data) {
-                    const { data: { publicUrl } } = supabase.storage.from('images').getPublicUrl(fileName);
-                    contentOrUrl = publicUrl;
-                    await deleteImage(log.mediaId);
-                }
+            async () => {
+                const userId = await this.getUserId();
+                await syncLog(userId, log);
             }
-        }
-
-        const row = {
-            id: log.id,
-            timestamp: log.timestamp,
-            type: log.type,
-            content: log.content,
-            media_url: contentOrUrl,
-            category: log.category,
-            updated_at: log.updatedAt || new Date().toISOString(),
-            deleted_at: log.deletedAt || null,
-            user_id: userId
-        };
-
-        const { error } = await supabase.from('logs').upsert(row);
-        if (error) throw error;
+        );
     }
 
     async deleteLog(id: string): Promise<void> {
         await this.localProvider.deleteLog(id);
         await this.executeOrQueue(
             { type: 'delete_log', data: id },
-            () => this._deleteLog(id)
+            async () => {
+                const userId = await this.getUserId();
+                await deleteRemoteLog(userId, id);
+            }
         );
-    }
-
-    private async _deleteLog(id: string) {
-        // Soft delete: just update deleted_at
-        // RLS will handle user_id check
-        const { error } = await supabase
-            .from('logs')
-            .update({ deleted_at: new Date().toISOString() })
-            .eq('id', id);
-
-        if (error) throw error;
     }
 
     // --- Habits ---
     async getHabits(since?: string): Promise<Habit[]> {
         if (!this.isOnline()) return this.localProvider.getHabits(since);
-        await this.getUserId();
+        try {
+            const userId = await this.getUserId();
+            const habits = await fetchHabits(userId, since);
 
-        let query = supabase.from('habits').select('*');
-        if (since) {
-            query = query.gt('updated_at', since);
-        }
-
-        const { data, error } = await query;
-        if (error) {
+            if (!since) {
+                await this.localProvider.saveHabits(habits);
+            } else if (habits.length > 0) {
+                const current = await this.localProvider.getHabits();
+                const mergedMap = new Map(current.map(h => [h.id, h]));
+                habits.forEach(h => mergedMap.set(h.id, h));
+                await this.localProvider.saveHabits(Array.from(mergedMap.values()));
+            }
+            return habits;
+        } catch (error) {
             if (await this.handleAuthError(error)) return [];
             console.error('Error fetching habits:', error);
             return this.localProvider.getHabits(since);
         }
-
-        const habits = (data || []).map((r: any) => ({
-            id: r.id,
-            name: r.name,
-            description: r.description,
-            icon: r.icon,
-            color: r.color,
-            frequency: r.frequency,
-            interval: r.interval,
-            specificDays: r.specific_days,
-            allowedDayOff: r.allowed_day_off,
-            isArchived: r.is_archived,
-            createdAt: r.created_at,
-            updatedAt: r.updated_at,
-            deletedAt: r.deleted_at
-        }));
-
-        if (!since) {
-            await this.localProvider.saveHabits(habits);
-        } else if (habits.length > 0) {
-            const current = await this.localProvider.getHabits();
-            const mergedMap = new Map(current.map(h => [h.id, h]));
-            habits.forEach(h => mergedMap.set(h.id, h));
-            await this.localProvider.saveHabits(Array.from(mergedMap.values()));
-        }
-
-        return habits;
     }
 
     async saveHabits(habits: Habit[]): Promise<void> {
         await this.localProvider.saveHabits(habits);
         await this.executeOrQueue(
             { type: 'habits', data: habits },
-            () => this._saveHabits(habits)
+            async () => {
+                const userId = await this.getUserId();
+                await syncHabits(userId, habits);
+            }
         );
-    }
-
-    private async _saveHabits(habits: Habit[]) {
-        const userId = await this.getUserId();
-        const activeIds = habits.filter(h => !h.deletedAt).map(h => h.id);
-
-        const rows = habits.map(h => ({
-            id: h.id,
-            name: h.name,
-            description: h.description || null,
-            icon: h.icon || null,
-            color: h.color || null,
-            frequency: h.frequency,
-            interval: h.interval || null,
-            specific_days: h.specificDays || null,
-            allowed_day_off: h.allowedDayOff ?? 1,
-            is_archived: h.isArchived || false,
-            created_at: h.createdAt,
-            updated_at: h.updatedAt,
-            deleted_at: h.deletedAt || null,
-            user_id: userId
-        }));
-
-        if (rows.length > 0) {
-            const { error } = await supabase.from('habits').upsert(rows);
-            if (error) throw error;
-        }
     }
 
     // --- Habit Logs ---
     async getHabitLogs(since?: string): Promise<HabitLog[]> {
         if (!this.isOnline()) return this.localProvider.getHabitLogs(since);
-        await this.getUserId();
+        try {
+            const userId = await this.getUserId();
+            const habitLogs = await fetchHabitLogs(userId, since);
 
-        let query = supabase.from('habit_logs').select('*').order('date', { ascending: false });
-        if (since) {
-            query = query.gt('updated_at', since);
-        }
-
-        const { data, error } = await query;
-        if (error) {
+            if (!since) {
+                await this.localProvider.saveHabitLogs(habitLogs);
+            } else if (habitLogs.length > 0) {
+                const current = await this.localProvider.getHabitLogs();
+                const mergedMap = new Map(current.map(l => [l.id, l]));
+                habitLogs.forEach(l => mergedMap.set(l.id, l));
+                await this.localProvider.saveHabitLogs(Array.from(mergedMap.values()));
+            }
+            return habitLogs;
+        } catch (error) {
             if (await this.handleAuthError(error)) return [];
             console.error('Error fetching habit_logs:', error);
             return this.localProvider.getHabitLogs(since);
         }
-
-        const habitLogs = (data || []).map((r: any) => ({
-            id: r.id,
-            habitId: r.habit_id,
-            date: r.date,
-            completed: r.completed,
-            completedAt: r.completed_at,
-            note: r.note,
-            createdAt: r.created_at,
-            updatedAt: r.updated_at,
-            deletedAt: r.deleted_at
-        }));
-
-        if (!since) {
-            await this.localProvider.saveHabitLogs(habitLogs);
-        } else if (habitLogs.length > 0) {
-            const current = await this.localProvider.getHabitLogs();
-            const mergedMap = new Map(current.map(l => [l.id, l]));
-            habitLogs.forEach(l => mergedMap.set(l.id, l));
-            await this.localProvider.saveHabitLogs(Array.from(mergedMap.values()));
-        }
-
-        return habitLogs;
     }
 
     async saveHabitLogs(habitLogs: HabitLog[]): Promise<void> {
         await this.localProvider.saveHabitLogs(habitLogs);
         await this.executeOrQueue(
             { type: 'habitLogs', data: habitLogs },
-            () => this._saveHabitLogs(habitLogs)
+            async () => {
+                const userId = await this.getUserId();
+                await syncHabitLogs(userId, habitLogs);
+            }
         );
-    }
-
-    private async _saveHabitLogs(habitLogs: HabitLog[]) {
-        const userId = await this.getUserId();
-
-        const rows = habitLogs.map(l => ({
-            id: l.id,
-            habit_id: l.habitId,
-            date: l.date,
-            completed: l.completed,
-            completed_at: l.completedAt || null,
-            note: l.note || null,
-            created_at: l.createdAt,
-            updated_at: l.updatedAt,
-            deleted_at: l.deletedAt || null,
-            user_id: userId
-        }));
-
-        if (rows.length > 0) {
-            const { error } = await supabase.from('habit_logs').upsert(rows);
-            if (error) throw error;
-        }
     }
 
     // --- Generic Save ---
@@ -731,9 +342,7 @@ export class SupabaseProvider implements IStorageProvider {
         }
     }
 
-    // --- Config / Utils ---
     async clearAll(): Promise<void> {
         // Safe implementation or empty
     }
 }
-
