@@ -7,6 +7,7 @@ import { supabase, signInWithGoogle, signInWithEmail, verifyEmailOtp, signOut, i
 import { useLanguage } from '@/i18n/LanguageContext';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import type { User } from '@supabase/supabase-js';
+import { cn } from '@/lib/utils';
 
 export const AuthSection = () => {
     const { t } = useLanguage();
@@ -19,12 +20,10 @@ export const AuthSection = () => {
     useEffect(() => {
         if (!isSupabaseConfigured) return;
 
-        // Initial session
         supabase.auth.getSession().then(({ data: { session } }) => {
             setUser(session?.user ?? null);
         });
 
-        // Listen for changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
             setUser(session?.user ?? null);
         });
@@ -66,7 +65,6 @@ export const AuthSection = () => {
         try {
             await verifyEmailOtp(email, otp);
             toast.success("Login successful!");
-            // Dialog will close automatically as user state updates
         } catch (error) {
             toast.error(error instanceof Error ? error.message : "Invalid code");
         } finally {
@@ -85,15 +83,18 @@ export const AuthSection = () => {
     };
 
     return (
-        <section className="bg-card rounded-3xl p-6 border border-border/50 shadow-sm overflow-hidden relative">
+        <section className="bg-card rounded-sm p-6 border-2 border-paper-lines/50 shadow-notebook overflow-hidden relative">
             <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-xl ${user ? 'bg-primary/10' : 'bg-muted'}`}>
-                        <Cloud className={`w-5 h-5 ${user ? 'text-primary' : 'text-muted-foreground'}`} />
+                    <div className={cn(
+                        "p-2 rounded-sm shadow-tape -rotate-2",
+                        user ? "bg-sticky-green" : "bg-sticky-blue"
+                    )}>
+                        <Cloud className={cn("w-5 h-5", user ? "text-ink" : "text-ink")} />
                     </div>
                     <div>
-                        <h2 className="text-lg font-bold">{t.settings.account_title}</h2>
-                        <p className="text-xs text-muted-foreground">
+                        <h2 className="font-handwriting text-xl text-ink">{t.settings.account_title} ☁️</h2>
+                        <p className="text-xs font-handwriting text-pencil">
                             {user ? t.settings.account_sync_active : t.settings.account_guest}
                         </p>
                     </div>
@@ -104,7 +105,7 @@ export const AuthSection = () => {
                         variant="ghost"
                         size="icon"
                         onClick={handleLogout}
-                        className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full"
+                        className="text-pencil hover:text-doodle-red hover:bg-doodle-red/10 rounded-sm"
                     >
                         <LogOut className="w-5 h-5" />
                     </Button>
@@ -112,38 +113,40 @@ export const AuthSection = () => {
             </div>
 
             {user ? (
-                <div className="flex items-center gap-4 bg-primary/5 p-4 rounded-2xl border border-primary/10">
+                <div className="flex items-center gap-4 bg-sticky-green/20 p-4 rounded-sm border-2 border-dashed border-sticky-green/50">
                     {user.user_metadata?.avatar_url ? (
                         <img
                             src={user.user_metadata.avatar_url}
                             alt="Profile"
-                            className="w-12 h-12 rounded-full ring-2 ring-primary/20"
+                            className="w-12 h-12 rounded-sm border-2 border-ink/20"
                         />
                     ) : (
-                        <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center">
-                            <Mail className="w-6 h-6 text-primary" />
+                        <div className="w-12 h-12 rounded-sm bg-sticky-yellow flex items-center justify-center shadow-tape rotate-2">
+                            <Mail className="w-6 h-6 text-ink" />
                         </div>
                     )}
                     <div className="flex-1 min-w-0">
-                        <p className="font-bold text-foreground truncate">{user.user_metadata?.full_name || user.email}</p>
+                        <p className="font-handwriting text-lg text-ink truncate">
+                            {user.user_metadata?.full_name || user.email}
+                        </p>
                         <div className="flex items-center gap-1.5 mt-0.5">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-primary" />
-                            <span className="text-[10px] font-bold text-primary uppercase tracking-wider">Connected</span>
+                            <CheckCircle2 className="w-4 h-4 text-doodle-green" />
+                            <span className="text-xs font-handwriting text-doodle-green">Connected ✓</span>
                         </div>
                     </div>
                 </div>
             ) : (
                 <div className="space-y-4">
-                    <div className="bg-muted/30 p-4 rounded-2xl border border-dashed border-border flex items-center gap-3">
-                        <Sparkles className="w-5 h-5 text-amber-500" />
-                        <p className="text-xs text-muted-foreground leading-relaxed">
-                            Sync your data across devices seamlessly with Supabase Cloud.
+                    <div className="bg-sticky-yellow/20 p-4 rounded-sm border-2 border-dashed border-sticky-yellow/50 flex items-center gap-3">
+                        <Sparkles className="w-5 h-5 text-sticky-yellow" />
+                        <p className="text-sm font-handwriting text-ink">
+                            Sync data ke cloud dengan Supabase! ☁️
                         </p>
                     </div>
 
                     {!isSupabaseConfigured ? (
-                        <div className="bg-destructive/10 border border-destructive/20 rounded-xl p-3">
-                            <p className="text-[10px] text-destructive font-semibold flex items-center gap-1.5">
+                        <div className="bg-doodle-red/10 border-2 border-dashed border-doodle-red/30 rounded-sm p-3">
+                            <p className="text-sm font-handwriting text-doodle-red flex items-center gap-1.5">
                                 ⚠️ Login tidak tersedia (ENV belum di-setting)
                             </p>
                         </div>
@@ -151,20 +154,24 @@ export const AuthSection = () => {
                         <AlertDialog>
                             <AlertDialogTrigger asChild>
                                 <Button
-                                    className="w-full h-12 rounded-2xl shadow-lg shadow-primary/20 gap-3 font-bold"
+                                    className={cn(
+                                        "w-full h-12 rounded-sm font-handwriting text-base gap-3",
+                                        "bg-doodle-primary hover:bg-doodle-primary/90 text-white",
+                                        "shadow-notebook"
+                                    )}
                                     disabled={loginLoading}
                                 >
                                     <LogIn className="w-5 h-5" />
                                     {t.settings.account_login}
                                 </Button>
                             </AlertDialogTrigger>
-                            <AlertDialogContent className="rounded-3xl border-border/50 max-w-sm">
+                            <AlertDialogContent className="max-w-sm">
                                 <AlertDialogHeader>
-                                    <AlertDialogTitle className="text-xl font-bold flex items-center gap-2">
-                                        <Cloud className="w-6 h-6 text-primary" />
+                                    <AlertDialogTitle className="font-handwriting text-xl text-ink flex items-center gap-2">
+                                        <Cloud className="w-6 h-6 text-doodle-primary" />
                                         {t.settings.account_login}
                                     </AlertDialogTitle>
-                                    <AlertDialogDescription className="text-base text-muted-foreground pt-2">
+                                    <AlertDialogDescription className="font-handwriting text-base text-pencil pt-2">
                                         {showOtpInput
                                             ? t.settings.enter_code_desc
                                             : t.settings.account_warning_desc}
@@ -177,7 +184,7 @@ export const AuthSection = () => {
                                             <Button
                                                 onClick={handleLogin}
                                                 variant="outline"
-                                                className="h-12 rounded-xl gap-3 font-semibold border-2 hover:bg-muted"
+                                                className="h-12 rounded-sm gap-3 font-handwriting border-2 border-dashed hover:bg-paper-lines/20"
                                                 disabled={loginLoading}
                                             >
                                                 <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -191,10 +198,12 @@ export const AuthSection = () => {
 
                                             <div className="relative">
                                                 <div className="absolute inset-0 flex items-center">
-                                                    <span className="w-full border-t" />
+                                                    <span className="w-full border-t-2 border-dashed border-paper-lines" />
                                                 </div>
-                                                <div className="relative flex justify-center text-xs uppercase">
-                                                    <span className="bg-background px-2 text-muted-foreground">{t.settings.login_with_email}</span>
+                                                <div className="relative flex justify-center">
+                                                    <span className="bg-paper px-2 text-xs font-handwriting text-pencil uppercase">
+                                                        {t.settings.login_with_email}
+                                                    </span>
                                                 </div>
                                             </div>
 
@@ -203,11 +212,12 @@ export const AuthSection = () => {
                                                     placeholder="name@example.com"
                                                     value={email}
                                                     onChange={(e) => setEmail(e.target.value)}
-                                                    className="h-11 rounded-xl"
+                                                    variant="notebook"
+                                                    className="font-handwriting"
                                                 />
                                                 <Button
                                                     onClick={handleSendOtp}
-                                                    className="w-full h-11 rounded-xl font-bold bg-primary text-primary-foreground shadow-lg shadow-primary/20"
+                                                    className="w-full h-11 rounded-sm font-handwriting bg-doodle-primary text-white shadow-notebook"
                                                     disabled={loginLoading || !email}
                                                 >
                                                     <Mail className="w-4 h-4 mr-2" />
@@ -216,29 +226,29 @@ export const AuthSection = () => {
                                             </div>
                                         </>
                                     ) : (
-                                        <div className="space-y-4 animate-in fade-in slide-in-from-right-4">
+                                        <div className="space-y-4">
                                             <div className="space-y-2">
                                                 <Input
                                                     placeholder="12345678"
                                                     value={otp}
                                                     onChange={(e) => setOtp(e.target.value)}
-                                                    className="h-14 text-center text-xl tracking-[0.3em] font-mono rounded-xl"
+                                                    className="h-14 text-center text-xl tracking-[0.3em] font-handwriting rounded-sm border-2 border-dashed"
                                                     maxLength={8}
                                                 />
-                                                <p className="text-xs text-center text-muted-foreground">
+                                                <p className="text-xs text-center font-handwriting text-pencil">
                                                     {t.settings.check_email_for_code.replace('{email}', email)}
                                                 </p>
                                             </div>
                                             <Button
                                                 onClick={handleVerifyOtp}
-                                                className="w-full h-12 rounded-xl font-bold bg-primary text-primary-foreground shadow-lg shadow-primary/20"
+                                                className="w-full h-12 rounded-sm font-handwriting bg-doodle-primary text-white shadow-notebook"
                                                 disabled={loginLoading || otp.length < 8}
                                             >
-                                                {t.settings.verify_login}
+                                                {t.settings.verify_login} ✓
                                             </Button>
                                             <Button
                                                 variant="ghost"
-                                                className="w-full h-10"
+                                                className="w-full h-10 font-handwriting"
                                                 onClick={() => setShowOtpInput(false)}
                                             >
                                                 {t.common.back}
@@ -248,7 +258,7 @@ export const AuthSection = () => {
                                 </div>
 
                                 <AlertDialogFooter className="sm:justify-center">
-                                    <AlertDialogCancel className="w-full h-11 rounded-xl font-medium border-0 text-muted-foreground hover:bg-transparent hover:text-foreground">
+                                    <AlertDialogCancel className="w-full h-11 rounded-sm font-handwriting border-2 border-dashed border-pencil/40 text-pencil hover:bg-transparent hover:text-ink">
                                         {t.common.cancel}
                                     </AlertDialogCancel>
                                 </AlertDialogFooter>

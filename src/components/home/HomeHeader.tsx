@@ -45,66 +45,96 @@ export const HomeHeader = ({
     const innerCircumference = 2 * Math.PI * innerRadius;
     const innerStrokeDashoffset = innerCircumference - (priorityPercent / 100) * innerCircumference;
 
+    // Grade based on overall completion
+    const overallPercent = (routinePercent + priorityPercent) / 2;
+    const getGrade = () => {
+        if (overallPercent >= 90) return 'A+';
+        if (overallPercent >= 80) return 'A';
+        if (overallPercent >= 70) return 'B+';
+        if (overallPercent >= 60) return 'B';
+        if (overallPercent >= 50) return 'C';
+        return '📝';
+    };
+
     return (
-        <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-lg border-b border-border/50 pt-safe">
+        <header className="sticky top-0 z-40 bg-paper border-b-2 border-dashed border-paper-lines pt-safe">
             <div className="container px-4 py-4 md:max-w-7xl">
                 <div className="flex items-center justify-between">
-                    <div>
+                    {/* Left: Greeting & Date */}
+                    <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                            <h1 className="text-xl md:text-2xl font-bold text-foreground">{greeting()} 👋</h1>
+                            <h1 className="text-2xl md:text-3xl font-handwriting text-ink truncate">
+                                <span className="highlight">{greeting()}</span> 👋
+                            </h1>
                             <button
                                 onClick={onRefresh}
-                                className={`p-1.5 rounded-full hover:bg-muted/50 transition-colors ${isLoading ? 'animate-spin' : ''}`}
+                                className={`p-1.5 rounded-sm hover:bg-paper-lines/30 transition-colors duration-150 ${isLoading ? 'animate-spin' : ''}`}
                                 disabled={isLoading}
                             >
-                                <RotateCcw className="w-4 h-4 text-muted-foreground" />
+                                <RotateCcw className="w-4 h-4 text-pencil" />
                             </button>
                         </div>
-                        <p className="text-sm font-medium text-muted-foreground/90 mt-1">
-                            {currentDate.toLocaleDateString(language === 'id' ? 'id-ID' : 'en-US', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} • {currentDate.toLocaleTimeString(language === 'id' ? 'id-ID' : 'en-US', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                        <p className="text-sm font-handwriting text-pencil mt-1 truncate">
+                            [ {currentDate.toLocaleDateString(language === 'id' ? 'id-ID' : 'en-US', { weekday: 'short', day: 'numeric', month: 'short' })} • {currentDate.toLocaleTimeString(language === 'id' ? 'id-ID' : 'en-US', { hour: '2-digit', minute: '2-digit', hour12: false })} ]
                         </p>
                     </div>
 
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
                         {/* Settings Button */}
                         <Button
                             variant="ghost"
                             size="icon"
                             onClick={() => navigate('/settings')}
-                            className="text-muted-foreground hover:text-foreground"
+                            className="text-pencil hover:text-ink hover:bg-paper-lines/30"
                         >
                             <Settings className="w-5 h-5" />
                         </Button>
 
-                        {/* Daily Progress Rings (Apple Activity Style) */}
-                        <div className="flex flex-col items-center justify-center gap-1">
+                        {/* Grade Circle + Progress Rings */}
+                        <div className="relative">
+                            {/* Grade Circle - Top Right Corner */}
+                            <div className="absolute -top-1 -right-1 z-10 grade-circle text-xs">
+                                {getGrade()}
+                            </div>
+
+                            {/* Progress Rings */}
                             <div className="relative w-12 h-12 flex items-center justify-center">
                                 <svg className="w-full h-full transform -rotate-90">
                                     {/* Outer Ring Background (Routine) */}
-                                    <circle cx="24" cy="24" r={outerRadius} stroke="currentColor" strokeWidth="3" fill="transparent" className="text-muted/20" />
+                                    <circle
+                                        cx="24" cy="24" r={outerRadius}
+                                        stroke="currentColor" strokeWidth="3" fill="transparent"
+                                        className="text-paper-lines/40"
+                                        strokeDasharray="4 2"
+                                    />
                                     {/* Inner Ring Background (Priority) */}
-                                    <circle cx="24" cy="24" r={innerRadius} stroke="currentColor" strokeWidth="3" fill="transparent" className="text-muted/20" />
+                                    <circle
+                                        cx="24" cy="24" r={innerRadius}
+                                        stroke="currentColor" strokeWidth="3" fill="transparent"
+                                        className="text-paper-lines/40"
+                                        strokeDasharray="4 2"
+                                    />
 
-                                    {/* Outer Ring Progress (Routine - Primary Green) */}
+                                    {/* Outer Ring Progress (Routine - Primary) */}
                                     <circle
                                         cx="24" cy="24" r={outerRadius}
                                         stroke="currentColor" strokeWidth="3" fill="transparent"
                                         strokeDasharray={outerCircumference} strokeDashoffset={outerStrokeDashoffset} strokeLinecap="round"
-                                        className="text-primary transition-all duration-1000 ease-out"
+                                        className="text-doodle-primary transition-all duration-500 ease-out"
                                     />
-                                    {/* Inner Ring Progress (Priority - Amber/Gold) */}
+                                    {/* Inner Ring Progress (Priority - Amber) */}
                                     <circle
                                         cx="24" cy="24" r={innerRadius}
                                         stroke="currentColor" strokeWidth="3" fill="transparent"
                                         strokeDasharray={innerCircumference} strokeDashoffset={innerStrokeDashoffset} strokeLinecap="round"
-                                        className="text-amber-500 transition-all duration-1000 ease-out"
+                                        className="text-amber-500 transition-all duration-500 ease-out"
                                     />
 
                                     {/* Center Dot (Maghrib Check-in Status) */}
                                     <circle
-                                        cx="24" cy="24" r="6"
+                                        cx="24" cy="24" r="5"
                                         fill="currentColor"
-                                        className={`transition-all duration-1000 ease-out ${isCheckinCompletedToday() ? 'text-indigo-500' : 'text-muted/20'}`}
+                                        className={`transition-all duration-500 ease-out ${isCheckinCompletedToday() ? 'text-doodle-green' : 'text-paper-lines/30'}`}
                                     />
                                 </svg>
                             </div>

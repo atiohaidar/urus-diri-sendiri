@@ -10,7 +10,8 @@ import {
     ExternalLink,
     CheckCircle2,
     Circle,
-    Calendar
+    Calendar,
+    PenLine
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/i18n/LanguageContext';
@@ -40,34 +41,44 @@ const ReflectionDetailPage = () => {
 
     if (loading) {
         return (
-            <div className="min-h-screen flex items-center justify-center">
-                <p className="animate-pulse text-muted-foreground">{t.common.loading}</p>
+            <div className="min-h-screen bg-notebook flex items-center justify-center">
+                <div className="w-12 h-12 bg-sticky-yellow shadow-sticky rounded-sm flex items-center justify-center animate-pulse">
+                    <PenLine className="w-6 h-6 text-ink" />
+                </div>
             </div>
         );
     }
 
     if (!reflection) {
         return (
-            <div className="min-h-screen flex flex-col items-center justify-center p-4 text-center">
-                <h2 className="text-xl font-bold mb-4">Reflection not found</h2>
-                <Button onClick={() => navigate('/history')}>{t.common.back}</Button>
+            <div className="min-h-screen bg-notebook flex flex-col items-center justify-center p-4 text-center">
+                <div className="w-16 h-16 bg-sticky-pink shadow-sticky rounded-sm flex items-center justify-center mb-4 -rotate-3">
+                    <PenLine className="w-8 h-8 text-ink" />
+                </div>
+                <h2 className="font-handwriting text-xl text-ink mb-4">Refleksi tidak ditemukan 📝</h2>
+                <Button onClick={() => navigate('/history')} className="font-handwriting rounded-sm">{t.common.back}</Button>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-background pb-12 animate-in fade-in slide-in-from-bottom-4 duration-300">
-            {/* Header */}
-            <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-lg border-b border-border/50 pt-safe">
+        <div className="min-h-screen bg-notebook pb-12">
+            {/* Header - Notebook style */}
+            <header className="sticky top-0 z-40 bg-paper border-b-2 border-dashed border-paper-lines pt-safe">
                 <div className="container max-w-2xl mx-auto px-4 py-4 flex items-center gap-4">
-                    <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="rounded-full">
-                        <ArrowLeft className="w-6 h-6" />
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => navigate(-1)}
+                        className="rounded-sm bg-sticky-yellow shadow-tape -rotate-3"
+                    >
+                        <ArrowLeft className="w-6 h-6 text-ink" />
                     </Button>
                     <div>
-                        <h1 className="font-bold text-lg">{t.history.evening_reflection}</h1>
-                        <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <h1 className="font-handwriting text-xl text-ink">{t.history.evening_reflection} 🌙</h1>
+                        <p className="text-xs font-handwriting text-pencil flex items-center gap-1">
                             <Calendar className="w-3 h-3" />
-                            {formatDate(reflection.date)}
+                            [ {formatDate(reflection.date)} ]
                         </p>
                     </div>
                 </div>
@@ -76,12 +87,12 @@ const ReflectionDetailPage = () => {
             <main className="container max-w-2xl mx-auto px-4 py-8 space-y-8">
                 {/* Win of the Day */}
                 <section className="space-y-3">
-                    <h2 className="flex items-center gap-2 text-sm font-bold text-muted-foreground uppercase tracking-wider">
-                        <Trophy className="w-5 h-5 text-amber-500" />
+                    <h2 className="flex items-center gap-2 font-handwriting text-sm text-pencil">
+                        <Trophy className="w-5 h-5 text-sticky-yellow" />
                         {t.history.win_of_day}
                     </h2>
-                    <div className="bg-card p-6 rounded-3xl card-elevated border border-border/40">
-                        <p className="text-lg font-medium leading-relaxed italic text-foreground">
+                    <div className="bg-card p-6 rounded-sm border-2 border-paper-lines/50 shadow-notebook">
+                        <p className="font-handwriting text-lg text-ink italic">
                             "{reflection.winOfDay || '---'}"
                         </p>
                     </div>
@@ -89,55 +100,57 @@ const ReflectionDetailPage = () => {
 
                 {/* Hurdle */}
                 <section className="space-y-3">
-                    <h2 className="flex items-center gap-2 text-sm font-bold text-muted-foreground uppercase tracking-wider">
+                    <h2 className="flex items-center gap-2 font-handwriting text-sm text-pencil">
                         <Construction className="w-5 h-5 text-orange-500" />
                         {t.history.hurdle}
                     </h2>
-                    <div className="bg-card p-6 rounded-3xl card-elevated border border-border/40">
-                        <p className="text-foreground">{reflection.hurdle || '---'}</p>
+                    <div className="bg-card p-6 rounded-sm border-2 border-paper-lines/50 shadow-notebook">
+                        <p className="font-handwriting text-base text-ink">{reflection.hurdle || '---'}</p>
                     </div>
                 </section>
 
                 {/* Priorities Set */}
                 <section className="space-y-3">
-                    <h2 className="flex items-center gap-2 text-sm font-bold text-muted-foreground uppercase tracking-wider">
-                        <Rocket className="w-5 h-5 text-primary" />
+                    <h2 className="flex items-center gap-2 font-handwriting text-sm text-pencil">
+                        <Rocket className="w-5 h-5 text-doodle-primary" />
                         {t.history.priorities_set}
                     </h2>
                     <div className="space-y-3">
                         {reflection.priorities.map((p, i) => (
-                            <div key={i} className="flex items-center gap-4 bg-card p-4 rounded-2xl card-elevated border border-border/40">
-                                <span className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-sm font-bold text-primary shrink-0">
+                            <div key={i} className="flex items-center gap-4 bg-card p-4 rounded-sm border-2 border-paper-lines/50 shadow-notebook">
+                                <span className="w-8 h-8 rounded-full border-2 border-dashed border-doodle-primary flex items-center justify-center font-handwriting text-doodle-primary shrink-0">
                                     {i + 1}
                                 </span>
-                                <span className="text-foreground font-medium">{p}</span>
+                                <span className="font-handwriting text-ink">{p}</span>
                             </div>
                         ))}
-                        {reflection.priorities.length === 0 && <p className="text-muted-foreground italic pl-2">No priorities set.</p>}
+                        {reflection.priorities.length === 0 && (
+                            <p className="font-handwriting text-pencil italic pl-2">Tidak ada prioritas yang ditetapkan.</p>
+                        )}
                     </div>
                 </section>
 
                 {/* Small Change */}
                 <section className="space-y-3">
-                    <h2 className="flex items-center gap-2 text-sm font-bold text-muted-foreground uppercase tracking-wider">
-                        <Sprout className="w-5 h-5 text-emerald-500" />
+                    <h2 className="flex items-center gap-2 font-handwriting text-sm text-pencil">
+                        <Sprout className="w-5 h-5 text-doodle-green" />
                         {t.history.small_change}
                     </h2>
-                    <div className="bg-card p-6 rounded-3xl card-elevated border border-border/40">
-                        <p className="text-foreground">{reflection.smallChange || '---'}</p>
+                    <div className="bg-card p-6 rounded-sm border-2 border-paper-lines/50 shadow-notebook">
+                        <p className="font-handwriting text-base text-ink">{reflection.smallChange || '---'}</p>
                     </div>
                 </section>
 
                 {/* Photos */}
                 {((reflection.imageIds?.length || 0) > 0 || (reflection.images?.length || 0) > 0) && (
                     <section className="space-y-3">
-                        <h2 className="flex items-center gap-2 text-sm font-bold text-muted-foreground uppercase tracking-wider">
-                            <ImageIcon className="w-5 h-5 text-pink-500" />
+                        <h2 className="flex items-center gap-2 font-handwriting text-sm text-pencil">
+                            <ImageIcon className="w-5 h-5 text-sticky-pink" />
                             {t.history.daily_photos}
                         </h2>
                         <div className="grid grid-cols-2 gap-4">
                             {reflection.imageIds?.map((id) => (
-                                <div key={id} className="aspect-square rounded-3xl overflow-hidden shadow-sm border border-border/50">
+                                <div key={id} className="aspect-square rounded-sm overflow-hidden shadow-notebook border-2 border-paper-lines">
                                     <LazyImage imageId={id} className="w-full h-full object-cover" />
                                 </div>
                             ))}
@@ -147,51 +160,58 @@ const ReflectionDetailPage = () => {
                                     href={img}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="aspect-square rounded-3xl bg-secondary/30 border border-border/50 flex flex-col items-center justify-center gap-2 hover:bg-secondary/50 transition-colors group p-4 text-center"
+                                    className={cn(
+                                        "aspect-square rounded-sm flex flex-col items-center justify-center gap-2 p-4 text-center",
+                                        "bg-sticky-blue/20 border-2 border-dashed border-sticky-blue/50",
+                                        "hover:bg-sticky-blue/30 transition-colors group"
+                                    )}
                                 >
-                                    <ExternalLink className="w-8 h-8 text-primary group-hover:scale-110 transition-transform" />
-                                    <span className="text-xs font-medium text-muted-foreground">View Drive Link</span>
+                                    <ExternalLink className="w-8 h-8 text-doodle-primary group-hover:scale-110 transition-transform" />
+                                    <span className="text-xs font-handwriting text-pencil">Buka Drive</span>
                                 </a>
                             ))}
                         </div>
                     </section>
                 )}
 
-                {/* Technical Snapshots (TECHNICAL DETAIL) */}
-                <div className="pt-8 border-t border-border space-y-8">
+                {/* Technical Snapshots */}
+                <div className="pt-8 border-t-2 border-dashed border-paper-lines space-y-8">
                     {/* Routine Log */}
                     {reflection.todayRoutines && reflection.todayRoutines.length > 0 && (
                         <section className="space-y-3">
-                            <h2 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground/60">
-                                Detailed Routine Log
+                            <h2 className="font-handwriting text-sm text-pencil">
+                                📋 Log Rutinitas Hari Ini
                             </h2>
                             <div className="space-y-2">
                                 {reflection.todayRoutines.map((r) => (
-                                    <div key={r.id} className="p-4 rounded-2xl bg-muted/20 border border-border/30">
+                                    <div key={r.id} className="p-4 rounded-sm bg-paper-lines/10 border-2 border-dashed border-paper-lines/50">
                                         <div className="flex items-center justify-between mb-2 last:mb-0">
                                             <div className="flex flex-col">
-                                                <span className={cn("font-semibold", r.completedAt ? "text-foreground" : "text-muted-foreground/50")}>
+                                                <span className={cn(
+                                                    "font-handwriting",
+                                                    r.completedAt ? "text-ink" : "text-pencil/50 line-through"
+                                                )}>
                                                     {r.activity}
                                                 </span>
-                                                <span className="text-[10px] text-muted-foreground">
+                                                <span className="text-xs font-handwriting text-pencil">
                                                     {r.startTime} - {r.endTime}
                                                 </span>
                                             </div>
                                             <div className="flex items-center gap-3">
                                                 {r.updatedAt && r.completedAt && (
-                                                    <span className="text-[10px] bg-emerald-500/10 text-emerald-600 px-2 py-0.5 rounded-full font-bold">
+                                                    <span className="text-xs bg-sticky-green/50 text-ink px-2 py-0.5 rounded-sm font-handwriting">
                                                         {new Date(r.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                     </span>
                                                 )}
                                                 {r.completedAt ? (
-                                                    <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                                                    <CheckCircle2 className="w-5 h-5 text-doodle-green" />
                                                 ) : (
-                                                    <Circle className="w-5 h-5 text-muted-foreground/20" />
+                                                    <Circle className="w-5 h-5 text-pencil/30" />
                                                 )}
                                             </div>
                                         </div>
                                         {r.completionNote && (
-                                            <div className="mt-2 text-xs text-muted-foreground bg-background/50 p-2 rounded-lg italic border border-border/20">
+                                            <div className="mt-2 font-handwriting text-sm text-pencil bg-paper/50 p-2 rounded-sm italic border-2 border-dashed border-paper-lines/30">
                                                 "{r.completionNote}"
                                             </div>
                                         )}
@@ -204,26 +224,29 @@ const ReflectionDetailPage = () => {
                     {/* Priority Achievements */}
                     {reflection.todayPriorities && reflection.todayPriorities.length > 0 && (
                         <section className="space-y-3">
-                            <h2 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground/60">
-                                Priority Status Snapshot
+                            <h2 className="font-handwriting text-sm text-pencil">
+                                🎯 Status Prioritas
                             </h2>
                             <div className="space-y-2">
                                 {reflection.todayPriorities.map((p) => (
-                                    <div key={p.id} className="p-4 rounded-2xl bg-secondary/10 border border-border/30">
+                                    <div key={p.id} className="p-4 rounded-sm bg-sticky-yellow/10 border-2 border-dashed border-sticky-yellow/50">
                                         <div className="flex items-center justify-between mb-2 last:mb-0">
-                                            <span className={cn("font-medium text-sm", p.completed ? "text-foreground" : "text-muted-foreground/60")}>
+                                            <span className={cn(
+                                                "font-handwriting text-sm",
+                                                p.completed ? "text-ink" : "text-pencil/50 line-through"
+                                            )}>
                                                 {p.text}
                                             </span>
                                             <div className="flex items-center gap-3">
                                                 {p.completed ? (
-                                                    <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                                                    <CheckCircle2 className="w-5 h-5 text-doodle-green" />
                                                 ) : (
-                                                    <Circle className="w-5 h-5 text-muted-foreground/20" />
+                                                    <Circle className="w-5 h-5 text-pencil/30" />
                                                 )}
                                             </div>
                                         </div>
                                         {p.completionNote && (
-                                            <div className="mt-2 text-xs text-muted-foreground bg-background/50 p-2 rounded-lg italic border border-border/20">
+                                            <div className="mt-2 font-handwriting text-sm text-pencil bg-paper/50 p-2 rounded-sm italic border-2 border-dashed border-paper-lines/30">
                                                 "{p.completionNote}"
                                             </div>
                                         )}

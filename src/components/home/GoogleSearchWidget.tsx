@@ -7,7 +7,6 @@ export const GoogleSearchWidget = () => {
     const inputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
-        // Auto-focus on mount
         if (inputRef.current) {
             inputRef.current.focus();
         }
@@ -22,14 +21,14 @@ export const GoogleSearchWidget = () => {
     return (
         <form onSubmit={handleSearch} className="w-full relative group">
             <div className="relative flex items-center">
-                <Search className="absolute left-4 w-5 h-5 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                <Search className="absolute left-4 w-5 h-5 text-pencil group-focus-within:text-doodle-primary transition-colors" />
                 <input
                     ref={inputRef}
                     type="text"
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
-                    placeholder="Search Google..."
-                    className="w-full h-12 pl-12 pr-4 rounded-full bg-secondary/50 border border-border/50 hover:border-primary/30 focus:border-primary focus:bg-background/80 focus:ring-4 focus:ring-primary/10 transition-all outline-none text-foreground placeholder:text-muted-foreground/70 shadow-sm"
+                    placeholder="Cari di Google..."
+                    className="w-full h-12 pl-12 pr-4 rounded-sm bg-paper border-2 border-dashed border-paper-lines hover:border-doodle-primary/30 focus:border-doodle-primary focus:bg-card focus:ring-2 focus:ring-doodle-primary/20 transition-all outline-none font-handwriting text-ink placeholder:text-pencil/50 shadow-notebook"
                 />
             </div>
         </form>

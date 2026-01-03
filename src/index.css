@@ -1,94 +1,179 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+/* Google Fonts are preloaded in index.html for better performance */
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* === NATIVE MOBILE OPTIMIZATIONS === */
+html {
+  /* Prevent scroll bounce/rubber banding */
+  overscroll-behavior-y: none;
+  /* Prevent default tap highlight color on mobile */
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  /* Prevent standard text selection on UI elements (feels more like an app) */
+  -webkit-user-select: none;
+  user-select: none;
+  /* Restore selection for inputs/textareas */
+}
+
+/* Restore text selection specifically for inputs and editable content */
+input,
+textarea,
+[contenteditable] {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
 @layer base {
   :root {
-    --background: 100 7% 96%;
-    --foreground: 192 15% 21%;
+    /* === NOTEBOOK DESIGN SYSTEM === */
 
-    --card: 0 0% 100%;
-    --card-foreground: 192 15% 21%;
+    /* Paper Colors */
+    --paper: 40 30% 97%;
+    --paper-lines: 210 30% 80%;
+    --paper-margin: 0 70% 60%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 192 15% 21%;
+    /* Ink & Writing */
+    --ink: 220 15% 20%;
+    --pencil: 30 10% 45%;
 
-    --primary: 93 75% 39%;
-    --primary-foreground: 192 15% 15%;
+    /* Sticky Note Colors */
+    --sticky-yellow: 50 95% 78%;
+    --sticky-pink: 340 80% 88%;
+    --sticky-blue: 200 80% 88%;
+    --sticky-green: 140 60% 85%;
 
-    --secondary: 93 40% 92%;
-    --secondary-foreground: 192 15% 21%;
+    /* Highlighter */
+    --highlighter-yellow: 50 100% 70%;
+    --highlighter-pink: 340 100% 85%;
+    --highlighter-blue: 200 100% 85%;
 
-    --muted: 100 10% 92%;
-    --muted-foreground: 192 10% 45%;
+    /* Doodle Colors */
+    --doodle-primary: 200 80% 55%;
+    --doodle-red: 0 70% 55%;
+    --doodle-green: 140 60% 45%;
 
-    --accent: 93 60% 85%;
-    --accent-foreground: 192 15% 21%;
+    /* Core Colors (adapted for notebook) */
+    --background: 40 30% 97%;
+    --foreground: 220 15% 20%;
+
+    --card: 40 40% 99%;
+    --card-foreground: 220 15% 20%;
+
+    --popover: 40 40% 99%;
+    --popover-foreground: 220 15% 20%;
+
+    --primary: 200 80% 50%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 200 30% 92%;
+    --secondary-foreground: 220 15% 20%;
+
+    --muted: 40 20% 92%;
+    --muted-foreground: 220 10% 45%;
+
+    --accent: 200 50% 90%;
+    --accent-foreground: 220 15% 20%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 100 10% 88%;
-    --input: 100 10% 88%;
-    --ring: 93 75% 52%;
+    --border: 40 20% 88%;
+    --input: 40 20% 88%;
+    --ring: 200 80% 55%;
 
-    --radius: 1.5rem;
+    --radius: 0.5rem;
 
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-background: 40 30% 98%;
+    --sidebar-foreground: 220 15% 25%;
+    --sidebar-primary: 200 80% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 40 30% 95%;
+    --sidebar-accent-foreground: 220 15% 20%;
+    --sidebar-border: 40 20% 90%;
+    --sidebar-ring: 200 80% 55%;
 
     /* Custom tokens */
-    --success: 93 75% 52%;
-    --success-muted: 93 40% 92%;
-    --card-shadow: 0 2px 12px -2px hsl(192 15% 21% / 0.06);
-    --card-shadow-hover: 0 8px 24px -4px hsl(192 15% 21% / 0.1);
+    --success: 140 60% 45%;
+    --success-muted: 140 40% 92%;
+    --card-shadow: 3px 3px 0 0 rgba(0, 0, 0, 0.08);
+    --card-shadow-hover: 4px 4px 0 0 rgba(0, 0, 0, 0.12);
+    --shadow-tape: 1px 1px 3px rgba(0, 0, 0, 0.1);
+    --shadow-sticky: 3px 3px 8px rgba(0, 0, 0, 0.12), -1px -1px 0 rgba(255, 255, 255, 0.5);
   }
 
   .dark {
-    --background: 192 20% 8%;
-    --foreground: 100 10% 95%;
+    /* === DARK NOTEBOOK === */
 
-    --card: 192 18% 12%;
-    --card-foreground: 100 10% 95%;
+    /* Paper Colors - Warm sepia tones */
+    --paper: 30 15% 12%;
+    --paper-lines: 30 10% 22%;
+    --paper-margin: 0 40% 35%;
 
-    --popover: 192 18% 12%;
-    --popover-foreground: 100 10% 95%;
+    /* Ink & Writing */
+    --ink: 40 20% 88%;
+    --pencil: 30 15% 60%;
 
-    --primary: 93 75% 52%;
-    --primary-foreground: 192 15% 10%;
+    /* Sticky Note Colors - Muted for dark mode */
+    --sticky-yellow: 45 50% 28%;
+    --sticky-pink: 340 35% 28%;
+    --sticky-blue: 200 35% 28%;
+    --sticky-green: 140 30% 25%;
 
-    --secondary: 192 15% 18%;
-    --secondary-foreground: 100 10% 95%;
+    /* Highlighter - Subtle in dark mode */
+    --highlighter-yellow: 50 50% 35%;
+    --highlighter-pink: 340 45% 35%;
+    --highlighter-blue: 200 45% 35%;
 
-    --muted: 192 15% 18%;
-    --muted-foreground: 100 10% 60%;
+    /* Doodle Colors */
+    --doodle-primary: 200 70% 60%;
+    --doodle-red: 0 60% 55%;
+    --doodle-green: 140 50% 50%;
 
-    --accent: 192 15% 20%;
-    --accent-foreground: 100 10% 95%;
+    /* Core Colors */
+    --background: 30 15% 12%;
+    --foreground: 40 20% 90%;
+
+    --card: 30 12% 16%;
+    --card-foreground: 40 20% 90%;
+
+    --popover: 30 12% 16%;
+    --popover-foreground: 40 20% 90%;
+
+    --primary: 200 70% 55%;
+    --primary-foreground: 30 15% 10%;
+
+    --secondary: 30 12% 20%;
+    --secondary-foreground: 40 20% 90%;
+
+    --muted: 30 12% 20%;
+    --muted-foreground: 40 15% 55%;
+
+    --accent: 30 12% 22%;
+    --accent-foreground: 40 20% 90%;
 
     --destructive: 0 62% 50%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 192 15% 20%;
-    --input: 192 15% 20%;
-    --ring: 93 75% 52%;
+    --border: 30 12% 22%;
+    --input: 30 12% 22%;
+    --ring: 200 70% 55%;
 
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-background: 30 15% 10%;
+    --sidebar-foreground: 40 20% 90%;
+    --sidebar-primary: 200 70% 55%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-accent: 30 12% 18%;
+    --sidebar-accent-foreground: 40 20% 90%;
+    --sidebar-border: 30 12% 18%;
+    --sidebar-ring: 200 70% 55%;
+
+    /* Custom tokens */
+    --card-shadow: 3px 3px 0 0 rgba(0, 0, 0, 0.3);
+    --card-shadow-hover: 4px 4px 0 0 rgba(0, 0, 0, 0.4);
   }
 }
 
@@ -98,18 +183,14 @@
   }
 
   body {
-    @apply bg-background text-foreground font-sans antialiased;
+    @apply bg-background text-foreground antialiased;
     font-family: 'Inter', sans-serif;
 
     /* Mobile Native Feel */
     -webkit-tap-highlight-color: transparent;
-    /* Remove blue tap flash */
     touch-action: manipulation;
-    /* Improve touch response */
     overscroll-behavior-y: none;
-    /* Prevent rubber-banding */
     user-select: none;
-    /* Prevent text selection */
     -webkit-user-select: none;
   }
 
@@ -122,6 +203,182 @@
 }
 
 @layer utilities {
+  /* === NOTEBOOK UTILITIES === */
+
+  /* Notebook Background with Lines */
+  .bg-notebook {
+    background-color: hsl(var(--paper));
+    background-image:
+      repeating-linear-gradient(transparent,
+        transparent 27px,
+        hsl(var(--paper-lines) / 0.4) 27px,
+        hsl(var(--paper-lines) / 0.4) 28px);
+    position: relative;
+  }
+
+  /* Left margin red line */
+  .bg-notebook-margin::before {
+    content: '';
+    position: absolute;
+    left: 48px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: hsl(var(--paper-margin) / 0.5);
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  /* Paper holes decoration */
+  .paper-holes::after {
+    content: '';
+    position: absolute;
+    left: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 2px solid hsl(var(--paper-lines) / 0.6);
+    background: hsl(var(--background));
+  }
+
+  /* Handwriting font */
+  .font-handwriting {
+    font-family: 'Patrick Hand', cursive;
+  }
+
+  /* Highlighter Effect */
+  .highlight {
+    background: linear-gradient(180deg,
+        transparent 45%,
+        hsl(var(--highlighter-yellow) / 0.5) 45%,
+        hsl(var(--highlighter-yellow) / 0.5) 90%,
+        transparent 90%);
+    padding: 0 4px;
+    margin: 0 -4px;
+  }
+
+  .highlight-pink {
+    background: linear-gradient(180deg,
+        transparent 45%,
+        hsl(var(--highlighter-pink) / 0.5) 45%,
+        hsl(var(--highlighter-pink) / 0.5) 90%,
+        transparent 90%);
+    padding: 0 4px;
+    margin: 0 -4px;
+  }
+
+  .highlight-blue {
+    background: linear-gradient(180deg,
+        transparent 45%,
+        hsl(var(--highlighter-blue) / 0.5) 45%,
+        hsl(var(--highlighter-blue) / 0.5) 90%,
+        transparent 90%);
+    padding: 0 4px;
+    margin: 0 -4px;
+  }
+
+  /* Tape Decoration */
+  .tape {
+    position: relative;
+  }
+
+  .tape::before {
+    content: '';
+    position: absolute;
+    top: -10px;
+    left: 50%;
+    transform: translateX(-50%) rotate(-2deg);
+    width: 60px;
+    height: 22px;
+    background: linear-gradient(135deg,
+        rgba(255, 240, 180, 0.85) 0%,
+        rgba(255, 225, 150, 0.95) 100%);
+    box-shadow: var(--shadow-tape);
+    border-radius: 2px;
+    z-index: 10;
+  }
+
+  .tape-left::before {
+    left: 20px;
+    transform: rotate(-8deg);
+  }
+
+  .tape-right::before {
+    left: auto;
+    right: 20px;
+    transform: rotate(5deg);
+  }
+
+  /* Sticky Note Base */
+  .sticky-note {
+    background: hsl(var(--sticky-yellow));
+    box-shadow: var(--shadow-sticky);
+    padding: 1rem;
+    border-radius: 2px;
+  }
+
+  .sticky-note-pink {
+    background: hsl(var(--sticky-pink));
+  }
+
+  .sticky-note-blue {
+    background: hsl(var(--sticky-blue));
+  }
+
+  .sticky-note-green {
+    background: hsl(var(--sticky-green));
+  }
+
+  /* Squiggly Underline */
+  .underline-squiggle {
+    position: relative;
+    text-decoration: none;
+  }
+
+  .underline-squiggle::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -4px;
+    height: 6px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 8'%3E%3Cpath d='M0 4 Q10 0 20 4 T40 4 T60 4 T80 4 T100 4' fill='none' stroke='%2300a8e8' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: repeat-x;
+    background-size: 20px 6px;
+  }
+
+  /* Doodle Circle */
+  .doodle-circle {
+    position: relative;
+  }
+
+  .doodle-circle::before {
+    content: '';
+    position: absolute;
+    inset: -6px;
+    border: 2px dashed hsl(var(--doodle-red) / 0.6);
+    border-radius: 50%;
+    pointer-events: none;
+  }
+
+  /* Grade Circle (like A+) */
+  .grade-circle {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 2px solid hsl(var(--doodle-red));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Patrick Hand', cursive;
+    font-size: 1rem;
+    font-weight: bold;
+    color: hsl(var(--doodle-red));
+  }
+
+  /* Card utilities */
   .card-elevated {
     box-shadow: var(--card-shadow);
     transition: box-shadow 0.2s ease, transform 0.2s ease;
@@ -133,10 +390,11 @@
 
   .line-through-animated {
     text-decoration: line-through;
-    text-decoration-color: hsl(var(--primary));
+    text-decoration-color: hsl(var(--doodle-red));
     text-decoration-thickness: 2px;
   }
 
+  /* Safe area utilities */
   .safe-top {
     padding-top: env(safe-area-inset-top, 0px);
   }
@@ -161,7 +419,6 @@
     margin-bottom: env(safe-area-inset-bottom, 0px);
   }
 
-  /* For elements that need to be pushed down/up but already have padding */
   .top-safe-offset {
     top: env(safe-area-inset-top, 0px);
   }
@@ -171,22 +428,65 @@
   }
 }
 
-/* Custom scrollbar */
+/* === NOTEBOOK ANIMATIONS === */
+@keyframes wobble {
+
+  0%,
+  100% {
+    transform: rotate(-1deg);
+  }
+
+  50% {
+    transform: rotate(1deg);
+  }
+}
+
+@keyframes scribble {
+  0% {
+    stroke-dashoffset: 100;
+  }
+
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes tape-flutter {
+
+  0%,
+  100% {
+    transform: translateX(-50%) rotate(-2deg);
+  }
+
+  50% {
+    transform: translateX(-50%) rotate(-4deg);
+  }
+}
+
+.animate-wobble {
+  animation: wobble 4s ease-in-out infinite;
+}
+
+.animate-scribble {
+  animation: scribble 0.5s ease-out forwards;
+}
+
+/* Custom scrollbar - Notebook style */
 ::-webkit-scrollbar {
-  width: 4px;
+  width: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: hsl(var(--muted));
+  background: hsl(var(--paper-lines) / 0.2);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: hsl(var(--primary) / 0.4);
+  background: hsl(var(--pencil) / 0.4);
   border-radius: 999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: hsl(var(--primary) / 0.6);
+  background: hsl(var(--pencil) / 0.6);
 }
 
 /* Quill Editor Customizations */
@@ -198,44 +498,50 @@
 
 .ql-toolbar.ql-snow {
   border: none !important;
-  border-bottom: 1px solid hsl(var(--border)) !important;
+  border-bottom: 2px dashed hsl(var(--paper-lines)) !important;
   padding: 8px !important;
   position: sticky;
   top: 0;
   z-index: 10;
-  background: hsl(var(--background));
+  background: hsl(var(--paper));
 }
 
 .ql-container.ql-snow {
   border: none !important;
-  font-family: 'Inter', sans-serif !important;
-  font-size: 1rem !important;
+  font-family: 'Patrick Hand', cursive !important;
+  font-size: 1.125rem !important;
   flex: 1;
 }
 
 .ql-editor {
   padding: 1rem 0 !important;
   min-height: 200px;
+  background-image:
+    repeating-linear-gradient(transparent,
+      transparent 27px,
+      hsl(var(--paper-lines) / 0.3) 27px,
+      hsl(var(--paper-lines) / 0.3) 28px);
 }
 
 .ql-editor.ql-blank::before {
   left: 0 !important;
-  font-style: normal !important;
-  color: hsl(var(--muted-foreground)) !important;
-  opacity: 0.5;
+  font-style: italic !important;
+  color: hsl(var(--pencil)) !important;
+  opacity: 0.6;
+  font-family: 'Patrick Hand', cursive !important;
 }
 
 /* Dark mode support for Quill */
 .dark .ql-snow .ql-stroke {
-  stroke: hsl(var(--foreground)) !important;
+  stroke: hsl(var(--ink)) !important;
 }
 
 .dark .ql-snow .ql-fill {
-  fill: hsl(var(--foreground)) !important;
+  fill: hsl(var(--ink)) !important;
 }
 
 .dark .ql-snow .ql-picker {
-  color: hsl(var(--foreground)) !important;
+  color: hsl(var(--ink)) !important;
 }
 
 .dark .ql-snow .ql-picker-options {
@@ -244,5 +550,5 @@
 }
 
 .dark .ql-editor {
-  color: hsl(var(--foreground));
+  color: hsl(var(--ink));
 }

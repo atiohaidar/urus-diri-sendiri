@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 100 28">
+  <defs>
+    <pattern id="lines-dark" width="100" height="28" patternUnits="userSpaceOnUse">
+      <!-- Horizontal ruled line - muted brown for dark mode -->
+      <line x1="0" y1="27" x2="100" y2="27" stroke="#4a4035" stroke-width="1" opacity="0.5"/>
+    </pattern>
+  </defs>
+  <!-- Dark paper background - warm sepia tone -->
+  <rect width="100%" height="100%" fill="#1f1c18"/>
+  <!-- Ruled lines pattern -->
+  <rect width="100%" height="100%" fill="url(#lines-dark)"/>
+</svg>

@@ -1,13 +1,12 @@
 import { useState } from 'react';
-import { Flame, Plus, Sparkles } from 'lucide-react';
+import { Flame, Plus, Sparkles, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useHabits, type Habit, type HabitWithStatus } from '@/hooks/useHabits';
+import { useHabits, type Habit } from '@/hooks/useHabits';
 import { useLanguage } from '@/i18n/LanguageContext';
 import HabitCard from '@/components/habits/HabitCard';
 import HabitFormModal from '@/components/habits/HabitFormModal';
 import HabitCompletionModal from '@/components/habits/HabitCompletionModal';
 import { cn } from '@/lib/utils';
-import { toast } from 'sonner';
 
 const HabitsScreen = () => {
     const { t } = useLanguage();
@@ -17,7 +16,7 @@ const HabitsScreen = () => {
         addHabit,
         updateHabit,
         deleteHabit,
-        toggleCompletion, // Note: This comes from useHabits hook
+        toggleCompletion,
     } = useHabits();
 
     const [isFormOpen, setIsFormOpen] = useState(false);
@@ -35,6 +34,15 @@ const HabitsScreen = () => {
     const completedToday = todayHabits.filter(h => h.isCompletedToday).length;
     const totalToday = todayHabits.length;
     const completionPercent = totalToday > 0 ? Math.round((completedToday / totalToday) * 100) : 0;
+
+    // Grade based on completion
+    const getGrade = () => {
+        if (completionPercent >= 100) return 'A+';
+        if (completionPercent >= 80) return 'A';
+        if (completionPercent >= 60) return 'B';
+        if (completionPercent >= 40) return 'C';
+        return '📝';
+    };
 
     const handleOpenNew = () => {
         setEditingHabit(null);
@@ -59,88 +67,71 @@ const HabitsScreen = () => {
         if (!habit) return;
 
         if (habit.isCompletedToday) {
-            // If already completed, uncheck immediately
             toggleCompletion(habitId);
         } else {
-            // If checking, show the modal first
             setCompletingHabit(habit);
             setIsCompletionModalOpen(true);
         }
     };
 
     return (
-        <div className="min-h-screen pb-24 md:pb-8">
-            {/* Header */}
-            <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-lg border-b border-border/50 pt-safe">
+        <div className="min-h-screen pb-24 md:pb-8 bg-notebook">
+            {/* Header - Notebook style */}
+            <header className="sticky top-0 z-40 bg-paper border-b-2 border-dashed border-paper-lines pt-safe">
                 <div className="container max-w-md md:max-w-5xl mx-auto px-4 py-4">
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                         <div className="flex items-center gap-3">
-                            <div className="p-2 rounded-xl bg-orange-500/10">
-                                <Flame className="w-6 h-6 text-orange-500" />
+                            <div className="p-2 rounded-sm bg-sticky-yellow shadow-sticky -rotate-2">
+                                <Flame className="w-6 h-6 text-orange-600" />
                             </div>
                             <div>
-                                <h1 className="text-xl font-bold text-foreground">Habits</h1>
-                                <p className="text-sm text-muted-foreground hidden md:block">
-                                    Build consistency, one day at a time
+                                <h1 className="text-2xl font-handwriting text-ink flex items-center gap-2">
+                                    <span className="highlight">Amalan Yaumiah</span>
+                                    <Star className="w-5 h-5 text-sticky-yellow fill-sticky-yellow" />
+                                </h1>
+                                <p className="text-sm font-handwriting text-pencil hidden md:block">
+                                    Konsisten setiap hari, sedikit demi sedikit ✏️
                                 </p>
                             </div>
                         </div>
 
-                        {/* Today's Progress (Desktop) */}
+                        {/* Today's Progress (Desktop) - Grade Circle */}
                         {totalToday > 0 && (
                             <div className="hidden md:flex items-center gap-4">
-                                <div className="text-right">
-                                    <div className="text-2xl font-bold text-foreground">
+                                <div className="text-right font-handwriting">
+                                    <div className="text-2xl text-ink">
                                         {completedToday}/{totalToday}
                                     </div>
-                                    <div className="text-xs text-muted-foreground">
-                                        completed today
+                                    <div className="text-xs text-pencil">
+                                        selesai hari ini
                                     </div>
                                 </div>
-                                <div className="w-16 h-16 relative">
-                                    <svg className="w-16 h-16 -rotate-90" viewBox="0 0 36 36">
-                                        <circle
-                                            cx="18"
-                                            cy="18"
-                                            r="15.9155"
-                                            fill="none"
-                                            className="stroke-muted"
-                                            strokeWidth="2"
-                                        />
-                                        <circle
-                                            cx="18"
-                                            cy="18"
-                                            r="15.9155"
-                                            fill="none"
-                                            className="stroke-orange-500"
-                                            strokeWidth="2"
-                                            strokeDasharray={`${completionPercent}, 100`}
-                                            strokeLinecap="round"
-                                        />
-                                    </svg>
-                                    <span className="absolute inset-0 flex items-center justify-center text-sm font-semibold">
-                                        {completionPercent}%
-                                    </span>
+                                {/* Grade Circle */}
+                                <div className="grade-circle text-lg">
+                                    {getGrade()}
                                 </div>
                             </div>
                         )}
 
-                        <Button onClick={handleOpenNew} className="hidden md:flex gap-2 md:px-6">
+                        <Button onClick={handleOpenNew} variant="sticker" className="hidden md:flex gap-2 md:px-6">
                             <Plus className="w-4 h-4" />
-                            <span className="hidden sm:inline">New Habit</span>
+                            <span className="hidden sm:inline">Tambah Amalan</span>
                         </Button>
                     </div>
 
-                    {/* Today's Progress (Mobile) */}
+                    {/* Today's Progress (Mobile) - Notebook line style */}
                     {totalToday > 0 && (
                         <div className="md:hidden mt-4">
-                            <div className="flex items-center justify-between text-sm text-muted-foreground mb-1.5">
-                                <span>Today's progress</span>
-                                <span>{completedToday}/{totalToday}</span>
+                            <div className="flex items-center justify-between text-sm font-handwriting text-pencil mb-1.5">
+                                <span>Progress hari ini</span>
+                                <span className="flex items-center gap-2">
+                                    {completedToday}/{totalToday}
+                                    <span className="grade-circle text-xs w-7 h-7">{getGrade()}</span>
+                                </span>
                             </div>
-                            <div className="h-2 bg-muted rounded-full overflow-hidden">
+                            <div className="h-3 bg-paper-lines/30 rounded-sm overflow-hidden border-2 border-dashed border-paper-lines">
                                 <div
-                                    className="h-full bg-gradient-to-r from-orange-500 to-amber-500 transition-all duration-500"
+                                    className="h-full bg-doodle-primary transition-all duration-300"
                                     style={{ width: `${completionPercent}%` }}
                                 />
                             </div>
@@ -152,35 +143,35 @@ const HabitsScreen = () => {
             <main className="container max-w-md md:max-w-5xl mx-auto px-4 py-6 md:py-8">
                 {isLoading ? (
                     <div className="flex items-center justify-center py-12">
-                        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                        <div className="font-handwriting text-pencil">Memuat...</div>
                     </div>
                 ) : habits.length === 0 ? (
-                    /* Empty State */
+                    /* Empty State - Notebook doodle style */
                     <div className="text-center py-12 md:py-24">
-                        <div className="w-20 h-20 md:w-28 md:h-28 rounded-full bg-orange-500/10 mx-auto mb-6 flex items-center justify-center">
-                            <Flame className="w-10 h-10 md:w-14 md:h-14 text-orange-500" />
+                        <div className="w-24 h-24 md:w-32 md:h-32 rounded-sm bg-sticky-yellow shadow-sticky mx-auto mb-6 flex items-center justify-center rotate-2">
+                            <Flame className="w-12 h-12 md:w-16 md:h-16 text-orange-600" />
                         </div>
-                        <h3 className="font-semibold text-lg md:text-xl text-foreground mb-2">
-                            No habits yet
+                        <h3 className="font-handwriting text-2xl md:text-3xl text-ink mb-2">
+                            Belum ada amalan 📝
                         </h3>
-                        <p className="text-sm md:text-base text-muted-foreground mb-6 max-w-sm mx-auto">
-                            Start building good habits! Track your progress and build streaks to stay motivated.
+                        <p className="font-handwriting text-base md:text-lg text-pencil mb-6 max-w-sm mx-auto">
+                            Yuk mulai bangun kebiasaan baik! Catat progress dan bangun streak untuk tetap semangat.
                         </p>
-                        <Button onClick={handleOpenNew} size="lg" className="gap-2">
-                            <Sparkles className="w-4 h-4" />
-                            Create Your First Habit
+                        <Button onClick={handleOpenNew} variant="sticker" size="lg" className="gap-2">
+                            <Sparkles className="w-5 h-5" />
+                            Buat Amalan Pertama
                         </Button>
                     </div>
                 ) : (
-                    <div className="space-y-6">
+                    <div className="space-y-8">
                         {/* Today's Habits */}
                         {todayHabits.length > 0 && (
                             <section>
-                                <h2 className="text-sm font-medium text-muted-foreground mb-3 flex items-center gap-2">
-                                    <span className="w-2 h-2 rounded-full bg-orange-500" />
-                                    Today
+                                <h2 className="font-handwriting text-lg text-ink mb-4 flex items-center gap-2">
+                                    <span className="w-3 h-3 rounded-full bg-orange-500 border-2 border-ink/20" />
+                                    <span className="underline-squiggle">Hari Ini</span>
                                 </h2>
-                                <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                                     {todayHabits.map((habit, index) => (
                                         <HabitCard
                                             key={habit.id}
@@ -198,10 +189,10 @@ const HabitsScreen = () => {
                         {/* Other Habits */}
                         {otherHabits.length > 0 && (
                             <section>
-                                <h2 className="text-sm font-medium text-muted-foreground mb-3">
-                                    Other Habits
+                                <h2 className="font-handwriting text-lg text-pencil mb-4">
+                                    Amalan Lainnya
                                 </h2>
-                                <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                                     {otherHabits.map((habit, index) => (
                                         <HabitCard
                                             key={habit.id}
@@ -209,7 +200,7 @@ const HabitsScreen = () => {
                                             onToggle={handleToggleAttempt}
                                             onEdit={handleEdit}
                                             onDelete={deleteHabit}
-                                            index={index}
+                                            index={index + todayHabits.length}
                                         />
                                     ))}
                                 </div>
@@ -219,10 +210,18 @@ const HabitsScreen = () => {
                 )}
             </main>
 
-            {/* FAB for mobile (alternative to header button) */}
+            {/* FAB for mobile - Pencil button style */}
             <button
                 onClick={handleOpenNew}
-                className="fixed bottom-[calc(6rem+env(safe-area-inset-bottom))] right-4 md:hidden w-14 h-14 bg-gradient-to-tr from-orange-500 to-amber-500 rounded-full shadow-lg shadow-orange-500/30 flex items-center justify-center text-white hover:scale-105 active:scale-95 transition-transform z-40"
+                className={cn(
+                    "fixed bottom-[calc(6rem+env(safe-area-inset-bottom))] right-4 md:hidden",
+                    "w-14 h-14 rounded-full flex items-center justify-center",
+                    "bg-doodle-primary text-white",
+                    "shadow-[2px_2px_0_0_rgba(0,0,0,0.2)]",
+                    "border-2 border-ink/20",
+                    "hover:scale-105 active:scale-95 transition-transform duration-150",
+                    "will-change-transform z-40"
+                )}
             >
                 <Plus className="w-6 h-6" strokeWidth={2.5} />
             </button>

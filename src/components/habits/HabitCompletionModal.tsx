@@ -3,8 +3,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Sparkles, X } from 'lucide-react';
+import { Sparkles, Trophy, PenLine } from 'lucide-react';
 import { Habit } from '@/lib/types';
+import { cn } from '@/lib/utils';
 
 interface HabitCompletionModalProps {
     open: boolean;
@@ -21,7 +22,6 @@ const HabitCompletionModal = ({
 }: HabitCompletionModalProps) => {
     const [note, setNote] = useState('');
 
-    // Reset state when modal opens
     useEffect(() => {
         if (open) {
             setNote('');
@@ -42,12 +42,14 @@ const HabitCompletionModal = ({
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-md">
                 <DialogHeader>
-                    <div className="mx-auto w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center mb-3">
-                        <Sparkles className="w-6 h-6 text-orange-500" />
+                    <div className="mx-auto w-16 h-16 rounded-sm bg-sticky-yellow shadow-sticky flex items-center justify-center mb-3 rotate-6">
+                        <Trophy className="w-8 h-8 text-ink" />
                     </div>
-                    <DialogTitle className="text-center">Great Job!</DialogTitle>
-                    <DialogDescription className="text-center">
-                        You've completed <span className="font-semibold text-foreground">"{habitName}"</span>. Want to add a note?
+                    <DialogTitle className="text-center font-handwriting text-2xl text-ink">
+                        Keren! 🎉
+                    </DialogTitle>
+                    <DialogDescription className="text-center font-handwriting text-base text-pencil">
+                        Kamu telah menyelesaikan <span className="font-semibold text-ink">"{habitName}"</span>. Mau tambahkan catatan?
                     </DialogDescription>
                 </DialogHeader>
 
@@ -58,8 +60,9 @@ const HabitCompletionModal = ({
                             id="note"
                             value={note}
                             onChange={(e) => setNote(e.target.value)}
-                            placeholder="e.g. Ran 5km in 25 mins, Read chapter 3, etc."
-                            className="resize-none"
+                            placeholder="e.g. Lari 5km dalam 25 menit, Baca bab 3, dll."
+                            variant="notebook"
+                            className="resize-none font-handwriting"
                             autoFocus
                         />
                     </div>
@@ -70,16 +73,20 @@ const HabitCompletionModal = ({
                         type="button"
                         variant="ghost"
                         onClick={handleSkip}
-                        className="w-full sm:w-auto text-muted-foreground"
+                        className="w-full sm:w-auto font-handwriting text-pencil rounded-sm"
                     >
-                        Skip
+                        Lewati
                     </Button>
                     <Button
                         type="button"
                         onClick={handleSubmit}
-                        className="w-full sm:w-auto gap-2 bg-gradient-to-tr from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white border-0"
+                        className={cn(
+                            "w-full sm:w-auto gap-2 font-handwriting rounded-sm",
+                            "bg-doodle-primary hover:bg-doodle-primary/90 text-white shadow-notebook"
+                        )}
                     >
-                        Save Note
+                        <PenLine className="w-4 h-4" />
+                        Simpan Catatan
                     </Button>
                 </DialogFooter>
             </DialogContent>

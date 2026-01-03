@@ -126,8 +126,49 @@ const App = () => {
       handleDeepLink(data.url);
     });
 
+    // Initialize Capacitor Plugins
+    const initCapacitor = async () => {
+      try {
+        // Only run on native platforms
+        if ((await CapacitorApp.getInfo()).name) { // Simple check, or better try/catch block 
+          // Implemented inside try catch, so safe to call
+        }
+
+        // 1. Status Bar - Match Notebook Theme
+        // Dynamic import to avoid SSR/Browser issues if package not present (though we installed it)
+        const { StatusBar, Style } = await import('@capacitor/status-bar');
+        await StatusBar.setStyle({ style: Style.Light }); // Dark text
+        await StatusBar.setBackgroundColor({ color: '#F4F1EA' }); // Matches --paper color exactly
+        await StatusBar.setOverlaysWebView({ overlay: false });
+
+        // 2. Keyboard - Prevent UI breaking
+        const { Keyboard, KeyboardResize } = await import('@capacitor/keyboard');
+        await Keyboard.setResizeMode({ mode: KeyboardResize.Body });
+
+        // 3. Splash Screen - Hide manually for seamless transition
+        const { SplashScreen } = await import('@capacitor/splash-screen');
+        await SplashScreen.hide();
+
+      } catch (e) {
+        // Silent fail in browser or if plugins missing
+        console.debug('Capacitor plugins not available or browser environment');
+      }
+    };
+
+    initCapacitor();
+
+    // Smart Resume: Refresh data when app comes to foreground
+    const resumeListener = CapacitorApp.addListener('appStateChange', ({ isActive }) => {
+      if (isActive) {
+        console.log('📱 App resumed - refreshing data...');
+        queryClient.invalidateQueries(); // Refresh server data if any
+        // Force re-render of components sensitive to date/time could be done here if needed
+      }
+    });
+
     return () => {
       listener.then(handle => handle.remove());
+      resumeListener.then(handle => handle.remove());
     };
   }, []);
 

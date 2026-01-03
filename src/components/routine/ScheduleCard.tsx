@@ -16,27 +16,32 @@ export const ScheduleCard = ({ item, isOverlap, onEdit, onDelete }: ScheduleCard
         <div
             onClick={() => onEdit(item)}
             className={cn(
-                "group bg-card hover:bg-muted/50 transition-colors p-4 rounded-3xl border border-border/50 flex items-center gap-4 cursor-pointer active:scale-[0.98] duration-200 h-full",
-                "border-primary/20",
-                isOverlap && "border-destructive/50 bg-destructive/5"
+                "group bg-card transition-colors p-4 rounded-sm",
+                "border-2 shadow-notebook cursor-pointer",
+                "hover:shadow-notebook-hover active:scale-[0.98] duration-150 h-full",
+                "flex items-center gap-4",
+                isOverlap
+                    ? "border-doodle-red/50 bg-doodle-red/5"
+                    : "border-paper-lines/50"
             )}
         >
-            <div className="flex flex-col items-center justify-center w-14 h-14 rounded-2xl bg-primary/10 text-primary font-bold text-xs shrink-0 leading-tight">
+            {/* Time badge - Sticky note style */}
+            <div className="flex flex-col items-center justify-center w-14 h-14 rounded-sm bg-sticky-yellow text-ink font-handwriting text-xs shrink-0 leading-tight shadow-tape -rotate-2">
                 <span>{item.startTime}</span>
-                <ArrowRight className="w-3 h-3 opacity-50 my-px rotate-90" />
+                <ArrowRight className="w-3 h-3 opacity-60 my-px rotate-90" />
                 <span className="opacity-80">{item.endTime}</span>
             </div>
 
             <div className="flex-1 min-w-0">
-                <h3 className="font-semibold text-foreground truncate">{item.activity}</h3>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
-                    <span className="bg-muted px-2 py-0.5 rounded-full">{item.category}</span>
+                <h3 className="font-handwriting text-lg text-ink truncate">{item.activity}</h3>
+                <div className="flex items-center gap-2 font-handwriting text-xs text-pencil mt-0.5">
+                    <span className="bg-sticky-blue/30 px-2 py-0.5 rounded-sm text-ink">{item.category}</span>
                     <span>•</span>
                     <span>{calculateDuration(item.startTime, item.endTime)}</span>
                     {isOverlap && (
-                        <span className="flex items-center gap-1 text-destructive font-medium">
+                        <span className="flex items-center gap-1 text-doodle-red font-handwriting">
                             <AlertTriangle className="w-3 h-3" />
-                            Overlap
+                            Overlap!
                         </span>
                     )}
                 </div>
@@ -45,7 +50,7 @@ export const ScheduleCard = ({ item, isOverlap, onEdit, onDelete }: ScheduleCard
             <Button
                 variant="ghost"
                 size="icon"
-                className="text-muted-foreground/30 group-hover:text-destructive transition-colors -mr-2"
+                className="text-pencil/30 group-hover:text-doodle-red transition-colors -mr-2 rounded-sm"
                 onClick={(e) => onDelete(e, item.id)}
             >
                 <Trash2 className="w-5 h-5" />

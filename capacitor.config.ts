@@ -9,6 +9,14 @@ const config: CapacitorConfig = {
       resize: 'body',
       style: 'dark',
     },
+    SplashScreen: {
+      launchShowDuration: 2000,
+      launchAutoHide: false,
+      backgroundColor: "#F4F1EA",
+      androidSplashResourceName: "splash",
+      androidScaleType: "CENTER_CROP",
+      showSpinner: false,
+    },
   },
   android: {
     backgroundColor: '#ffffff', // Matches light theme background to prevent white flash

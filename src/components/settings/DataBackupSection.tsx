@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Download, Upload } from 'lucide-react';
+import { Download, Upload, HardDrive } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { exportData, importData } from '@/lib/backup';
 import { useLanguage } from '@/i18n/LanguageContext';
+import { cn } from '@/lib/utils';
 
 export const DataBackupSection = () => {
     const { t } = useLanguage();
@@ -35,31 +36,50 @@ export const DataBackupSection = () => {
     };
 
     return (
-        <section className="bg-card rounded-3xl p-6 border border-border/50 shadow-sm">
-            <h2 className="text-lg font-semibold mb-4">{t.settings.data_management}</h2>
+        <section className="bg-card rounded-sm p-6 border-2 border-paper-lines/50 shadow-notebook">
+            <div className="flex items-center gap-2 mb-4">
+                <div className="p-2 rounded-sm bg-sticky-green shadow-tape -rotate-2">
+                    <HardDrive className="w-5 h-5 text-ink" />
+                </div>
+                <h2 className="font-handwriting text-xl text-ink">{t.settings.data_management} 💾</h2>
+            </div>
             <div className="space-y-3">
+                {/* Export button */}
                 <Button
                     variant="outline"
-                    className="w-full justify-start gap-3 h-12 rounded-xl"
+                    className={cn(
+                        "w-full justify-start gap-3 h-14 rounded-sm",
+                        "border-2 border-dashed border-pencil/40",
+                        "hover:bg-paper-lines/20 font-handwriting"
+                    )}
                     onClick={handleExport}
                 >
-                    <Download className="w-5 h-5 text-muted-foreground" />
+                    <div className="p-2 rounded-sm bg-sticky-blue/50 -rotate-2">
+                        <Download className="w-5 h-5 text-ink" />
+                    </div>
                     <div className="flex flex-col items-start text-left">
-                        <span className="font-medium">{t.settings.backup_title}</span>
-                        <span className="text-xs text-muted-foreground">{t.settings.backup_desc}</span>
+                        <span className="font-handwriting text-ink">{t.settings.backup_title}</span>
+                        <span className="text-xs font-handwriting text-pencil">{t.settings.backup_desc}</span>
                     </div>
                 </Button>
 
+                {/* Import button */}
                 <div className="relative">
                     <Button
                         variant="outline"
-                        className="w-full justify-start gap-3 h-12 rounded-xl"
+                        className={cn(
+                            "w-full justify-start gap-3 h-14 rounded-sm",
+                            "border-2 border-dashed border-pencil/40",
+                            "hover:bg-paper-lines/20 font-handwriting"
+                        )}
                         disabled={importing}
                     >
-                        <Upload className="w-5 h-5 text-muted-foreground" />
+                        <div className="p-2 rounded-sm bg-sticky-pink/50 rotate-2">
+                            <Upload className="w-5 h-5 text-ink" />
+                        </div>
                         <div className="flex flex-col items-start text-left">
-                            <span className="font-medium">{t.settings.restore_title}</span>
-                            <span className="text-xs text-muted-foreground">{t.settings.restore_desc}</span>
+                            <span className="font-handwriting text-ink">{t.settings.restore_title}</span>
+                            <span className="text-xs font-handwriting text-pencil">{t.settings.restore_desc}</span>
                         </div>
                     </Button>
                     <input

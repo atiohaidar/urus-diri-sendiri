@@ -1,33 +1,37 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Save, Sparkles, Trophy, Construction, Rocket, Sprout, ArrowRight, Leaf, Plus, Trash2, CheckCircle2, Circle, Image as ImageIcon, X, Camera, ExternalLink } from 'lucide-react';
+import { ArrowLeft, ArrowRight, PenLine, Leaf } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Input } from '@/components/ui/input';
-import { getReflectionsAsync, saveReflection, getRoutines, getPriorities, type Reflection, initializeStorage } from '@/lib/storage';
+import { getReflectionsAsync, saveReflection, getRoutines, getPriorities, initializeStorage } from '@/lib/storage';
 import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/i18n/LanguageContext';
 import { cn } from '@/lib/utils';
-import { compressImage } from '@/lib/image-utils';
 import { saveImage, getImage, deleteImage } from '@/lib/idb';
+
+// Checkin Components
+import { WinHurdleSection } from '@/components/checkin/WinHurdleSection';
+import { PrioritiesSection } from '@/components/checkin/PrioritiesSection';
+import { ReviewSection } from '@/components/checkin/ReviewSection';
+import { SmallChangeSection } from '@/components/checkin/SmallChangeSection';
+import { ImageUploadSection } from '@/components/checkin/ImageUploadSection';
 
 const MaghribCheckinPage = () => {
     const navigate = useNavigate();
     const { toast } = useToast();
     const { t, language } = useLanguage();
+
+    // Form States
     const [winOfDay, setWinOfDay] = useState('');
     const [hurdle, setHurdle] = useState('');
     const [priorities, setPriorities] = useState(['', '', '']);
     const [smallChange, setSmallChange] = useState('');
     const [images, setImages] = useState<string[]>([]);
-    const [linkInput, setLinkInput] = useState('');
-    const [showLinkInput, setShowLinkInput] = useState(false);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         const loadTodayData = async () => {
             setLoading(true);
-            await initializeStorage();
+            await initializeStorage(); // Ensure DB is ready
             const reflections = await getReflectionsAsync();
             const today = new Date().toDateString();
             const todayReflection = reflections.find(r => new Date(r.date).toDateString() === today);
@@ -39,12 +43,14 @@ const MaghribCheckinPage = () => {
                 setSmallChange(todayReflection.smallChange || '');
 
                 const loadedImages: string[] = [];
+                // Load cached IDB images
                 if (todayReflection.imageIds) {
                     for (const id of todayReflection.imageIds) {
                         const img = await getImage(id);
                         if (img) loadedImages.push(img);
                     }
                 }
+                // Load cloud URLs
                 if (todayReflection.images) {
                     todayReflection.images.forEach(url => {
                         if (url && url.startsWith('http')) {
@@ -60,79 +66,21 @@ const MaghribCheckinPage = () => {
         loadTodayData();
     }, []);
 
-    const updatePriority = (index: number, value: string) => {
-        const updated = [...priorities];
-        updated[index] = value;
-        setPriorities(updated);
-    };
-
-    const addPriorityRow = () => {
-        setPriorities([...priorities, '']);
-    };
-
-    const removePriorityRow = (index: number) => {
-        const updated = [...priorities];
-        updated.splice(index, 1);
-        setPriorities(updated);
-    };
-
-    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const files = Array.from(e.target.files || []);
-        if (images.length + files.length > 3) {
-            toast({
-                title: t.checkin.image_limit,
-                variant: "destructive"
-            });
-            return;
-        }
-
-        files.forEach(file => {
-            const reader = new FileReader();
-            reader.onloadend = async () => {
-                const base64 = reader.result as string;
-                try {
-                    const compressed = await compressImage(base64, 800, 0.7);
-                    setImages(prev => [...prev, compressed]);
-                } catch (err) {
-                    console.error('Compression failed', err);
-                    setImages(prev => [...prev, base64]); // Fallback
-                }
-            };
-            reader.readAsDataURL(file);
-        });
-    };
-
-    const addLinkImage = () => {
-        if (!linkInput.trim()) return;
-        if (images.length >= 3) {
-            toast({ title: t.checkin.image_limit, variant: "destructive" });
-            return;
-        }
-        setImages(prev => [...prev, linkInput.trim()]);
-        setLinkInput('');
-        setShowLinkInput(false);
-    };
-
-    const removeImage = (index: number) => {
-        setImages(prev => prev.filter((_, i) => i !== index));
-    };
-
     const handleSave = async () => {
-        // Capture snapshots of today
         const todayRoutines = getRoutines();
         const todayPriorities = getPriorities();
 
-        // Clean up old images for TODAY if editing
         const reflections = await getReflectionsAsync();
         const todayStr = new Date().toDateString();
         const existingToday = reflections.find(r => new Date(r.date).toDateString() === todayStr);
+
+        // Clean up old images if updating
         if (existingToday?.imageIds) {
             for (const id of existingToday.imageIds) {
                 await deleteImage(id);
             }
         }
 
-        // Differentiate between local (base64) and cloud (URL) images
         const imageIds: string[] = [];
         const cloudUrls: string[] = [];
 
@@ -140,7 +88,7 @@ const MaghribCheckinPage = () => {
             if (images[i].startsWith('http')) {
                 cloudUrls.push(images[i]);
             } else {
-                const id = await saveImage(images[i]); // Pass base64 to saveImage which now generates IDs
+                const id = await saveImage(images[i]);
                 imageIds.push(id);
             }
         }
@@ -173,241 +121,90 @@ const MaghribCheckinPage = () => {
 
     if (loading) {
         return (
-            <div className="min-h-screen flex items-center justify-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            <div className="min-h-screen bg-notebook flex items-center justify-center">
+                <div className="w-12 h-12 bg-sticky-yellow shadow-sticky rounded-sm flex items-center justify-center animate-pulse">
+                    <PenLine className="w-6 h-6 text-ink" />
+                </div>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-background pb-24 md:pb-8 animate-in fade-in slide-in-from-bottom-4 duration-300 md:pl-64 pt-safe">
+        <div className="min-h-screen bg-notebook pb-24 md:pb-8 md:pl-64 pt-safe">
             <div className="container max-w-4xl mx-auto px-4 py-6">
+                {/* Header - Notebook style */}
                 <div className="flex items-center justify-between mb-6">
                     <Button
                         variant="ghost"
                         size="icon"
-                        className="-ml-2 rounded-full"
+                        className="-ml-2 rounded-sm text-pencil hover:text-ink"
                         onClick={() => navigate(-1)}
                     >
                         <ArrowLeft className="w-5 h-5" />
                     </Button>
-                    <span className="font-medium">{t.checkin.title}</span>
-                    <span className="text-sm text-primary font-medium">{todayDisplay}</span>
+                    <span className="font-handwriting text-lg text-ink">{t.checkin.title}</span>
+                    <span className="px-3 py-1 bg-sticky-yellow text-ink text-sm font-handwriting rounded-sm shadow-tape -rotate-2">
+                        {todayDisplay}
+                    </span>
                 </div>
 
+                {/* Title */}
                 <div className="mb-8 text-center md:text-left">
-                    <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-2">{t.checkin.title}</h1>
-                    <p className="text-muted-foreground">{t.checkin.subtitle}</p>
+                    <h1 className="text-2xl md:text-3xl font-handwriting text-ink mb-2">
+                        <span className="highlight">{t.checkin.title}</span> 🌙
+                    </h1>
+                    <p className="font-handwriting text-pencil">{t.checkin.subtitle}</p>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
+                    {/* Left Column */}
+                    <WinHurdleSection
+                        winOfDay={winOfDay}
+                        setWinOfDay={setWinOfDay}
+                        hurdle={hurdle}
+                        setHurdle={setHurdle}
+                    />
+
+                    {/* Right Column */}
                     <div className="space-y-6">
-                        <div className="animate-fade-in" style={{ animationDelay: '50ms' }}>
-                            <label className="flex items-center gap-2 text-sm font-semibold mb-3">
-                                <Trophy className="w-4 h-4 text-amber-500" />
-                                {t.checkin.win_of_day}
-                            </label>
-                            <Textarea
-                                value={winOfDay}
-                                onChange={(e) => setWinOfDay(e.target.value)}
-                                placeholder={t.checkin.win_placeholder}
-                                className="min-h-[120px] bg-card rounded-2xl border-0 resize-none card-elevated focus-visible:ring-primary"
-                            />
-                        </div>
+                        <PrioritiesSection
+                            priorities={priorities}
+                            setPriorities={setPriorities}
+                        />
 
-                        <div className="animate-fade-in" style={{ animationDelay: '100ms' }}>
-                            <label className="flex items-center gap-2 text-sm font-semibold mb-3">
-                                <Construction className="w-4 h-4 text-orange-500" />
-                                {t.checkin.hurdle}
-                            </label>
-                            <Textarea
-                                value={hurdle}
-                                onChange={(e) => setHurdle(e.target.value)}
-                                placeholder={t.checkin.hurdle_placeholder}
-                                className="min-h-[120px] bg-card rounded-2xl border-0 resize-none card-elevated focus-visible:ring-primary mb-2"
-                            />
-                            <div className="flex flex-wrap gap-2 px-1">
-                                {['Malas', 'Lelah', 'Sakit', 'Sibuk', 'Distraksi'].map((chip) => (
-                                    <button
-                                        key={chip}
-                                        type="button"
-                                        onClick={() => setHurdle(prev => prev ? `${prev}, ${chip}` : chip)}
-                                        className="px-3 py-1 bg-secondary hover:bg-secondary/70 text-secondary-foreground text-xs rounded-full transition-colors font-medium"
-                                    >
-                                        + {chip}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
+                        <ReviewSection />
 
-                    <div className="space-y-6">
-                        <div className="animate-fade-in" style={{ animationDelay: '150ms' }}>
-                            <label className="flex items-center gap-2 text-sm font-semibold mb-3">
-                                <Rocket className="w-4 h-4 text-primary" />
-                                {t.checkin.priorities}
-                            </label>
-                            <div className="space-y-3">
-                                {priorities.map((priority, index) => (
-                                    <div key={index} className="flex items-center gap-3 group">
-                                        <span className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-sm font-semibold text-primary shrink-0">
-                                            {index + 1}
-                                        </span>
-                                        <Input
-                                            value={priority}
-                                            onChange={(e) => updatePriority(index, e.target.value)}
-                                            placeholder={index === 0 ? t.checkin.priority_1_placeholder : index === 1 ? t.checkin.priority_2_placeholder : t.checkin.priority_3_placeholder}
-                                            className="bg-card rounded-xl border-0 h-11 card-elevated focus-visible:ring-primary"
-                                        />
-                                        {priorities.length > 1 && (
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="opacity-0 group-hover:opacity-100 transition-opacity rounded-full hover:bg-destructive/10 hover:text-destructive"
-                                                onClick={() => removePriorityRow(index)}
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                            </Button>
-                                        )}
-                                    </div>
-                                ))}
-                                <Button
-                                    variant="outline"
-                                    onClick={addPriorityRow}
-                                    className="w-full h-11 rounded-xl border-dashed border-2 bg-transparent hover:bg-secondary/50 gap-2 border-primary/30 text-primary"
-                                >
-                                    <Plus className="w-4 h-4" />
-                                    {t.checkin.add_priority}
-                                </Button>
-                            </div>
-                        </div>
+                        <SmallChangeSection
+                            smallChange={smallChange}
+                            setSmallChange={setSmallChange}
+                        />
 
-                        <div className="animate-fade-in" style={{ animationDelay: '250ms' }}>
-                            <label className="flex items-center gap-2 text-sm font-semibold mb-3">
-                                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                                Review Capaian Hari Ini
-                            </label>
-                            <div className="bg-card rounded-2xl p-4 card-elevated space-y-3">
-                                <div className="flex justify-between items-center text-sm">
-                                    <span className="text-muted-foreground font-medium">Rutinitas Selesai</span>
-                                    <span className="text-primary font-bold">
-                                        {getRoutines().filter(r => r.completedAt).length}/{getRoutines().length}
-                                    </span>
-                                </div>
-                                <div className="flex justify-between items-center text-sm">
-                                    <span className="text-muted-foreground font-medium">Prioritas Tercapai</span>
-                                    <span className="text-primary font-bold">
-                                        {getPriorities().filter(p => p.completed).length}/{getPriorities().length}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="animate-fade-in" style={{ animationDelay: '200ms' }}>
-                            <label className="flex items-center gap-2 text-sm font-semibold mb-3">
-                                <Sprout className="w-4 h-4 text-emerald-500" />
-                                {t.checkin.small_change}
-                            </label>
-                            <Textarea
-                                value={smallChange}
-                                onChange={(e) => setSmallChange(e.target.value)}
-                                placeholder={t.checkin.small_change_placeholder}
-                                className="min-h-[80px] bg-card rounded-2xl border-0 resize-none card-elevated focus-visible:ring-primary"
-                            />
-                        </div>
-
-                        <div className="animate-fade-in" style={{ animationDelay: '300ms' }}>
-                            <label className="flex items-center gap-2 text-sm font-semibold mb-3">
-                                <ImageIcon className="w-4 h-4 text-pink-500" />
-                                {t.checkin.add_images}
-                            </label>
-
-                            <div className="flex flex-wrap gap-3">
-                                {images.map((img, idx) => (
-                                    <div key={idx} className="relative w-20 h-20 rounded-2xl overflow-hidden shadow-sm animate-in zoom-in-50 duration-200 bg-secondary/30 border border-border/50">
-                                        {img.startsWith('http') ? (
-                                            <a
-                                                href={img}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="w-full h-full flex items-center justify-center bg-primary/10 hover:bg-primary/20 transition-colors"
-                                                title="View in Google Drive"
-                                            >
-                                                <ExternalLink className="w-6 h-6 text-primary" />
-                                            </a>
-                                        ) : (
-                                            <img src={img} alt="Preview" className="w-full h-full object-cover" />
-                                        )}
-                                        <button
-                                            onClick={() => removeImage(idx)}
-                                            className="absolute top-1 right-1 bg-background/80 backdrop-blur-sm p-1 rounded-full text-foreground hover:bg-destructive hover:text-destructive-foreground transition-colors"
-                                        >
-                                            <X className="w-3 h-3" />
-                                        </button>
-                                    </div>
-                                ))}
-
-                                {images.length < 3 && (
-                                    <div className="flex gap-3">
-                                        <label className="w-20 h-20 rounded-2xl border-2 border-dashed border-primary/20 bg-primary/5 flex flex-col items-center justify-center gap-1 cursor-pointer hover:bg-primary/10 transition-colors group">
-                                            <Camera className="w-5 h-5 text-primary/60 group-hover:text-primary" />
-                                            <span className="text-[10px] font-medium text-primary/60 group-hover:text-primary">Camera</span>
-                                            <input
-                                                type="file"
-                                                accept="image/*"
-                                                multiple
-                                                onChange={handleImageUpload}
-                                                className="hidden"
-                                            />
-                                        </label>
-
-                                        <button
-                                            onClick={() => setShowLinkInput(!showLinkInput)}
-                                            className="w-20 h-20 rounded-2xl border-2 border-dashed border-primary/20 bg-primary/5 flex flex-col items-center justify-center gap-1 hover:bg-primary/10 transition-colors group"
-                                        >
-                                            <ExternalLink className="w-5 h-5 text-primary/60 group-hover:text-primary" />
-                                            <span className="text-[10px] font-medium text-primary/60 group-hover:text-primary">URL</span>
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
-
-                            {showLinkInput && (
-                                <div className="mt-3 flex gap-2 animate-in slide-in-from-top-2 duration-200">
-                                    <Input
-                                        value={linkInput}
-                                        onChange={(e) => setLinkInput(e.target.value)}
-                                        placeholder="Paste Google Drive link here..."
-                                        className="h-10 rounded-xl bg-card border-0 card-elevated"
-                                    />
-                                    <Button
-                                        onClick={addLinkImage}
-                                        className="h-10 rounded-xl px-4"
-                                    >
-                                        OK
-                                    </Button>
-                                </div>
-                            )}
-
-                            <p className="text-[10px] text-muted-foreground mt-2 px-1 italic">
-                                {t.checkin.image_limit}
-                            </p>
-                        </div>
+                        <ImageUploadSection
+                            images={images}
+                            setImages={setImages}
+                        />
                     </div>
                 </div>
 
+                {/* Decorative divider */}
                 <div className="flex justify-center my-8">
-                    <Leaf className="w-6 h-6 text-primary/40" />
+                    <Leaf className="w-6 h-6 text-doodle-green/40" />
                 </div>
             </div>
 
-            <div className="fixed bottom-0 left-0 right-0 md:left-64 p-4 bg-background/80 backdrop-blur-lg border-t border-border pb-safe md:static md:bg-transparent md:border-0 md:p-0 md:mt-4">
+            {/* Save Button - Sticky note style */}
+            <div className="fixed bottom-0 left-0 right-0 md:left-64 p-4 bg-paper border-t-2 border-dashed border-paper-lines pb-safe md:static md:bg-transparent md:border-0 md:p-0 md:mt-4">
                 <div className="container max-w-4xl mx-auto md:px-4">
                     <Button
                         onClick={handleSave}
-                        className="w-full h-14 rounded-2xl text-base font-semibold gap-2 shadow-lg shadow-primary/20 md:w-auto md:px-8 md:float-right"
+                        className={cn(
+                            "w-full h-14 rounded-sm font-handwriting text-lg gap-2",
+                            "bg-doodle-primary hover:bg-doodle-primary/90 text-white",
+                            "shadow-[3px_3px_0_0_rgba(0,0,0,0.15)]",
+                            "md:w-auto md:px-8 md:float-right"
+                        )}
                     >
-                        {t.checkin.save}
+                        {t.checkin.save} ✓
                         <ArrowRight className="w-5 h-5" />
                     </Button>
                 </div>

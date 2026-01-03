@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Clock, Plus, StickyNote, Camera, Trash2 } from 'lucide-react';
+import { Clock, Plus, BookOpen, FileText } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/i18n/LanguageContext';
@@ -7,8 +7,6 @@ import { cn } from '@/lib/utils';
 import { getLogsAsync, deleteLog, ActivityLog, getReflectionsAsync, Reflection, initializeStorage, registerListener } from '@/lib/storage';
 import { ReflectionsList } from '@/components/history/ReflectionsList';
 import { LogsList } from '@/components/history/LogsList';
-import { LazyImage } from '@/components/history/LazyImage';
-import { PullToRefresh } from '@/components/ui/pull-to-refresh';
 import { ReflectionSkeleton } from '@/components/history/ReflectionSkeleton';
 import {
   AlertDialog,
@@ -43,10 +41,8 @@ const HistoryScreen = () => {
     };
     init();
 
-    // Event-driven update: Only triggers when data actually changes/syncs
     const unsubscribe = registerListener(() => {
       if (!isMounted) return;
-      console.log("♻️ UI: History updated from storage event");
       refreshData();
     });
 
@@ -84,45 +80,53 @@ const HistoryScreen = () => {
 
   return (
     <>
-      <div className="min-h-screen pb-24 md:pb-8">
-        {/* Header */}
-        <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-lg border-b border-border/50 pt-safe">
+      <div className="min-h-screen pb-24 md:pb-8 bg-notebook">
+        {/* Header - Notebook style */}
+        <header className="sticky top-0 z-40 bg-paper border-b-2 border-dashed border-paper-lines pt-safe">
           <div className="container md:max-w-5xl mx-auto px-4 py-4 space-y-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-xl bg-primary/10">
-                <Clock className="w-6 h-6 text-primary" />
+              <div className="p-2 rounded-sm bg-sticky-blue shadow-sticky rotate-2">
+                <Clock className="w-6 h-6 text-doodle-primary" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-foreground">{t.history.title}</h1>
-                <p className="text-sm text-muted-foreground hidden md:block">{t.history.subtitle}</p>
+                <h1 className="text-2xl font-handwriting text-ink">
+                  <span className="highlight-blue">{t.history.title}</span> 📖
+                </h1>
+                <p className="text-sm font-handwriting text-pencil hidden md:block">{t.history.subtitle}</p>
               </div>
             </div>
 
-            {/* Tab Switcher */}
-            <div className="flex p-1 bg-secondary/50 rounded-xl">
+            {/* Tab Switcher - Sticky note tabs */}
+            <div className="flex gap-2">
               <button
                 onClick={() => setActiveTab('reflections')}
                 className={cn(
-                  "flex-1 py-2 text-sm font-medium rounded-lg transition-all",
-                  activeTab === 'reflections' ? "bg-background shadow text-primary" : "text-muted-foreground hover:text-foreground"
+                  "flex-1 py-2.5 px-4 text-sm font-handwriting rounded-sm transition-all duration-150",
+                  activeTab === 'reflections'
+                    ? "bg-sticky-yellow text-ink shadow-sticky -rotate-1"
+                    : "text-pencil hover:text-ink hover:bg-paper-lines/20 border-2 border-dashed border-paper-lines"
                 )}
               >
+                <BookOpen className="w-4 h-4 inline-block mr-1.5 -mt-0.5" />
                 {t.history.reflections_tab}
               </button>
               <button
                 onClick={() => setActiveTab('logs')}
                 className={cn(
-                  "flex-1 py-2 text-sm font-medium rounded-lg transition-all",
-                  activeTab === 'logs' ? "bg-background shadow text-primary" : "text-muted-foreground hover:text-foreground"
+                  "flex-1 py-2.5 px-4 text-sm font-handwriting rounded-sm transition-all duration-150",
+                  activeTab === 'logs'
+                    ? "bg-sticky-pink text-ink shadow-sticky rotate-1"
+                    : "text-pencil hover:text-ink hover:bg-paper-lines/20 border-2 border-dashed border-paper-lines"
                 )}
               >
+                <FileText className="w-4 h-4 inline-block mr-1.5 -mt-0.5" />
                 {t.history.activity_log_tab}
               </button>
             </div>
           </div>
         </header>
 
-        <main className="container md:max-w-5xl mx-auto px-4 py-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <main className="container md:max-w-5xl mx-auto px-4 py-6">
           {loading ? (
             <div className="space-y-4">
               {[1, 2, 3].map((i) => (
@@ -137,12 +141,15 @@ const HistoryScreen = () => {
                 hasMore={hasMore}
               />
             ) : (
+              /* Empty State - Notebook doodle style */
               <div className="text-center py-12 md:py-24">
-                <div className="w-16 h-16 md:w-24 md:h-24 rounded-full bg-secondary mx-auto mb-6 flex items-center justify-center">
-                  <Clock className="w-8 h-8 md:w-12 md:h-12 text-primary" />
+                <div className="w-20 h-20 md:w-28 md:h-28 rounded-sm bg-sticky-blue shadow-sticky mx-auto mb-6 flex items-center justify-center -rotate-3">
+                  <Clock className="w-10 h-10 md:w-14 md:h-14 text-doodle-primary" />
                 </div>
-                <h3 className="font-semibold text-lg md:text-xl text-foreground mb-2">{t.history.no_reflections_title}</h3>
-                <p className="text-sm md:text-base text-muted-foreground">
+                <h3 className="font-handwriting text-2xl text-ink mb-2">
+                  {t.history.no_reflections_title} 📝
+                </h3>
+                <p className="font-handwriting text-base text-pencil max-w-sm mx-auto">
                   {t.history.no_reflections_desc}
                 </p>
               </div>
@@ -152,14 +159,20 @@ const HistoryScreen = () => {
           )}
         </main>
 
-        {/* Floating Action Button (FAB) for Maghrib Check-in */}
+        {/* FAB - Pencil button style */}
         <div className="fixed bottom-[calc(6rem+env(safe-area-inset-bottom))] right-4 md:bottom-8 md:right-8 z-50">
           <Button
             onClick={() => navigate('/maghrib-checkin')}
-            size="icon"
-            className="h-14 w-14 rounded-full shadow-xl bg-primary hover:bg-primary/90 text-primary-foreground border-4 border-background/20 backdrop-blur-sm animate-in zoom-in duration-300"
+            className={cn(
+              "h-14 w-14 rounded-full",
+              "bg-doodle-primary text-white",
+              "shadow-[3px_3px_0_0_rgba(0,0,0,0.15)]",
+              "border-2 border-ink/20",
+              "hover:scale-105 active:scale-95 transition-transform duration-150",
+              "will-change-transform"
+            )}
           >
-            <Plus className="w-8 h-8" />
+            <Plus className="w-7 h-7" strokeWidth={2.5} />
             <span className="sr-only">New Check-in</span>
           </Button>
         </div>

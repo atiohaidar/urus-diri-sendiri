@@ -8,10 +8,11 @@ import { GoogleSearchWidget } from '@/components/home/GoogleSearchWidget';
 import HabitCard from '@/components/habits/HabitCard';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, Flame } from 'lucide-react';
+import { ArrowRight, Flame, Star } from 'lucide-react';
 import HabitCompletionModal from '@/components/habits/HabitCompletionModal';
 import { useState } from 'react';
 import { Habit } from '@/lib/types';
+import { triggerHaptic } from '@/lib/haptics';
 
 const HomeScreen = () => {
   const navigate = useNavigate();
@@ -36,14 +37,13 @@ const HomeScreen = () => {
     todayHabits,
     habits,
     toggleCompletion,
-    updateHabit,
-    deleteHabit
   } = useHabits();
 
   const [isCompletionModalOpen, setIsCompletionModalOpen] = useState(false);
   const [completingHabit, setCompletingHabit] = useState<Habit | null>(null);
 
   const handleToggleAttempt = (habitId: string) => {
+    triggerHaptic();
     const habit = habits.find(h => h.id === habitId);
     if (!habit) return;
 
@@ -58,7 +58,7 @@ const HomeScreen = () => {
   const handleRedirectToHabits = () => navigate('/habits');
 
   return (
-    <div className="min-h-screen pb-24 md:pb-8">
+    <div className="min-h-screen pb-24 md:pb-8 bg-notebook">
       {/* Header */}
       <HomeHeader
         currentDate={currentDate}
@@ -81,15 +81,17 @@ const HomeScreen = () => {
             <GoogleSearchWidget />
           </div>
 
-          {/* Today's Habits Section (New) */}
+          {/* Today's Habits Section */}
           {todayHabits.length > 0 && (
-            <section className="space-y-3">
+            <section className="space-y-4">
+              {/* Section Header - Notebook style */}
               <div className="flex items-center justify-between">
-                <h2 className="text-lg font-bold flex items-center gap-2">
+                <h2 className="font-handwriting text-xl text-ink flex items-center gap-2">
                   <Flame className="w-5 h-5 text-orange-500" />
-                  Today's Habits
+                  <span className="underline-squiggle">Today's Habits</span>
+                  <Star className="w-4 h-4 text-sticky-yellow fill-sticky-yellow" />
                 </h2>
-                <Button variant="ghost" size="sm" onClick={handleRedirectToHabits} className="gap-1 text-xs text-muted-foreground">
+                <Button variant="ghost" size="sm" onClick={handleRedirectToHabits} className="gap-1 text-xs text-pencil font-handwriting">
                   View All <ArrowRight className="w-3 h-3" />
                 </Button>
               </div>
@@ -97,7 +99,7 @@ const HomeScreen = () => {
               {/* Horizontal Scroll for Mobile, Grid for Desktop */}
               <div className="flex overflow-x-auto pb-4 gap-3 -mx-4 px-4 md:mx-0 md:px-0 md:grid md:grid-cols-2 md:overflow-visible md:pb-0 scrollbar-hide">
                 {todayHabits.map((habit, index) => (
-                  <div key={habit.id} className="min-w-[280px] md:min-w-0">
+                  <div key={habit.id} className="min-w-[260px] md:min-w-0">
                     <HabitCard
                       habit={habit}
                       onToggle={handleToggleAttempt}

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Check } from 'lucide-react';
+import { X, Check, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -25,35 +25,33 @@ interface HabitFormModalProps {
 const EMOJI_OPTIONS = ['💪', '📚', '🧘', '🏃', '💧', '🎯', '✍️', '🛏️', '🍎', '💊', '🎸', '🌱'];
 
 const DAY_OPTIONS = [
-    { value: 0, label: 'Sun' },
-    { value: 1, label: 'Mon' },
-    { value: 2, label: 'Tue' },
-    { value: 3, label: 'Wed' },
-    { value: 4, label: 'Thu' },
-    { value: 5, label: 'Fri' },
-    { value: 6, label: 'Sat' },
+    { value: 0, label: 'Min' },
+    { value: 1, label: 'Sen' },
+    { value: 2, label: 'Sel' },
+    { value: 3, label: 'Rab' },
+    { value: 4, label: 'Kam' },
+    { value: 5, label: 'Jum' },
+    { value: 6, label: 'Sab' },
 ];
 
 const FREQUENCY_OPTIONS: { value: HabitFrequency; label: string; description: string }[] = [
-    { value: 'daily', label: 'Daily', description: 'Every day' },
-    { value: 'weekly', label: 'Weekly', description: 'Once a week' },
-    { value: 'every_n_days', label: 'Every N days', description: 'Custom interval' },
-    { value: 'specific_days', label: 'Specific days', description: 'Choose days' },
+    { value: 'daily', label: 'Harian', description: 'Setiap hari' },
+    { value: 'weekly', label: 'Mingguan', description: 'Sekali seminggu' },
+    { value: 'every_n_days', label: 'Tiap N hari', description: 'Interval kustom' },
+    { value: 'specific_days', label: 'Hari tertentu', description: 'Pilih hari' },
 ];
 
 const HabitFormModal = ({ open, onOpenChange, habit, onSave }: HabitFormModalProps) => {
     const isEditing = !!habit;
 
-    // Form state
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
     const [icon, setIcon] = useState('💪');
     const [frequency, setFrequency] = useState<HabitFrequency>('daily');
     const [interval, setInterval] = useState(2);
-    const [specificDays, setSpecificDays] = useState<number[]>([1, 3, 5]); // Mon, Wed, Fri
+    const [specificDays, setSpecificDays] = useState<number[]>([1, 3, 5]);
     const [allowedDayOff, setAllowedDayOff] = useState(1);
 
-    // Reset form when modal opens/closes or habit changes
     useEffect(() => {
         if (open && habit) {
             setName(habit.name);
@@ -64,7 +62,6 @@ const HabitFormModal = ({ open, onOpenChange, habit, onSave }: HabitFormModalPro
             setSpecificDays(habit.specificDays || [1, 3, 5]);
             setAllowedDayOff(habit.allowedDayOff ?? 1);
         } else if (open && !habit) {
-            // Reset to defaults for new habit
             setName('');
             setDescription('');
             setIcon('💪');
@@ -104,31 +101,31 @@ const HabitFormModal = ({ open, onOpenChange, habit, onSave }: HabitFormModalPro
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
-                    <DialogTitle>
-                        {isEditing ? 'Edit Habit' : 'New Habit'}
+                    <DialogTitle className="font-handwriting text-xl text-ink flex items-center gap-2">
+                        <Sparkles className="w-5 h-5 text-sticky-yellow" />
+                        {isEditing ? 'Edit Kebiasaan' : 'Kebiasaan Baru'} 📝
                     </DialogTitle>
                 </DialogHeader>
 
                 <div className="space-y-6 py-4">
                     {/* Name & Icon */}
                     <div className="space-y-2">
-                        <Label>Name</Label>
+                        <Label className="font-handwriting text-pencil">Nama</Label>
                         <div className="flex gap-2">
                             <div className="flex-shrink-0">
-                                <div className="relative">
-                                    <button
-                                        type="button"
-                                        className="w-12 h-12 rounded-xl bg-secondary flex items-center justify-center text-2xl hover:bg-secondary/80 transition-colors"
-                                    >
-                                        {icon}
-                                    </button>
-                                </div>
+                                <button
+                                    type="button"
+                                    className="w-12 h-12 rounded-sm bg-sticky-yellow shadow-tape flex items-center justify-center text-2xl hover:rotate-3 transition-transform"
+                                >
+                                    {icon}
+                                </button>
                             </div>
                             <Input
                                 value={name}
                                 onChange={(e) => setName(e.target.value)}
-                                placeholder="e.g., Morning Exercise"
-                                className="flex-1"
+                                placeholder="e.g., Olahraga Pagi"
+                                variant="notebook"
+                                className="flex-1 font-handwriting"
                             />
                         </div>
 
@@ -140,10 +137,10 @@ const HabitFormModal = ({ open, onOpenChange, habit, onSave }: HabitFormModalPro
                                     type="button"
                                     onClick={() => setIcon(emoji)}
                                     className={cn(
-                                        "w-9 h-9 rounded-lg flex items-center justify-center text-lg transition-all",
+                                        "w-9 h-9 rounded-sm flex items-center justify-center text-lg transition-all",
                                         icon === emoji
-                                            ? "bg-primary/20 ring-2 ring-primary"
-                                            : "bg-muted hover:bg-muted/80"
+                                            ? "bg-sticky-yellow shadow-tape ring-2 ring-doodle-primary rotate-3"
+                                            : "bg-paper-lines/20 hover:bg-paper-lines/40"
                                     )}
                                 >
                                     {emoji}
@@ -154,18 +151,20 @@ const HabitFormModal = ({ open, onOpenChange, habit, onSave }: HabitFormModalPro
 
                     {/* Description */}
                     <div className="space-y-2">
-                        <Label>Description (optional)</Label>
+                        <Label className="font-handwriting text-pencil">Deskripsi (opsional)</Label>
                         <Textarea
                             value={description}
                             onChange={(e) => setDescription(e.target.value)}
-                            placeholder="Why is this habit important to you?"
+                            placeholder="Kenapa kebiasaan ini penting?"
+                            variant="notebook"
+                            className="font-handwriting"
                             rows={2}
                         />
                     </div>
 
                     {/* Frequency */}
                     <div className="space-y-3">
-                        <Label>Frequency</Label>
+                        <Label className="font-handwriting text-pencil">Frekuensi</Label>
                         <div className="grid grid-cols-2 gap-2">
                             {FREQUENCY_OPTIONS.map((option) => (
                                 <button
@@ -173,24 +172,24 @@ const HabitFormModal = ({ open, onOpenChange, habit, onSave }: HabitFormModalPro
                                     type="button"
                                     onClick={() => setFrequency(option.value)}
                                     className={cn(
-                                        "p-3 rounded-xl text-left transition-all border-2",
+                                        "p-3 rounded-sm text-left transition-all border-2",
                                         frequency === option.value
-                                            ? "border-primary bg-primary/5"
-                                            : "border-border/50 hover:border-border"
+                                            ? "border-doodle-primary bg-doodle-primary/5"
+                                            : "border-dashed border-paper-lines/50 hover:border-paper-lines"
                                     )}
                                 >
-                                    <div className="font-medium text-sm">{option.label}</div>
-                                    <div className="text-xs text-muted-foreground">{option.description}</div>
+                                    <div className="font-handwriting text-sm text-ink">{option.label}</div>
+                                    <div className="font-handwriting text-xs text-pencil">{option.description}</div>
                                 </button>
                             ))}
                         </div>
 
                         {/* Every N Days Slider */}
                         {frequency === 'every_n_days' && (
-                            <div className="space-y-2 p-4 bg-muted/50 rounded-xl">
-                                <div className="flex justify-between text-sm">
+                            <div className="space-y-2 p-4 bg-sticky-yellow/20 rounded-sm border-2 border-dashed border-sticky-yellow/50">
+                                <div className="flex justify-between font-handwriting text-sm text-ink">
                                     <span>Interval</span>
-                                    <span className="font-medium">Every {interval} days</span>
+                                    <span className="font-medium">Setiap {interval} hari</span>
                                 </div>
                                 <Slider
                                     value={[interval]}
@@ -204,17 +203,17 @@ const HabitFormModal = ({ open, onOpenChange, habit, onSave }: HabitFormModalPro
 
                         {/* Specific Days Selector */}
                         {frequency === 'specific_days' && (
-                            <div className="flex gap-1.5 p-4 bg-muted/50 rounded-xl justify-center">
+                            <div className="flex gap-1.5 p-4 bg-sticky-blue/20 rounded-sm border-2 border-dashed border-sticky-blue/50 justify-center">
                                 {DAY_OPTIONS.map((day) => (
                                     <button
                                         key={day.value}
                                         type="button"
                                         onClick={() => toggleDay(day.value)}
                                         className={cn(
-                                            "w-10 h-10 rounded-full text-xs font-medium transition-all",
+                                            "w-10 h-10 rounded-full font-handwriting text-xs transition-all",
                                             specificDays.includes(day.value)
-                                                ? "bg-primary text-primary-foreground"
-                                                : "bg-background border border-border hover:border-primary/50"
+                                                ? "bg-doodle-primary text-white"
+                                                : "bg-card border-2 border-dashed border-paper-lines hover:border-doodle-primary/50"
                                         )}
                                     >
                                         {day.label}
@@ -227,13 +226,13 @@ const HabitFormModal = ({ open, onOpenChange, habit, onSave }: HabitFormModalPro
                     {/* Day Off Allowance */}
                     <div className="space-y-2">
                         <div className="flex justify-between">
-                            <Label>Allowed Day Off</Label>
-                            <span className="text-sm text-muted-foreground">
-                                {allowedDayOff} day{allowedDayOff !== 1 ? 's' : ''}
+                            <Label className="font-handwriting text-pencil">Hari Libur yang Diizinkan</Label>
+                            <span className="font-handwriting text-sm text-ink">
+                                {allowedDayOff} hari
                             </span>
                         </div>
-                        <p className="text-xs text-muted-foreground">
-                            How many scheduled days can you skip without breaking your streak?
+                        <p className="font-handwriting text-xs text-pencil">
+                            Berapa hari bisa dilewati tanpa memutus streak?
                         </p>
                         <Slider
                             value={[allowedDayOff]}
@@ -246,11 +245,19 @@ const HabitFormModal = ({ open, onOpenChange, habit, onSave }: HabitFormModalPro
                 </div>
 
                 <DialogFooter>
-                    <Button variant="outline" onClick={() => onOpenChange(false)}>
-                        Cancel
+                    <Button
+                        variant="outline"
+                        onClick={() => onOpenChange(false)}
+                        className="font-handwriting rounded-sm border-2 border-dashed border-pencil/40"
+                    >
+                        Batal
                     </Button>
-                    <Button onClick={handleSubmit} disabled={!name.trim()}>
-                        {isEditing ? 'Save Changes' : 'Create Habit'}
+                    <Button
+                        onClick={handleSubmit}
+                        disabled={!name.trim()}
+                        className="font-handwriting rounded-sm bg-doodle-primary hover:bg-doodle-primary/90 text-white shadow-notebook"
+                    >
+                        {isEditing ? 'Simpan' : 'Buat Kebiasaan'} ✓
                     </Button>
                 </DialogFooter>
             </DialogContent>

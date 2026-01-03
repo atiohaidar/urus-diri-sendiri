@@ -2,7 +2,6 @@ import { ActivityLog } from '@/lib/storage';
 import { LazyImage } from '@/components/history/LazyImage';
 import { Camera, Trash2, StickyNote } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { motion, AnimatePresence } from 'framer-motion';
 import { Virtuoso } from 'react-virtuoso';
 import { memo } from 'react';
 
@@ -11,37 +10,39 @@ interface LogsListProps {
     onDeleteLog: (id: string) => void;
 }
 
-const LogItem = memo(({ log, onDeleteLog }: { log: ActivityLog; onDeleteLog: (id: string) => void }) => {
+// Optimized LogItem without framer-motion - uses CSS animations instead
+const LogItem = memo(({ log, onDeleteLog, index }: { log: ActivityLog; onDeleteLog: (id: string) => void; index: number }) => {
     return (
-        <motion.div
-            layout
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, scale: 0.9 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 24 }}
-            className="relative pl-6 md:pl-8 group pb-8"
+        <div
+            className="relative pl-6 md:pl-8 group pb-6 animate-in fade-in slide-in-from-left-2 duration-200"
+            style={{ animationDelay: `${Math.min(index * 30, 150)}ms` }}
         >
-            {/* Timeline Dot */}
+            {/* Timeline Dot - Hand-drawn style */}
             <div className={cn(
-                "absolute -left-[9px] top-0 w-4 h-4 rounded-full border-4 border-background",
-                log.type === 'photo' ? "bg-indigo-500" : "bg-emerald-500"
+                "absolute -left-[9px] top-0 w-4 h-4 border-4 border-paper",
+                "rounded-full",
+                log.type === 'photo' ? "bg-sticky-pink" : "bg-sticky-green"
             )} />
 
             {/* Time Label */}
-            <div className="text-[10px] font-bold text-muted-foreground mb-2 flex items-center gap-2">
-                {new Date(log.timestamp).toLocaleDateString([], { weekday: 'short', day: 'numeric' })}
+            <div className="text-xs font-handwriting text-pencil mb-2 flex items-center gap-2">
+                [ {new Date(log.timestamp).toLocaleDateString([], { weekday: 'short', day: 'numeric' })}
                 <span>•</span>
-                {new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                {new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} ]
             </div>
 
-            {/* Card Content */}
-            <div className="bg-card rounded-2xl overflow-hidden card-elevated border border-border/50 hover:shadow-md transition-shadow">
+            {/* Card Content - Notebook paper style */}
+            <div className={cn(
+                "bg-card rounded-sm overflow-hidden",
+                "border-2 shadow-notebook",
+                "hover:shadow-notebook-hover transition-shadow duration-150"
+            )}>
                 {/* Image Content */}
                 {log.mediaId && (
-                    <div className="w-full aspect-video bg-secondary/30 relative">
+                    <div className="w-full aspect-video bg-paper-lines/20 relative">
                         <LazyImage imageId={log.mediaId} className="w-full h-full object-cover" />
-                        <div className="absolute top-2 right-2 bg-black/40 backdrop-blur rounded-full p-1.5 text-white">
-                            <Camera className="w-3 h-3" />
+                        <div className="absolute top-2 right-2 bg-sticky-pink/90 rounded-sm p-1.5 shadow-tape -rotate-3">
+                            <Camera className="w-3 h-3 text-ink" />
                         </div>
                     </div>
                 )}
@@ -49,7 +50,10 @@ const LogItem = memo(({ log, onDeleteLog }: { log: ActivityLog; onDeleteLog: (id
                 {/* Text Content */}
                 <div className="p-4">
                     {log.content && (
-                        <p className={cn("text-foreground", log.mediaId ? "text-sm" : "text-base font-medium")}>
+                        <p className={cn(
+                            "font-handwriting text-ink",
+                            log.mediaId ? "text-base" : "text-lg"
+                        )}>
                             {log.content}
                         </p>
                     )}
@@ -58,21 +62,21 @@ const LogItem = memo(({ log, onDeleteLog }: { log: ActivityLog; onDeleteLog: (id
                     <div className="flex items-center justify-between mt-3">
                         <div className="flex gap-2">
                             {log.category && (
-                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground font-medium border border-border">
+                                <span className="text-xs px-2 py-0.5 rounded-sm bg-sticky-yellow/50 text-ink font-handwriting shadow-tape -rotate-1">
                                     {log.category}
                                 </span>
                             )}
                         </div>
                         <button
                             onClick={() => onDeleteLog(log.id)}
-                            className="p-1.5 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                            className="p-1.5 text-pencil hover:text-doodle-red opacity-0 group-hover:opacity-100 transition-opacity"
                         >
                             <Trash2 className="w-3.5 h-3.5" />
                         </button>
                     </div>
                 </div>
             </div>
-        </motion.div>
+        </div>
     );
 });
 
@@ -82,16 +86,17 @@ export const LogsList = ({ logs, onDeleteLog }: LogsListProps) => {
     if (logs.length === 0) {
         return (
             <div className="text-center py-12 ml-[-12px]">
-                <div className="w-12 h-12 rounded-full bg-secondary mx-auto mb-4 flex items-center justify-center">
-                    <StickyNote className="w-6 h-6 text-muted-foreground" />
+                <div className="w-16 h-16 rounded-sm bg-sticky-blue shadow-sticky mx-auto mb-4 flex items-center justify-center rotate-2">
+                    <StickyNote className="w-8 h-8 text-ink" />
                 </div>
-                <p className="text-muted-foreground text-sm">No logs yet. Tap + to capture a moment!</p>
+                <p className="font-handwriting text-lg text-ink mb-1">Belum ada log 📝</p>
+                <p className="font-handwriting text-sm text-pencil">Tap + untuk menangkap momen!</p>
             </div>
         );
     }
 
     return (
-        <div className="relative border-l-2 border-border/60 ml-3 md:ml-6">
+        <div className="relative border-l-2 border-dashed border-paper-lines ml-3 md:ml-6">
             <Virtuoso
                 useWindowScroll
                 data={logs}
@@ -100,6 +105,7 @@ export const LogsList = ({ logs, onDeleteLog }: LogsListProps) => {
                         key={log.id}
                         log={log}
                         onDeleteLog={onDeleteLog}
+                        index={index}
                     />
                 )}
                 // Add some padding at the bottom of the list for FAB

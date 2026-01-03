@@ -36,10 +36,12 @@ export const CompletionNoteDialog = ({
 
     return (
         <AlertDialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-            <AlertDialogContent className="max-w-[85vw] rounded-2xl">
+            <AlertDialogContent className="max-w-[85vw] rounded-sm">
                 <AlertDialogHeader>
-                    <AlertDialogTitle>{title}</AlertDialogTitle>
-                    <AlertDialogDescription>
+                    <AlertDialogTitle className="font-handwriting text-xl text-ink">
+                        ✓ {title}
+                    </AlertDialogTitle>
+                    <AlertDialogDescription className="font-handwriting text-pencil">
                         Tambahkan catatan opsional untuk aktivitas ini.
                     </AlertDialogDescription>
                 </AlertDialogHeader>
@@ -47,18 +49,24 @@ export const CompletionNoteDialog = ({
                     <Textarea
                         value={note}
                         onChange={(e) => setNote(e.target.value)}
-                        placeholder="Ada catatan kusus? (Opsional)"
-                        className="bg-secondary/30 min-h-[100px] resize-none focus-visible:ring-primary"
+                        placeholder="Ada catatan khusus? (Opsional) ✏️"
+                        variant="notebook"
+                        className="min-h-[100px]"
                         autoFocus
                     />
                 </div>
                 <AlertDialogFooter>
-                    <AlertDialogCancel onClick={onClose}>Batal</AlertDialogCancel>
+                    <AlertDialogCancel
+                        onClick={onClose}
+                        className="font-handwriting rounded-sm border-2 border-dashed border-pencil/40"
+                    >
+                        Batal
+                    </AlertDialogCancel>
                     <AlertDialogAction
                         onClick={() => onSave(note)}
-                        className="bg-primary hover:bg-primary/90"
+                        className="font-handwriting rounded-sm bg-doodle-primary hover:bg-doodle-primary/90 shadow-notebook"
                     >
-                        Simpan
+                        ✓ Simpan
                     </AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>

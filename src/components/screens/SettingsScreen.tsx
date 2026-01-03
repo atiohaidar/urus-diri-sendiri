@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { Settings as SettingsIcon, ArrowLeft } from 'lucide-react';
+import { Settings as SettingsIcon, ArrowLeft, Info } from 'lucide-react';
 import { useLanguage } from '@/i18n/LanguageContext';
 import { AuthSection } from '@/components/settings/AuthSection';
 import { PreferencesSection } from '@/components/settings/PreferencesSection';
@@ -7,42 +7,40 @@ import { CloudLegacySection } from '@/components/settings/CloudLegacySection';
 import { DataBackupSection } from '@/components/settings/DataBackupSection';
 import { Button } from '@/components/ui/button';
 import packageJson from '../../../package.json';
+import { cn } from '@/lib/utils';
 
 const SettingsScreen = () => {
     const navigate = useNavigate();
     const { t } = useLanguage();
 
-    const handleRefresh = async () => {
-        // Force re-render by triggering a small state update
-        window.location.reload();
-    };
-
     return (
-        <div className="min-h-screen pb-24 md:pb-8">
-            {/* Header */}
-            <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-lg border-b border-border/50 pt-safe">
+        <div className="min-h-screen pb-24 md:pb-8 bg-notebook">
+            {/* Header - Notebook style */}
+            <header className="sticky top-0 z-40 bg-paper border-b-2 border-dashed border-paper-lines pt-safe">
                 <div className="container md:max-w-5xl mx-auto px-4 py-4">
                     <div className="flex items-center gap-3">
                         <Button
                             variant="ghost"
                             size="icon"
-                            className="-ml-2 mr-1"
+                            className="-ml-2 mr-1 text-pencil hover:text-ink"
                             onClick={() => navigate(-1)}
                         >
                             <ArrowLeft className="w-5 h-5" />
                         </Button>
-                        <div className="p-2 rounded-xl bg-primary/10">
-                            <SettingsIcon className="w-6 h-6 text-primary" />
+                        <div className="p-2 rounded-sm bg-sticky-pink shadow-sticky rotate-2">
+                            <SettingsIcon className="w-6 h-6 text-doodle-red" />
                         </div>
                         <div>
-                            <h1 className="text-xl font-bold text-foreground">{t.settings.title}</h1>
-                            <p className="text-sm text-muted-foreground hidden md:block">{t.settings.data_management}</p>
+                            <h1 className="text-2xl font-handwriting text-ink">
+                                <span className="highlight-pink">{t.settings.title}</span> ⚙️
+                            </h1>
+                            <p className="text-sm font-handwriting text-pencil hidden md:block">{t.settings.data_management}</p>
                         </div>
                     </div>
                 </div>
             </header>
 
-            <main className="container md:max-w-5xl mx-auto px-4 py-6 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <main className="container md:max-w-5xl mx-auto px-4 py-6 space-y-6">
 
                 {/* Auth & Account */}
                 <AuthSection />
@@ -56,26 +54,29 @@ const SettingsScreen = () => {
                 {/* Local Data Backup */}
                 <DataBackupSection />
 
-                {/* Footer / About */}
+                {/* Footer / About - Notebook doodle style */}
                 <div className="flex flex-col items-center gap-4 py-10">
                     <button
                         onClick={() => navigate('/about')}
-                        className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-all group scale-95 hover:scale-100"
+                        className={cn(
+                            "flex items-center gap-2 px-4 py-2 rounded-sm",
+                            "bg-sticky-blue text-ink shadow-sticky -rotate-1",
+                            "font-handwriting text-base",
+                            "hover:rotate-0 transition-transform duration-150",
+                            "will-change-transform"
+                        )}
                     >
-                        <div className="w-8 h-8 rounded-full border-2 border-current flex items-center justify-center font-serif italic font-black text-lg">
-                            !
-                        </div>
-                        <span className="text-sm font-bold tracking-tight uppercase">
-                            {t.about.title}
-                        </span>
+                        <Info className="w-4 h-4" />
+                        <span>{t.about.title}</span>
                     </button>
 
-                    <div className="text-center space-y-1">
-                        <p className="text-[10px] font-bold text-muted-foreground/40 tracking-widest uppercase">
-                            UrusDiriSendiri v{packageJson.version}
+                    {/* Version info - Handwritten note style */}
+                    <div className="text-center space-y-1 font-handwriting">
+                        <p className="text-sm text-pencil">
+                            UrusDiriSendiri v{packageJson.version} ✏️
                         </p>
-                        <p className="text-[10px] text-muted-foreground/30">
-                            © 2025 • Made with Vibe Coding
+                        <p className="text-xs text-pencil/60 italic">
+                            "© 2025 • Made with Vibe Coding"
                         </p>
                     </div>
                 </div>

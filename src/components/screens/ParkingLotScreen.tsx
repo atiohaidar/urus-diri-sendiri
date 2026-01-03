@@ -1,12 +1,13 @@
 import { useState, useMemo, forwardRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Plus, Lightbulb } from 'lucide-react';
+import { Search, Plus, Lightbulb, PenLine } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import NoteCard from '@/components/NoteCard';
 import { useNotes } from '@/hooks/useNotes';
 import { type Note } from '@/lib/storage';
 import { useLanguage } from '@/i18n/LanguageContext';
 import { VirtuosoGrid } from 'react-virtuoso';
+import { cn } from '@/lib/utils';
 
 // Custom components for VirtuosoGrid to maintain Tailwind styling
 const ListComponent = forwardRef<HTMLDivElement, any>(({ style, children, ...props }, ref) => (
@@ -51,29 +52,32 @@ const ParkingLotScreen = () => {
   };
 
   return (
-    <div className="min-h-screen pb-24 md:pb-8">
-      {/* Header */}
-      <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-lg border-b border-border/50 pt-safe">
+    <div className="min-h-screen pb-24 md:pb-8 bg-notebook">
+      {/* Header - Notebook style */}
+      <header className="sticky top-0 z-40 bg-paper border-b-2 border-dashed border-paper-lines pt-safe">
         <div className="container max-w-md md:max-w-5xl mx-auto px-4 py-4">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-xl bg-primary/10">
-                <Lightbulb className="w-6 h-6 text-primary" />
+              <div className="p-2 rounded-sm bg-sticky-green shadow-sticky -rotate-2">
+                <Lightbulb className="w-6 h-6 text-doodle-green" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-foreground">{t.ideas.title}</h1>
-                <p className="text-sm text-muted-foreground hidden md:block">{t.ideas.subtitle}</p>
+                <h1 className="text-2xl font-handwriting text-ink flex items-center gap-2">
+                  <span className="highlight">{t.ideas.title}</span> 💡
+                </h1>
+                <p className="text-sm font-handwriting text-pencil hidden md:block">{t.ideas.subtitle}</p>
               </div>
             </div>
 
-            {/* Search */}
+            {/* Search - Notebook line style */}
             <div className="relative w-full md:w-96">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-pencil" />
               <Input
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder={t.ideas.search_placeholder}
-                className="pl-11 h-11 bg-card border-0 rounded-xl shadow-sm ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
+                variant="notebook"
+                className="pl-10 font-handwriting"
               />
             </div>
           </div>
@@ -96,18 +100,18 @@ const ParkingLotScreen = () => {
                 index={index}
               />
             )}
-            // Add spacing for FAB at the bottom
             style={{ minHeight: '400px' }}
           />
         ) : (
+          /* Empty State - Notebook doodle style */
           <div className="text-center py-12 md:py-24">
-            <div className="w-16 h-16 md:w-24 md:h-24 rounded-full bg-secondary mx-auto mb-6 flex items-center justify-center">
-              <Lightbulb className="w-8 h-8 md:w-12 md:h-12 text-primary" />
+            <div className="w-24 h-24 md:w-32 md:h-32 rounded-sm bg-sticky-green shadow-sticky mx-auto mb-6 flex items-center justify-center rotate-3">
+              <Lightbulb className="w-12 h-12 md:w-16 md:h-16 text-doodle-green" />
             </div>
-            <h3 className="font-semibold text-lg md:text-xl text-foreground mb-2">
-              {searchQuery ? t.ideas.no_results_title : t.ideas.empty_title}
+            <h3 className="font-handwriting text-2xl text-ink mb-2">
+              {searchQuery ? t.ideas.no_results_title : t.ideas.empty_title} 📝
             </h3>
-            <p className="text-sm md:text-base text-muted-foreground">
+            <p className="font-handwriting text-base text-pencil max-w-sm mx-auto">
               {searchQuery
                 ? t.ideas.no_results_desc
                 : t.ideas.empty_desc}
@@ -116,14 +120,21 @@ const ParkingLotScreen = () => {
         )}
       </main>
 
-      {/* Floating Action Button */}
+      {/* FAB - Pencil button style */}
       <button
         onClick={openNewNote}
-        className="fixed bottom-[calc(6rem+env(safe-area-inset-bottom))] right-4 md:bottom-12 md:right-12 w-14 h-14 md:w-16 md:h-16 bg-primary rounded-full shadow-lg shadow-primary/30 flex items-center justify-center hover:scale-105 active:scale-95 transition-transform z-40 hover:bg-primary/90"
+        className={cn(
+          "fixed bottom-[calc(6rem+env(safe-area-inset-bottom))] right-4 md:bottom-12 md:right-12",
+          "w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center",
+          "bg-doodle-primary text-white",
+          "shadow-[3px_3px_0_0_rgba(0,0,0,0.15)]",
+          "border-2 border-ink/20",
+          "hover:scale-105 active:scale-95 transition-transform duration-150",
+          "will-change-transform z-40"
+        )}
       >
-        <Plus className="w-6 h-6 md:w-8 md:h-8 text-primary-foreground" />
+        <PenLine className="w-6 h-6 md:w-7 md:h-7" />
       </button>
-
     </div>
   );
 };
