@@ -28,6 +28,7 @@ export interface HabitWithStatus extends Habit {
 export interface TodayHabit extends Habit {
     isCompletedToday: boolean;
     currentStreak: number;
+    isScheduledToday: boolean;
 }
 
 export const useHabits = () => {
@@ -40,7 +41,13 @@ export const useHabits = () => {
         try {
             await initializeStorage();
             const habitsWithStatus = getHabitsWithStatus();
-            const todayOnly = getTodayHabits();
+
+            // Fix: Map habits in the today only list to ensure isScheduledToday is true
+            // This prevents the "Not scheduled today" badge from appearing in the Today section
+            const todayOnly = getTodayHabits().map(h => ({
+                ...h,
+                isScheduledToday: true
+            }));
 
             setHabits(habitsWithStatus);
             setTodayHabits(todayOnly);

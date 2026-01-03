@@ -5,7 +5,9 @@ import { useHabits, type Habit, type HabitWithStatus } from '@/hooks/useHabits';
 import { useLanguage } from '@/i18n/LanguageContext';
 import HabitCard from '@/components/habits/HabitCard';
 import HabitFormModal from '@/components/habits/HabitFormModal';
+import HabitCompletionModal from '@/components/habits/HabitCompletionModal';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 const HabitsScreen = () => {
     const { t } = useLanguage();
@@ -15,11 +17,15 @@ const HabitsScreen = () => {
         addHabit,
         updateHabit,
         deleteHabit,
-        toggleCompletion,
+        toggleCompletion, // Note: This comes from useHabits hook
     } = useHabits();
 
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
+
+    // Completion Modal State
+    const [isCompletionModalOpen, setIsCompletionModalOpen] = useState(false);
+    const [completingHabit, setCompletingHabit] = useState<Habit | null>(null);
 
     // Separate today's habits from others
     const todayHabits = habits.filter(h => h.isScheduledToday);
@@ -45,6 +51,20 @@ const HabitsScreen = () => {
             updateHabit(editingHabit.id, habitData);
         } else {
             addHabit(habitData);
+        }
+    };
+
+    const handleToggleAttempt = (habitId: string) => {
+        const habit = habits.find(h => h.id === habitId);
+        if (!habit) return;
+
+        if (habit.isCompletedToday) {
+            // If already completed, uncheck immediately
+            toggleCompletion(habitId);
+        } else {
+            // If checking, show the modal first
+            setCompletingHabit(habit);
+            setIsCompletionModalOpen(true);
         }
     };
 
@@ -105,7 +125,7 @@ const HabitsScreen = () => {
                             </div>
                         )}
 
-                        <Button onClick={handleOpenNew} className="gap-2 md:px-6">
+                        <Button onClick={handleOpenNew} className="hidden md:flex gap-2 md:px-6">
                             <Plus className="w-4 h-4" />
                             <span className="hidden sm:inline">New Habit</span>
                         </Button>
@@ -165,7 +185,7 @@ const HabitsScreen = () => {
                                         <HabitCard
                                             key={habit.id}
                                             habit={habit}
-                                            onToggle={toggleCompletion}
+                                            onToggle={handleToggleAttempt}
                                             onEdit={handleEdit}
                                             onDelete={deleteHabit}
                                             index={index}
@@ -186,7 +206,7 @@ const HabitsScreen = () => {
                                         <HabitCard
                                             key={habit.id}
                                             habit={habit}
-                                            onToggle={toggleCompletion}
+                                            onToggle={handleToggleAttempt}
                                             onEdit={handleEdit}
                                             onDelete={deleteHabit}
                                             index={index}
@@ -213,6 +233,19 @@ const HabitsScreen = () => {
                 onOpenChange={setIsFormOpen}
                 habit={editingHabit}
                 onSave={handleSave}
+            />
+
+            {/* Completion Note Modal */}
+            <HabitCompletionModal
+                open={isCompletionModalOpen}
+                onOpenChange={setIsCompletionModalOpen}
+                habitName={completingHabit?.name || ''}
+                onSave={(note) => {
+                    if (completingHabit) {
+                        toggleCompletion(completingHabit.id, undefined, note);
+                        setCompletingHabit(null);
+                    }
+                }}
             />
         </div>
     );

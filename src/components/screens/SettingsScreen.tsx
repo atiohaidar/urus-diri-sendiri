@@ -1,11 +1,11 @@
 import { useNavigate } from 'react-router-dom';
-import { Settings as SettingsIcon } from 'lucide-react';
+import { Settings as SettingsIcon, ArrowLeft } from 'lucide-react';
 import { useLanguage } from '@/i18n/LanguageContext';
 import { AuthSection } from '@/components/settings/AuthSection';
 import { PreferencesSection } from '@/components/settings/PreferencesSection';
 import { CloudLegacySection } from '@/components/settings/CloudLegacySection';
 import { DataBackupSection } from '@/components/settings/DataBackupSection';
-import { PullToRefresh } from '@/components/ui/pull-to-refresh';
+import { Button } from '@/components/ui/button';
 import packageJson from '../../../package.json';
 
 const SettingsScreen = () => {
@@ -14,7 +14,6 @@ const SettingsScreen = () => {
 
     const handleRefresh = async () => {
         // Force re-render by triggering a small state update
-        // In a real app, this could sync with cloud or reload settings
         window.location.reload();
     };
 
@@ -24,6 +23,14 @@ const SettingsScreen = () => {
             <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-lg border-b border-border/50 pt-safe">
                 <div className="container md:max-w-5xl mx-auto px-4 py-4">
                     <div className="flex items-center gap-3">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="-ml-2 mr-1"
+                            onClick={() => navigate(-1)}
+                        >
+                            <ArrowLeft className="w-5 h-5" />
+                        </Button>
                         <div className="p-2 rounded-xl bg-primary/10">
                             <SettingsIcon className="w-6 h-6 text-primary" />
                         </div>
@@ -78,4 +85,3 @@ const SettingsScreen = () => {
 };
 
 export default SettingsScreen;
-
