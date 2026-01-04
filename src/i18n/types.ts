@@ -118,6 +118,7 @@ export interface Translation {
         greeting_morning: string;
         greeting_afternoon: string;
         greeting_evening: string;
+        greeting_night: string;
         start_checkin: string;
         priorities_title: string;
         priorities_done_suffix: string;

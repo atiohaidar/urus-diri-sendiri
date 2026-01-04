@@ -26,9 +26,20 @@ export const HomeHeader = ({
 
     const greeting = () => {
         const hour = currentDate.getHours();
-        if (hour < 12) return t.home.greeting_morning;
-        if (hour < 17) return t.home.greeting_afternoon;
-        return t.home.greeting_evening;
+
+        // Indonesian time divisions (more granular)
+        if (language === 'id') {
+            if (hour < 10) return t.home.greeting_morning;      // Pagi: 00:00-09:59
+            if (hour < 15) return t.home.greeting_afternoon;    // Siang: 10:00-14:59
+            if (hour < 18) return t.home.greeting_evening;      // Sore: 15:00-17:59
+            return t.home.greeting_night;                       // Malam: 18:00-23:59
+        }
+
+        // English time divisions
+        if (hour < 12) return t.home.greeting_morning;          // Morning: 00:00-11:59
+        if (hour < 17) return t.home.greeting_afternoon;        // Afternoon: 12:00-16:59
+        if (hour < 21) return t.home.greeting_evening;          // Evening: 17:00-20:59
+        return t.home.greeting_night;                           // Night: 21:00-23:59
     };
 
     // Progress Calculation (Routines)

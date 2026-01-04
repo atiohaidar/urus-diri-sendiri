@@ -117,7 +117,8 @@ export const id: Translation = {
     home: {
         greeting_morning: "Selamat Pagi",
         greeting_afternoon: "Selamat Siang",
-        greeting_evening: "Selamat Malam",
+        greeting_evening: "Selamat Sore",
+        greeting_night: "Selamat Malam",
         start_checkin: "Mulai Check-in Maghrib",
         priorities_title: "Prioritas Hari Ini",
         priorities_done_suffix: "selesai",
