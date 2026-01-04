@@ -2,7 +2,7 @@ import { supabase } from '../../supabase';
 import { RoutineItem } from '../../types';
 
 export const fetchRoutines = async (userId: string, since?: string) => {
-    let query = supabase.from('routines').select('*');
+    let query = supabase.from('routines').select('*').eq('user_id', userId);
 
     if (since) {
         query = query.gt('updated_at', since);

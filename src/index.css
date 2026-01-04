@@ -516,11 +516,6 @@ textarea,
 .ql-editor {
   padding: 1rem 0 !important;
   min-height: 200px;
-  background-image:
-    repeating-linear-gradient(transparent,
-      transparent 27px,
-      hsl(var(--paper-lines) / 0.3) 27px,
-      hsl(var(--paper-lines) / 0.3) 28px);
 }
 
 .ql-editor.ql-blank::before {

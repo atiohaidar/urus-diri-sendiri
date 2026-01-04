@@ -86,11 +86,11 @@ const HabitsScreen = () => {
                             </div>
                             <div>
                                 <h1 className="text-2xl font-handwriting text-ink flex items-center gap-2">
-                                    <span className="highlight">Amalan Yaumiah</span>
+                                    <span className="highlight">{t.habits.title}</span>
                                     <Star className="w-5 h-5 text-sticky-yellow fill-sticky-yellow" />
                                 </h1>
                                 <p className="text-sm font-handwriting text-pencil hidden md:block">
-                                    Konsisten setiap hari, sedikit demi sedikit ✏️
+                                    {t.habits.subtitle}✏️
                                 </p>
                             </div>
                         </div>
@@ -103,7 +103,7 @@ const HabitsScreen = () => {
                                         {completedToday}/{totalToday}
                                     </div>
                                     <div className="text-xs text-pencil">
-                                        selesai hari ini
+                                        {t.habits.completed_suffix}
                                     </div>
                                 </div>
                                 {/* Grade Circle */}
@@ -115,7 +115,7 @@ const HabitsScreen = () => {
 
                         <Button onClick={handleOpenNew} variant="sticker" className="hidden md:flex gap-2 md:px-6">
                             <Plus className="w-4 h-4" />
-                            <span className="hidden sm:inline">Tambah Amalan</span>
+                            <span className="hidden sm:inline">{t.habits.add_habit}</span>
                         </Button>
                     </div>
 
@@ -123,7 +123,7 @@ const HabitsScreen = () => {
                     {totalToday > 0 && (
                         <div className="md:hidden mt-4">
                             <div className="flex items-center justify-between text-sm font-handwriting text-pencil mb-1.5">
-                                <span>Progress hari ini</span>
+                                <span>{t.habits.progress_today}</span>
                                 <span className="flex items-center gap-2">
                                     {completedToday}/{totalToday}
                                     <span className="grade-circle text-xs w-7 h-7">{getGrade()}</span>
@@ -143,7 +143,7 @@ const HabitsScreen = () => {
             <main className="container max-w-md md:max-w-5xl mx-auto px-4 py-6 md:py-8">
                 {isLoading ? (
                     <div className="flex items-center justify-center py-12">
-                        <div className="font-handwriting text-pencil">Memuat...</div>
+                        <div className="font-handwriting text-pencil">{t.common.loading}</div>
                     </div>
                 ) : habits.length === 0 ? (
                     /* Empty State - Notebook doodle style */
@@ -152,14 +152,14 @@ const HabitsScreen = () => {
                             <Flame className="w-12 h-12 md:w-16 md:h-16 text-orange-600" />
                         </div>
                         <h3 className="font-handwriting text-2xl md:text-3xl text-ink mb-2">
-                            Belum ada amalan 📝
+                            {t.habits.empty_title} 📝
                         </h3>
                         <p className="font-handwriting text-base md:text-lg text-pencil mb-6 max-w-sm mx-auto">
-                            Yuk mulai bangun kebiasaan baik! Catat progress dan bangun streak untuk tetap semangat.
+                            {t.habits.empty_desc}
                         </p>
                         <Button onClick={handleOpenNew} variant="sticker" size="lg" className="gap-2">
                             <Sparkles className="w-5 h-5" />
-                            Buat Amalan Pertama
+                            {t.habits.create_first}
                         </Button>
                     </div>
                 ) : (
@@ -169,7 +169,7 @@ const HabitsScreen = () => {
                             <section>
                                 <h2 className="font-handwriting text-lg text-ink mb-4 flex items-center gap-2">
                                     <span className="w-3 h-3 rounded-full bg-orange-500 border-2 border-ink/20" />
-                                    <span className="underline-squiggle">Hari Ini</span>
+                                    <span className="underline-squiggle">{t.habits.today_section}</span>
                                 </h2>
                                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                                     {todayHabits.map((habit, index) => (
@@ -190,7 +190,7 @@ const HabitsScreen = () => {
                         {otherHabits.length > 0 && (
                             <section>
                                 <h2 className="font-handwriting text-lg text-pencil mb-4">
-                                    Amalan Lainnya
+                                    {t.habits.other_section}
                                 </h2>
                                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                                     {otherHabits.map((habit, index) => (

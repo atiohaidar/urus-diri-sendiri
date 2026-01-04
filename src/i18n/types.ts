@@ -188,5 +188,9 @@ export interface Translation {
         empty_title: string;
         empty_desc: string;
         create_first: string;
+        today_section: string;
+        other_section: string;
+        progress_today: string;
+        completed_suffix: string;
     };
 }

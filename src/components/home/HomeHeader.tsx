@@ -80,6 +80,11 @@ export const HomeHeader = ({
                     </div>
 
                     <div className="flex items-center gap-2">
+                        {/* Grade Circle - Standalone */}
+                        <div className="grade-circle text-xs">
+                            {getGrade()}
+                        </div>
+
                         {/* Settings Button */}
                         <Button
                             variant="ghost"
@@ -90,54 +95,46 @@ export const HomeHeader = ({
                             <Settings className="w-5 h-5" />
                         </Button>
 
-                        {/* Grade Circle + Progress Rings */}
-                        <div className="relative">
-                            {/* Grade Circle - Top Right Corner */}
-                            <div className="absolute -top-1 -right-1 z-10 grade-circle text-xs">
-                                {getGrade()}
-                            </div>
+                        {/* Progress Rings */}
+                        <div className="relative w-12 h-12 flex items-center justify-center">
+                            <svg className="w-full h-full transform -rotate-90">
+                                {/* Outer Ring Background (Routine) */}
+                                <circle
+                                    cx="24" cy="24" r={outerRadius}
+                                    stroke="currentColor" strokeWidth="3" fill="transparent"
+                                    className="text-paper-lines/40"
+                                    strokeDasharray="4 2"
+                                />
+                                {/* Inner Ring Background (Priority) */}
+                                <circle
+                                    cx="24" cy="24" r={innerRadius}
+                                    stroke="currentColor" strokeWidth="3" fill="transparent"
+                                    className="text-paper-lines/40"
+                                    strokeDasharray="4 2"
+                                />
 
-                            {/* Progress Rings */}
-                            <div className="relative w-12 h-12 flex items-center justify-center">
-                                <svg className="w-full h-full transform -rotate-90">
-                                    {/* Outer Ring Background (Routine) */}
-                                    <circle
-                                        cx="24" cy="24" r={outerRadius}
-                                        stroke="currentColor" strokeWidth="3" fill="transparent"
-                                        className="text-paper-lines/40"
-                                        strokeDasharray="4 2"
-                                    />
-                                    {/* Inner Ring Background (Priority) */}
-                                    <circle
-                                        cx="24" cy="24" r={innerRadius}
-                                        stroke="currentColor" strokeWidth="3" fill="transparent"
-                                        className="text-paper-lines/40"
-                                        strokeDasharray="4 2"
-                                    />
+                                {/* Outer Ring Progress (Routine - Primary) */}
+                                <circle
+                                    cx="24" cy="24" r={outerRadius}
+                                    stroke="currentColor" strokeWidth="3" fill="transparent"
+                                    strokeDasharray={outerCircumference} strokeDashoffset={outerStrokeDashoffset} strokeLinecap="round"
+                                    className="text-doodle-primary transition-all duration-500 ease-out"
+                                />
+                                {/* Inner Ring Progress (Priority - Amber) */}
+                                <circle
+                                    cx="24" cy="24" r={innerRadius}
+                                    stroke="currentColor" strokeWidth="3" fill="transparent"
+                                    strokeDasharray={innerCircumference} strokeDashoffset={innerStrokeDashoffset} strokeLinecap="round"
+                                    className="text-amber-500 transition-all duration-500 ease-out"
+                                />
 
-                                    {/* Outer Ring Progress (Routine - Primary) */}
-                                    <circle
-                                        cx="24" cy="24" r={outerRadius}
-                                        stroke="currentColor" strokeWidth="3" fill="transparent"
-                                        strokeDasharray={outerCircumference} strokeDashoffset={outerStrokeDashoffset} strokeLinecap="round"
-                                        className="text-doodle-primary transition-all duration-500 ease-out"
-                                    />
-                                    {/* Inner Ring Progress (Priority - Amber) */}
-                                    <circle
-                                        cx="24" cy="24" r={innerRadius}
-                                        stroke="currentColor" strokeWidth="3" fill="transparent"
-                                        strokeDasharray={innerCircumference} strokeDashoffset={innerStrokeDashoffset} strokeLinecap="round"
-                                        className="text-amber-500 transition-all duration-500 ease-out"
-                                    />
-
-                                    {/* Center Dot (Maghrib Check-in Status) */}
-                                    <circle
-                                        cx="24" cy="24" r="5"
-                                        fill="currentColor"
-                                        className={`transition-all duration-500 ease-out ${isCheckinCompletedToday() ? 'text-doodle-green' : 'text-paper-lines/30'}`}
-                                    />
-                                </svg>
-                            </div>
+                                {/* Center Dot (Maghrib Check-in Status) */}
+                                <circle
+                                    cx="24" cy="24" r="5"
+                                    fill="currentColor"
+                                    className={`transition-all duration-500 ease-out ${isCheckinCompletedToday() ? 'text-doodle-green' : 'text-paper-lines/30'}`}
+                                />
+                            </svg>
                         </div>
                     </div>
                 </div>

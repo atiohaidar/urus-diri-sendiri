@@ -170,7 +170,15 @@ export const initializeStorage = () => {
         // 2. Initial Hydration
         await hydrateCache();
 
-        // 3. GC Images (Guest Mode Optimization)
+        // 3. Reset old priority completions (day boundary handling)
+        try {
+            const { resetOldCompletions } = await import('./priorities');
+            await resetOldCompletions();
+        } catch (err) {
+            console.warn("Storage: Failed to reset old completions:", err);
+        }
+
+        // 4. GC Images (Guest Mode Optimization)
         try {
             // Safety: Only run GC if we have loaded the reference data
             if (!cache.reflections || !cache.logs) {

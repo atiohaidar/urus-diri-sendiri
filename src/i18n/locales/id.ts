@@ -188,5 +188,9 @@ export const id: Translation = {
         empty_title: "Belum ada kebiasaan",
         empty_desc: "Mulai bangun kebiasaan baik! Lacak progres dan bangun streak untuk tetap termotivasi.",
         create_first: "Buat Kebiasaan Pertama",
+        today_section: "Hari Ini",
+        other_section: "Rutinitas Lainnya",
+        progress_today: "Progress hari ini",
+        completed_suffix: "selesai hari ini",
     },
 };

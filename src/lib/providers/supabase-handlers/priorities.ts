@@ -4,7 +4,8 @@ import { PriorityTask } from '../../types';
 export const fetchPriorities = async (userId: string, since?: string) => {
     let query = supabase
         .from('priorities')
-        .select('*');
+        .select('*')
+        .eq('user_id', userId); // Defense-in-depth filter
 
     if (since) {
         query = query.gt('updated_at', since);

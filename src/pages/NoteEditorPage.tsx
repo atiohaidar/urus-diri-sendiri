@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { X, Trash2, Save, ArrowLeft, PenLine } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -11,6 +11,9 @@ import { useLanguage } from '@/i18n/LanguageContext';
 import { lazy, Suspense } from 'react';
 import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useDebounce } from '@/hooks/useDebounce';
+import { saveDraft, loadDraft, clearDraft, hasDraft, cleanupOldDrafts } from '@/lib/draft-storage';
+import { DiffViewer } from '@/components/DiffViewer';
 
 const LazyEditor = lazy(() => import('@/components/ui/LazyEditor'));
 import {
@@ -38,14 +41,163 @@ const NoteEditorPage = () => {
     const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
     const hasInitialized = useRef(false);
+    const [showDraftRecovery, setShowDraftRecovery] = useState(false);
+    const [draftData, setDraftData] = useState<{ title: string; content: string } | null>(null);
+    const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+    const [showDiff, setShowDiff] = useState(false);
+    const editorRef = useRef<any>(null);
 
+    // Cleanup old drafts on mount (once)
     useEffect(() => {
-        if (!isNew && existingNote && !hasInitialized.current) {
-            setTitle(existingNote.title);
-            setContent(existingNote.content);
+        cleanupOldDrafts();
+    }, []);
+
+    // Reset initialization when id changes (navigating to different note)
+    useEffect(() => {
+        hasInitialized.current = false;
+    }, [id]);
+
+    // Initialize from existing note or draft
+    useEffect(() => {
+        // Don't initialize if already done
+        if (hasInitialized.current) return;
+
+        const noteId = id || 'new';
+
+        // For existing notes, wait until existingNote is loaded
+        if (!isNew && !existingNote) {
+            return; // Wait for note to load
+        }
+
+        // Load existing note first
+        if (!isNew && existingNote) {
+            setTitle(existingNote.title || '');
+            setContent(existingNote.content || '');
+
+            // Then check for newer draft
+            if (hasDraft(noteId)) {
+                const draft = loadDraft(noteId);
+                if (draft) {
+                    const noteTimestamp = new Date(existingNote.updatedAt || existingNote.createdAt).getTime();
+                    if (draft.timestamp > noteTimestamp) {
+                        // Check if there are actual changes
+                        const hasChanges =
+                            draft.title !== existingNote.title ||
+                            draft.content !== existingNote.content;
+
+                        if (hasChanges) {
+                            // Draft is newer and has changes, offer recovery
+                            setDraftData({ title: draft.title, content: draft.content });
+                            setShowDraftRecovery(true);
+                        } else {
+                            // No actual changes, just clear the draft
+                            clearDraft(noteId);
+                        }
+                    } else {
+                        // Note is newer, clear old draft
+                        clearDraft(noteId);
+                    }
+                }
+            }
+            hasInitialized.current = true;
+        } else if (isNew) {
+            // New note - check for draft
+            if (hasDraft(noteId)) {
+                const draft = loadDraft(noteId);
+                if (draft) {
+                    setTitle(draft.title);
+                    setContent(draft.content);
+                }
+            }
             hasInitialized.current = true;
         }
-    }, [isNew, existingNote]);
+    }, [id, isNew, existingNote]);
+
+    // Auto-save draft with debounce (1 second)
+    const autoSaveDraft = useDebounce(() => {
+        const noteId = id || 'new';
+        if (title.trim() || content.trim()) {
+            setSaveStatus('saving');
+            const success = saveDraft(noteId, title, content);
+            if (success) {
+                setSaveStatus('saved');
+                // Reset to idle after 2 seconds
+                setTimeout(() => setSaveStatus('idle'), 2000);
+            } else {
+                setSaveStatus('idle');
+            }
+        }
+    }, 1000);
+
+    // Trigger auto-save when title or content changes
+    useEffect(() => {
+        if (hasInitialized.current && (title || content)) {
+            autoSaveDraft();
+        }
+    }, [title, content]);
+
+    // Ctrl+S Keyboard Shortcut
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                e.preventDefault();
+                handleSave();
+                toast({
+                    title: "Saved",
+                    description: "Your note has been saved manually.",
+                    duration: 2000,
+                });
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                handleBack();
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [title, content, id]);
+
+    // Unified scroll function
+    const scrollCursorIntoView = useCallback(() => {
+        const quill = editorRef.current?.getEditor();
+        if (!quill) return;
+
+        const range = quill.getSelection();
+        if (range) {
+            const bounds = quill.getBounds(range.index);
+            const editorElement = quill.container;
+            const editorRect = editorElement.getBoundingClientRect();
+
+            // Actual cursor position relative to viewport
+            const cursorBottom = editorRect.top + bounds.bottom;
+
+            const viewportHeight = window.visualViewport?.height || window.innerHeight;
+
+            // We want to keep the cursor at least 150px from the bottom of the visible area
+            const threshold = viewportHeight - 150;
+
+            if (cursorBottom > threshold) {
+                const scrollNeeded = cursorBottom - threshold;
+                window.scrollBy({
+                    top: scrollNeeded,
+                    behavior: 'smooth'
+                });
+            }
+        }
+    }, [editorRef]); // Depend on editorRef
+
+    // Auto-scroll when typing
+    useEffect(() => {
+        if (hasInitialized.current && content) {
+            const timeoutId = setTimeout(scrollCursorIntoView, 100);
+            return () => clearTimeout(timeoutId);
+        }
+    }, [content, scrollCursorIntoView]);
+
+    const handleSelectionChange = () => {
+        // Debounce selection change scroll slightly to allow virtual viewport to settle
+        setTimeout(scrollCursorIntoView, 50);
+    };
 
     const handleSave = (silent = false) => {
         if (!title.trim() && !content.trim()) {
@@ -58,8 +210,11 @@ const NoteEditorPage = () => {
             finalTitle = plainContent.substring(0, 30) + (plainContent.length > 30 ? '...' : '');
         }
 
+        const noteId = id || 'new';
+
         if (isNew) {
             saveNote(finalTitle, content);
+            clearDraft(noteId); // Clear draft after successful save
             if (!silent) {
                 toast({ title: t.note_editor.toast_saved });
                 triggerHaptic();
@@ -67,6 +222,7 @@ const NoteEditorPage = () => {
         } else if (existingNote) {
             if (existingNote.title !== finalTitle || existingNote.content !== content) {
                 updateNote(existingNote.id, { title: finalTitle, content });
+                clearDraft(noteId); // Clear draft after successful save
                 if (!silent) {
                     toast({ title: t.note_editor.toast_updated });
                     triggerHaptic();
@@ -84,16 +240,92 @@ const NoteEditorPage = () => {
     const handleDelete = () => {
         if (!isNew && id) {
             deleteNote(id);
+            clearDraft(id); // Clear draft when deleting
             toast({ title: t.note_editor.toast_deleted });
             triggerHaptic();
             navigate(-1);
         } else {
+            const noteId = id || 'new';
+            clearDraft(noteId); // Clear draft when canceling new note
             navigate(-1);
         }
     };
 
+    const handleRecoverDraft = () => {
+        if (draftData) {
+            setTitle(draftData.title);
+            setContent(draftData.content);
+            setShowDraftRecovery(false);
+            toast({ title: "📝 Draft recovered!" });
+        }
+    };
+
+    const handleDiscardDraft = () => {
+        const noteId = id || 'new';
+        clearDraft(noteId);
+        setShowDraftRecovery(false);
+    };
+
     return (
         <div className="min-h-screen bg-notebook flex flex-col">
+            {/* Draft Recovery Dialog */}
+            <AlertDialog open={showDraftRecovery} onOpenChange={(open) => {
+                setShowDraftRecovery(open);
+                if (!open) setShowDiff(false); // Reset diff view when closing
+            }}>
+                <AlertDialogContent className="max-w-3xl">
+                    <AlertDialogHeader>
+                        <AlertDialogTitle className="font-handwriting text-xl text-ink">
+                            📝 Unsaved Draft Found
+                        </AlertDialogTitle>
+                        <AlertDialogDescription className="font-handwriting text-pencil">
+                            We found an unsaved draft that's newer than the saved version. Would you like to recover it?
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+
+                    {/* Show Diff Button */}
+                    {!showDiff && draftData && existingNote && (
+                        <div className="flex justify-center py-2">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setShowDiff(true)}
+                                className="font-handwriting gap-2"
+                            >
+                                <span>🔍</span> Show Differences
+                            </Button>
+                        </div>
+                    )}
+
+                    {/* Diff Viewer */}
+                    {showDiff && draftData && existingNote && (
+                        <div className="border-2 border-dashed border-paper-lines rounded-sm p-4 bg-notebook">
+                            <DiffViewer
+                                oldTitle={existingNote.title}
+                                oldContent={existingNote.content}
+                                newTitle={draftData.title}
+                                newContent={draftData.content}
+                            />
+                        </div>
+                    )}
+
+                    <AlertDialogFooter>
+                        <AlertDialogCancel
+                            onClick={handleDiscardDraft}
+                            className="font-handwriting rounded-sm"
+                        >
+                            Discard Draft
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleRecoverDraft}
+                            className="bg-doodle-primary text-white hover:bg-doodle-primary/90 font-handwriting rounded-sm"
+                        >
+                            Recover Draft
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
             {/* Header - Notebook style */}
             <div className="sticky top-0 z-10 bg-paper border-b-2 border-dashed border-paper-lines p-4 flex items-center justify-between pt-safe">
                 <Button
@@ -104,10 +336,22 @@ const NoteEditorPage = () => {
                 >
                     <X className="w-6 h-6 text-ink" />
                 </Button>
-                <h1 className="font-handwriting text-xl text-ink">
-                    {isNew ? t.note_editor.new_title : t.note_editor.edit_title} 📝
-                </h1>
-                <div className="w-10 flex justify-end">
+                <div className="flex items-center gap-2">
+                    <h1 className="font-handwriting text-xl text-ink">
+                        {isNew ? t.note_editor.new_title : t.note_editor.edit_title} 📝
+                    </h1>
+                    {/* Auto-save indicator */}
+                    {saveStatus !== 'idle' && (
+                        <span className={cn(
+                            "text-xs font-handwriting transition-opacity duration-200 hidden sm:inline",
+                            saveStatus === 'saving' ? "text-pencil/60" : "text-doodle-green"
+                        )}>
+                            {saveStatus === 'saving' ? '💾 Saving...' : '✓ Saved'}
+                        </span>
+                    )}
+                </div>
+                <div className="flex items-center gap-2">
+                    {/* Delete Button */}
                     {!isNew && (
                         <AlertDialog>
                             <AlertDialogTrigger asChild>
@@ -142,11 +386,22 @@ const NoteEditorPage = () => {
                             </AlertDialogContent>
                         </AlertDialog>
                     )}
+                    {/* Done Button */}
+                    <Button
+                        onClick={handleBack}
+                        variant="ghost"
+                        size="sm"
+                        className="font-handwriting text-doodle-primary hover:text-doodle-primary hover:bg-doodle-primary/10 rounded-sm"
+                    >
+                        {t.note_editor.done} ✓
+                    </Button>
+
+
                 </div>
             </div>
 
             {/* Content */}
-            <div className="flex-1 container max-w-2xl mx-auto p-4 space-y-4">
+            <div className="flex-1 container max-w-2xl mx-auto p-4 pb-8 space-y-4">
                 <Input
                     autoFocus={isNew}
                     value={title}
@@ -182,9 +437,11 @@ const NoteEditorPage = () => {
                         </div>
                     }>
                         <LazyEditor
+                            ref={editorRef}
                             theme="snow"
                             value={content}
                             onChange={setContent}
+                            onChangeSelection={handleSelectionChange}
                             modules={{
                                 toolbar: [
                                     [{ 'header': [1, 2, false] }],
@@ -198,20 +455,6 @@ const NoteEditorPage = () => {
                         />
                     </Suspense>
                 </div>
-            </div>
-
-            {/* Save Button - Notebook style */}
-            <div className="p-4 border-t-2 border-dashed border-paper-lines sticky bottom-0 bg-paper pb-safe">
-                <Button
-                    onClick={handleBack}
-                    className={cn(
-                        "w-full h-12 rounded-sm font-handwriting text-lg",
-                        "bg-doodle-primary hover:bg-doodle-primary/90 text-white shadow-notebook",
-                        "md:max-w-md md:mx-auto block"
-                    )}
-                >
-                    {t.note_editor.done} ✓
-                </Button>
             </div>
         </div>
     );

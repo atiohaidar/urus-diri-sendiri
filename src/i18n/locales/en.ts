@@ -188,5 +188,9 @@ export const en: Translation = {
         empty_title: "No habits yet",
         empty_desc: "Start building good habits! Track your progress and build streaks to stay motivated.",
         create_first: "Create Your First Habit",
+        today_section: "Today",
+        other_section: "Other Routines",
+        progress_today: "Today's progress",
+        completed_suffix: "completed today",
     },
 };

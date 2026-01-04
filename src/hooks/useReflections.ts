@@ -1,27 +1,46 @@
 import { useState, useEffect } from 'react';
-import { getReflections, initializeStorage, registerListener, type Reflection } from '@/lib/storage';
+import { getReflectionsAsync, initializeStorage, registerListener, type Reflection } from '@/lib/storage';
 
 export const useReflections = () => {
     const [reflections, setReflections] = useState<Reflection[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        const load = () => {
-            setReflections(getReflections());
+        const load = async () => {
+            setIsLoading(true);
+            try {
+                const data = await getReflectionsAsync();
+                setReflections(data);
+            } finally {
+                setIsLoading(false);
+            }
         };
 
         // Initialize and load
         initializeStorage().then(load);
 
         // Subscribe to changes
-        const unsubscribe = registerListener(load);
+        const unsubscribe = registerListener(() => {
+            // Re-fetch with deduplication on any storage change
+            getReflectionsAsync().then(setReflections);
+        });
 
         return () => { unsubscribe(); };
     }, []);
 
-    // Future improvements: Add functionality to delete or update reflections if needed
+    const refreshReflections = async () => {
+        setIsLoading(true);
+        try {
+            const data = await getReflectionsAsync();
+            setReflections(data);
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     return {
         reflections,
-        refreshReflections: () => setReflections(getReflections())
+        isLoading,
+        refreshReflections
     };
 };

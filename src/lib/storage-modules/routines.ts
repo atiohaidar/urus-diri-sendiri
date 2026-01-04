@@ -1,7 +1,15 @@
 import { RoutineItem } from '../types';
 import { STORAGE_KEYS } from '../constants';
 import { toggleRoutineCompletion as toggleRoutineHelper } from '../routine-helpers';
+import { parseTimeToMinutes } from '../time-utils';
 import { cache, provider, notifyListeners, handleSaveError } from './core';
+
+// Helper to sort routines by startTime
+const sortByStartTime = (routines: RoutineItem[]): RoutineItem[] => {
+    return [...routines].sort((a, b) =>
+        parseTimeToMinutes(a.startTime) - parseTimeToMinutes(b.startTime)
+    );
+};
 
 export const getRoutines = (): RoutineItem[] => {
     const today = new Date().toDateString();
@@ -24,10 +32,10 @@ export const getRoutines = (): RoutineItem[] => {
             handleSaveError(error, 'Reset rutinitas harian');
         });
         localStorage.setItem(STORAGE_KEYS.LAST_OPEN_DATE, today);
-        return resetRoutines;
+        return sortByStartTime(resetRoutines);
     }
 
-    return routines;
+    return sortByStartTime(routines);
 };
 
 export const saveRoutines = (routines: RoutineItem[]) => {

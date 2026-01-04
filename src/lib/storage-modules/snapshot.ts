@@ -26,6 +26,7 @@ export const updateDailySnapshot = async () => {
                 ...reflections[todayIndex],
                 todayRoutines: currentRoutines,
                 todayPriorities: currentPriorities,
+                updatedAt: new Date().toISOString(), // Ensure sync triggers
             };
 
             // Optimistic
@@ -36,15 +37,17 @@ export const updateDailySnapshot = async () => {
             const hasProgress = currentRoutines.some(r => r.completedAt) || currentPriorities.some(p => p.completed);
 
             if (hasProgress) {
+                const now = new Date().toISOString();
                 const newReflection: Reflection = {
                     id: generateId('ref'),
-                    date: todayDate.toISOString(),
+                    date: now,
                     winOfDay: "",
                     hurdle: "",
                     priorities: [],
                     smallChange: "",
                     todayRoutines: currentRoutines,
                     todayPriorities: currentPriorities,
+                    updatedAt: now, // Ensure sync triggers
                 };
 
                 // Optimistic

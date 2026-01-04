@@ -51,22 +51,22 @@ const ReflectionCard = memo(({ reflection, index }: { reflection: Reflection, in
                         {/* Achievement Badge (Summary) */}
                         {(reflection.todayRoutines || reflection.todayPriorities) && (
                             <div className="flex items-center gap-2">
-                                {reflection.todayPriorities && (
+                                {reflection.todayPriorities && reflection.todayPriorities.length > 0 && (
                                     <span className={cn(
                                         "flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-sm font-handwriting",
                                         "bg-sticky-yellow text-ink shadow-tape"
                                     )}>
                                         <Rocket className="w-2.5 h-2.5" />
-                                        {reflection.todayPriorities.filter(p => p.completed).length}/{reflection.todayPriorities.length}
+                                        {Math.min(reflection.todayPriorities.filter(p => p.completed).length, reflection.todayPriorities.length)}/{reflection.todayPriorities.length}
                                     </span>
                                 )}
-                                {reflection.todayRoutines && (
+                                {reflection.todayRoutines && reflection.todayRoutines.length > 0 && (
                                     <span className={cn(
                                         "flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-sm font-handwriting",
                                         "bg-sticky-green text-ink shadow-tape"
                                     )}>
                                         <CheckCircle2 className="w-2.5 h-2.5" />
-                                        {reflection.todayRoutines.filter(r => r.completedAt).length}/{reflection.todayRoutines.length}
+                                        {Math.min(reflection.todayRoutines.filter(r => r.completedAt).length, reflection.todayRoutines.length)}/{reflection.todayRoutines.length}
                                     </span>
                                 )}
                             </div>
