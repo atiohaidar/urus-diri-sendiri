@@ -52,7 +52,7 @@ const ParkingLotScreen = () => {
   };
 
   return (
-    <div className="min-h-screen pb-24 md:pb-8 bg-notebook">
+    <div className="pb-24 md:pb-8 bg-notebook">
       {/* Header - Notebook style */}
       <header className="sticky top-0 z-40 bg-paper border-b-2 border-dashed border-paper-lines pt-safe">
         <div className="container max-w-md md:max-w-5xl mx-auto px-4 py-4">
