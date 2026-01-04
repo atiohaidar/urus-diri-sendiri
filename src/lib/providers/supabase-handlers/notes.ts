@@ -5,6 +5,7 @@ export const fetchNotes = async (userId: string, since?: string) => {
     let query = supabase
         .from('notes')
         .select('*')
+        .eq('user_id', userId)
         .order('updated_at', { ascending: false });
 
     if (since) {

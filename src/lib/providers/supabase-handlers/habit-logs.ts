@@ -2,7 +2,7 @@ import { supabase } from '../../supabase';
 import { HabitLog } from '../../types';
 
 export const fetchHabitLogs = async (userId: string, since?: string) => {
-    let query = supabase.from('habit_logs').select('*').order('date', { ascending: false });
+    let query = supabase.from('habit_logs').select('*').eq('user_id', userId).order('date', { ascending: false });
     if (since) {
         query = query.gt('updated_at', since);
     }

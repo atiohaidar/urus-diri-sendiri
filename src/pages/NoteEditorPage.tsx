@@ -166,7 +166,7 @@ const NoteEditorPage = () => {
     }, [lastTyped]);
 
     const getComboLabel = (val: number) => {
-        if (val >= 95) return "🔥 FRENZY!";
+        if (val >= 95) return "🔥 WADiDAW!";
         if (val >= 80) return "🚀 MANTAP!";
         if (val >= 60) return "✨ HEBAT!";
         if (val >= 40) return "✍️ LANJUT!";
@@ -195,12 +195,14 @@ const NoteEditorPage = () => {
         const noteId = id || 'new';
 
         if (isNew) {
-            saveNote(finalTitle, content);
+            const newNote = saveNote(finalTitle, content);
             clearDraft(noteId); // Clear draft after successful save
             if (!silent) {
                 toast({ title: t.note_editor.toast_saved });
                 triggerHaptic();
             }
+            // Navigate to the new note's URL so subsequent saves are updates, not creates
+            navigate(`/notes/${newNote.id}`, { replace: true });
         } else if (existingNote) {
             if (existingNote.title !== finalTitle || existingNote.content !== content) {
                 updateNote(existingNote.id, { title: finalTitle, content });

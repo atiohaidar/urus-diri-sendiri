@@ -6,6 +6,7 @@ export const fetchLogs = async (userId: string, since?: string) => {
     let query = supabase
         .from('logs')
         .select('*')
+        .eq('user_id', userId)
         .order('timestamp', { ascending: false });
 
     if (since) {

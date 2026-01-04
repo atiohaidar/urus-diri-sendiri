@@ -6,6 +6,7 @@ export const fetchReflections = async (userId: string, since?: string) => {
     let query = supabase
         .from('reflections')
         .select('*')
+        .eq('user_id', userId)
         .order('date', { ascending: false });
 
     if (since) {
