@@ -66,13 +66,7 @@ export const HomeHeader = ({
                             <h1 className="text-2xl md:text-3xl font-handwriting text-ink truncate">
                                 <span className="highlight">{greeting()}</span> 👋
                             </h1>
-                            <button
-                                onClick={onRefresh}
-                                className={`p-1.5 rounded-sm hover:bg-paper-lines/30 transition-colors duration-150 ${isLoading ? 'animate-spin' : ''}`}
-                                disabled={isLoading}
-                            >
-                                <RotateCcw className="w-4 h-4 text-pencil" />
-                            </button>
+
                         </div>
                         <p className="text-sm font-handwriting text-pencil mt-1 truncate">
                             [ {currentDate.toLocaleDateString(language === 'id' ? 'id-ID' : 'en-US', { weekday: 'short', day: 'numeric', month: 'short' })} • {currentDate.toLocaleTimeString(language === 'id' ? 'id-ID' : 'en-US', { hour: '2-digit', minute: '2-digit', hour12: false })} ]
@@ -81,9 +75,16 @@ export const HomeHeader = ({
 
                     <div className="flex items-center gap-2">
                         {/* Grade Circle - Standalone */}
-                        <div className="grade-circle text-xs">
+                        {/* <div className="grade-circle text-xs">
                             {getGrade()}
-                        </div>
+                        </div> */}
+                        <button
+                            onClick={onRefresh}
+                            className={`p-1.5 rounded-sm hover:bg-paper-lines/30 transition-colors duration-150 ${isLoading ? 'animate-spin' : ''}`}
+                            disabled={isLoading}
+                        >
+                            <RotateCcw className="w-4 h-4 text-pencil" />
+                        </button>
 
                         {/* Settings Button */}
                         <Button

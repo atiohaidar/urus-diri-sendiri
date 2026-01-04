@@ -181,6 +181,44 @@ const NoteEditorPage = () => {
         return "bg-pencil/30";
     };
 
+    const handleSave = useCallback((silent = false) => {
+        if (!title.trim() && !content.trim()) {
+            return;
+        }
+
+        let finalTitle = title;
+        if (!finalTitle.trim() && content.trim()) {
+            const plainContent = content.replace(/<[^>]*>/g, ' ').trim();
+            finalTitle = plainContent.substring(0, 30) + (plainContent.length > 30 ? '...' : '');
+        }
+
+        const noteId = id || 'new';
+
+        if (isNew) {
+            saveNote(finalTitle, content);
+            clearDraft(noteId); // Clear draft after successful save
+            if (!silent) {
+                toast({ title: t.note_editor.toast_saved });
+                triggerHaptic();
+            }
+        } else if (existingNote) {
+            if (existingNote.title !== finalTitle || existingNote.content !== content) {
+                updateNote(existingNote.id, { title: finalTitle, content });
+                clearDraft(noteId); // Clear draft after successful save
+                if (!silent) {
+                    toast({ title: t.note_editor.toast_updated });
+                    triggerHaptic();
+                }
+            }
+        }
+    }, [title, content, id, isNew, existingNote, saveNote, updateNote, t.note_editor, toast]);
+
+    const handleBack = useCallback(() => {
+        handleSave(true);
+        triggerHaptic();
+        navigate(-1);
+    }, [handleSave, navigate]);
+
     // Ctrl+S Keyboard Shortcut
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -200,7 +238,29 @@ const NoteEditorPage = () => {
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [title, content, id]);
+    }, [handleBack]);
+
+    // Hardware Back Button (Capacitor)
+    useEffect(() => {
+        let backListener: any;
+        const setupListener = async () => {
+            try {
+                const { App } = await import('@capacitor/app');
+                backListener = await App.addListener('backButton', () => {
+                    // Just trigger save and haptic, let the global listener handle navigation
+                    // to avoid "double-back" issues.
+                    handleSave(true);
+                    triggerHaptic();
+                });
+            } catch (e) {
+                // Ignore if not in Capacitor
+            }
+        };
+        setupListener();
+        return () => {
+            if (backListener) backListener.remove();
+        };
+    }, [handleSave]);
 
     // Unified scroll function
     const scrollCursorIntoView = useCallback(() => {
@@ -242,44 +302,6 @@ const NoteEditorPage = () => {
     const handleSelectionChange = () => {
         // Debounce selection change scroll slightly to allow virtual viewport to settle
         setTimeout(scrollCursorIntoView, 50);
-    };
-
-    const handleSave = (silent = false) => {
-        if (!title.trim() && !content.trim()) {
-            return;
-        }
-
-        let finalTitle = title;
-        if (!finalTitle.trim() && content.trim()) {
-            const plainContent = content.replace(/<[^>]*>/g, ' ').trim();
-            finalTitle = plainContent.substring(0, 30) + (plainContent.length > 30 ? '...' : '');
-        }
-
-        const noteId = id || 'new';
-
-        if (isNew) {
-            saveNote(finalTitle, content);
-            clearDraft(noteId); // Clear draft after successful save
-            if (!silent) {
-                toast({ title: t.note_editor.toast_saved });
-                triggerHaptic();
-            }
-        } else if (existingNote) {
-            if (existingNote.title !== finalTitle || existingNote.content !== content) {
-                updateNote(existingNote.id, { title: finalTitle, content });
-                clearDraft(noteId); // Clear draft after successful save
-                if (!silent) {
-                    toast({ title: t.note_editor.toast_updated });
-                    triggerHaptic();
-                }
-            }
-        }
-    };
-
-    const handleBack = () => {
-        handleSave(true);
-        triggerHaptic();
-        navigate(-1);
     };
 
     const handleDelete = () => {
@@ -372,7 +394,7 @@ const NoteEditorPage = () => {
             </AlertDialog>
 
             {/* Header - Notebook style */}
-            <div className="sticky top-0 z-10 bg-paper border-b-2 border-dashed border-paper-lines p-4 flex items-center justify-between pt-safe">
+            <div className="sticky top-0 z-20 bg-paper border-b-2 border-dashed border-paper-lines p-4 flex items-center justify-between pt-safe">
                 <Button
                     variant="ghost"
                     size="icon"

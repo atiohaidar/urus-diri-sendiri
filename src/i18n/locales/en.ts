@@ -81,7 +81,7 @@ export const en: Translation = {
         cloud_error_permission: "Permission Denied: Ensure Sheet access is 'Anyone with link can edit'",
         go_to_about: "Learn More About UrusDiriSendiri",
         account_title: "Cloud Account (Supabase)",
-        account_login: "Sign in with Google",
+        account_login: "Sign in",
         account_logout: "Sign Out",
         account_guest: "Guest (Local Storage)",
         account_sync_active: "Cloud Sync Active",

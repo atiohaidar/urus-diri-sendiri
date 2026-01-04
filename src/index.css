@@ -499,11 +499,32 @@ textarea,
 .ql-toolbar.ql-snow {
   border: none !important;
   border-bottom: 2px dashed hsl(var(--paper-lines)) !important;
-  padding: 8px !important;
+  padding: 8px 4px !important;
   position: sticky;
-  top: 0;
-  z-index: 10;
+  top: 64px;
+  /* Sits below the sticky header (approx 64px) */
+  z-index: 5;
   background: hsl(var(--paper));
+  /* Mobile UX: Scrollable toolbar instead of wrapping */
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  overflow-x: auto !important;
+  -webkit-overflow-scrolling: touch;
+  gap: 2px;
+}
+
+/* Hide scrollbar for a cleaner look on mobile */
+.ql-toolbar.ql-snow::-webkit-scrollbar {
+  height: 0px;
+  display: none;
+}
+
+/* Ensure toolbar items don't shrink in the flex container */
+.ql-toolbar.ql-snow .ql-formats {
+  margin-right: 8px !important;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
 }
 
 .ql-container.ql-snow {
