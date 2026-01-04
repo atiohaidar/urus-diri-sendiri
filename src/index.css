@@ -6,8 +6,6 @@
 
 /* === NATIVE MOBILE OPTIMIZATIONS === */
 html {
-  /* Prevent scroll bounce/rubber banding */
-  overscroll-behavior-y: none;
   /* Prevent default tap highlight color on mobile */
   -webkit-tap-highlight-color: transparent;
 }
@@ -188,8 +186,7 @@ textarea,
 
     /* Mobile Native Feel */
     -webkit-tap-highlight-color: transparent;
-    touch-action: manipulation;
-    overscroll-behavior-y: none;
+    touch-action: pan-y;
     user-select: none;
     -webkit-user-select: none;
   }

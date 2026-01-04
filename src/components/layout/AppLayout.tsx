@@ -22,7 +22,7 @@ const AppLayout = () => {
     return (
         <div className="min-h-screen bg-background md:pl-64 transition-all duration-300">
             {/* Screen Content */}
-            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 min-h-screen">
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                 <Outlet />
             </div>
 

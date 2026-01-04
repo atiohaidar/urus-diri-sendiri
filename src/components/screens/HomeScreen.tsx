@@ -58,7 +58,7 @@ const HomeScreen = () => {
   const handleRedirectToHabits = () => navigate('/habits');
 
   return (
-    <div className="min-h-screen pb-24 md:pb-8 bg-notebook">
+    <div className="pb-24 md:pb-8 bg-notebook">
       {/* Header */}
       <HomeHeader
         currentDate={currentDate}
