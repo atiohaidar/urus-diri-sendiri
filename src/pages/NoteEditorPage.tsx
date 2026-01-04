@@ -45,6 +45,9 @@ const NoteEditorPage = () => {
     const [draftData, setDraftData] = useState<{ title: string; content: string } | null>(null);
     const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
     const [showDiff, setShowDiff] = useState(false);
+    const [wordCount, setWordCount] = useState(0);
+    const [combo, setCombo] = useState(0);
+    const [lastTyped, setLastTyped] = useState(0);
     const editorRef = useRef<any>(null);
 
     // Cleanup old drafts on mount (once)
@@ -129,12 +132,54 @@ const NoteEditorPage = () => {
         }
     }, 1000);
 
-    // Trigger auto-save when title or content changes
+    // Update word count, combo, and trigger auto-save when title or content changes
     useEffect(() => {
+        // Update word count (strip HTML first) - Always keep this sync
+        const plainText = content.replace(/<[^>]*>/g, ' ').trim();
+        const words = plainText ? plainText.split(/\s+/).length : 0;
+        setWordCount(words);
+
+        // Increment combo on typing
+        if (hasInitialized.current) {
+            setCombo(prev => Math.min(prev + 2, 100));
+            setLastTyped(Date.now());
+        }
+
         if (hasInitialized.current && (title || content)) {
             autoSaveDraft();
         }
     }, [title, content]);
+
+    // Combo Decay Logic
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setCombo(prev => {
+                if (prev <= 0) return 0;
+                // Decay faster if not typed recently
+                const timeSinceLastTyped = Date.now() - lastTyped;
+                const decayRate = timeSinceLastTyped > 2000 ? 2 : 0.5;
+                return Math.max(prev - decayRate, 0);
+            });
+        }, 100);
+
+        return () => clearInterval(interval);
+    }, [lastTyped]);
+
+    const getComboLabel = (val: number) => {
+        if (val >= 95) return "🔥 FRENZY!";
+        if (val >= 80) return "🚀 MANTAP!";
+        if (val >= 60) return "✨ HEBAT!";
+        if (val >= 40) return "✍️ LANJUT!";
+        if (val >= 20) return "💪 SEMANGAT!";
+        return "✍️ Ayo tulis!";
+    };
+
+    const getComboColor = (val: number) => {
+        if (val >= 90) return "bg-doodle-red";
+        if (val >= 60) return "bg-highlighter-yellow";
+        if (val >= 30) return "bg-doodle-primary";
+        return "bg-pencil/30";
+    };
 
     // Ctrl+S Keyboard Shortcut
     useEffect(() => {
@@ -451,9 +496,40 @@ const NoteEditorPage = () => {
                                 ],
                             }}
                             placeholder={t.note_editor.placeholder_content}
-                            className="h-full flex flex-col font-handwriting"
+                            className="h-full flex flex-col font-handwriting ql-typewriter"
                         />
                     </Suspense>
+                </div>
+
+                {/* Writing Stats (Word Count & Combo Meter) - Moved outside to prevent overlap */}
+                <div className="flex flex-row items-center gap-1.5 px-1 py-2">
+
+                    <div className="flex-1 flex items-center gap-3 bg-card/50 backdrop-blur-sm px-4 py-2 rounded-xl border-2 border-paper-lines/30 shadow-sm">
+                        {/* Word Count */}
+                        <span className="font-handwriting text-xs text-pencil/80 border-r-2 border-paper-lines/20 pr-3 leading-none whitespace-nowrap">
+                            {wordCount} {wordCount === 1 ? 'word' : 'words'}
+                        </span>
+
+                        {/* Combo Progress Bar */}
+                        <div className="flex-1 h-2 bg-paper-lines/20 rounded-full overflow-hidden relative">
+                            <div
+                                className={cn(
+                                    "h-full transition-all duration-150 ease-out rounded-full",
+                                    getComboColor(combo),
+                                    combo >= 90 && "animate-pulse shadow-[0_0_10px_rgba(239,68,68,0.5)]"
+                                )}
+                                style={{ width: `${combo}%` }}
+                            />
+                        </div>
+                    </div>
+                    {/* Appreciation Label */}
+                    <div className={cn(
+                        "font-handwriting text-xs font-bold transition-all duration-300 transform opacity-100 scale-100 translate-y-0",
+                        combo >= 90 ? "text-doodle-red animate-bounce" : "text-pencil"
+                    )}>
+                        {getComboLabel(combo)}
+                    </div>
+
                 </div>
             </div>
         </div>
