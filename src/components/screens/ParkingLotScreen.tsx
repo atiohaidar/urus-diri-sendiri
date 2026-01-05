@@ -1,7 +1,8 @@
 import { useState, useMemo, forwardRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Plus, Lightbulb, PenLine } from 'lucide-react';
+import { Search, Plus, Lightbulb, PenLine, ArrowUpDown, Tag } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import NoteCard from '@/components/NoteCard';
 import { useNotes } from '@/hooks/useNotes';
 import { type Note } from '@/lib/storage';
@@ -29,19 +30,42 @@ const ItemComponent = ({ children, ...props }: any) => (
 
 const ParkingLotScreen = () => {
   const navigate = useNavigate();
-  const { notes } = useNotes();
+  const { notes, getUniqueCategories } = useNotes();
   const { t } = useLanguage();
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null); // null = "Semua"
+  const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
 
-  const filteredNotes = useMemo(() => {
-    if (!searchQuery.trim()) return notes;
-    const query = searchQuery.toLowerCase();
-    return notes.filter(
-      note =>
-        note.title.toLowerCase().includes(query) ||
-        note.content.toLowerCase().includes(query)
-    );
-  }, [notes, searchQuery]);
+  // Get unique categories from notes
+  const categories = useMemo(() => getUniqueCategories(), [getUniqueCategories]);
+
+  const filteredAndSortedNotes = useMemo(() => {
+    let result = notes;
+
+    // Filter by category
+    if (selectedCategory !== null) {
+      result = result.filter(note => note.category === selectedCategory);
+    }
+
+    // Filter by search query
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter(
+        note =>
+          note.title.toLowerCase().includes(query) ||
+          note.content.toLowerCase().includes(query)
+      );
+    }
+
+    // Sort by time
+    result = [...result].sort((a, b) => {
+      const dateA = new Date(a.updatedAt || a.createdAt).getTime();
+      const dateB = new Date(b.updatedAt || b.createdAt).getTime();
+      return sortOrder === 'newest' ? dateB - dateA : dateA - dateB;
+    });
+
+    return result;
+  }, [notes, searchQuery, selectedCategory, sortOrder]);
 
   const openNewNote = () => {
     navigate('/note-editor/new');
@@ -49,6 +73,10 @@ const ParkingLotScreen = () => {
 
   const openEditNote = (note: Note) => {
     navigate(`/note-editor/${note.id}`);
+  };
+
+  const toggleSortOrder = () => {
+    setSortOrder(prev => prev === 'newest' ? 'oldest' : 'newest');
   };
 
   return (
@@ -81,14 +109,60 @@ const ParkingLotScreen = () => {
               />
             </div>
           </div>
+
+          {/* Category Filter Chips + Sort Toggle */}
+          <div className="mt-4 flex flex-col sm:flex-row sm:items-center gap-3">
+            {/* Category Chips */}
+            <div className="flex-1 flex items-center gap-2 overflow-x-auto pb-2 sm:pb-0 scrollbar-hide">
+              <Tag className="w-4 h-4 text-pencil flex-shrink-0" />
+              <button
+                onClick={() => setSelectedCategory(null)}
+                className={cn(
+                  "px-3 py-1 rounded-full text-sm font-handwriting whitespace-nowrap transition-all",
+                  "border-2 border-dashed",
+                  selectedCategory === null
+                    ? "bg-doodle-primary text-white border-doodle-primary"
+                    : "bg-paper text-pencil border-paper-lines hover:border-doodle-primary/50"
+                )}
+              >
+                Semua
+              </button>
+              {categories.map(category => (
+                <button
+                  key={category}
+                  onClick={() => setSelectedCategory(category)}
+                  className={cn(
+                    "px-3 py-1 rounded-full text-sm font-handwriting whitespace-nowrap transition-all",
+                    "border-2 border-dashed",
+                    selectedCategory === category
+                      ? "bg-doodle-primary text-white border-doodle-primary"
+                      : "bg-paper text-pencil border-paper-lines hover:border-doodle-primary/50"
+                  )}
+                >
+                  {category}
+                </button>
+              ))}
+            </div>
+
+            {/* Sort Toggle */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={toggleSortOrder}
+              className="font-handwriting text-pencil hover:text-ink gap-1.5 flex-shrink-0"
+            >
+              <ArrowUpDown className="w-4 h-4" />
+              {sortOrder === 'newest' ? 'Terbaru' : 'Terlama'}
+            </Button>
+          </div>
         </div>
       </header>
 
       <main className="container max-w-md md:max-w-5xl mx-auto px-4 py-6 md:py-8">
-        {filteredNotes.length > 0 ? (
+        {filteredAndSortedNotes.length > 0 ? (
           <VirtuosoGrid
             useWindowScroll
-            data={filteredNotes}
+            data={filteredAndSortedNotes}
             components={{
               List: ListComponent,
               Item: ItemComponent as any
@@ -109,10 +183,10 @@ const ParkingLotScreen = () => {
               <Lightbulb className="w-12 h-12 md:w-16 md:h-16 text-doodle-green" />
             </div>
             <h3 className="font-handwriting text-2xl text-ink mb-2">
-              {searchQuery ? t.ideas.no_results_title : t.ideas.empty_title} 📝
+              {searchQuery || selectedCategory ? t.ideas.no_results_title : t.ideas.empty_title} 📝
             </h3>
             <p className="font-handwriting text-base text-pencil max-w-sm mx-auto">
-              {searchQuery
+              {searchQuery || selectedCategory
                 ? t.ideas.no_results_desc
                 : t.ideas.empty_desc}
             </p>

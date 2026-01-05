@@ -157,6 +157,12 @@ export const en: Translation = {
         done: "Done",
         edited_prefix: "Edited",
         created_prefix: "Created",
+        split_view_toggle: "View Reference",
+        reference_panel_title: "Reference Note",
+        select_reference_note: "Select note...",
+        no_notes_available: "No other notes available",
+        live_preview: "Live Preview",
+        other_notes: "Other Notes",
     },
     log_creator: {
         placeholder_text: "What's on your mind?",

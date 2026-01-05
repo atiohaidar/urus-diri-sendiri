@@ -157,6 +157,12 @@ export const id: Translation = {
         done: "Selesai",
         edited_prefix: "Diedit",
         created_prefix: "Dibuat",
+        split_view_toggle: "Lihat Referensi",
+        reference_panel_title: "Catatan Referensi",
+        select_reference_note: "Pilih catatan...",
+        no_notes_available: "Tidak ada catatan lain",
+        live_preview: "Preview Live",
+        other_notes: "Catatan Lain",
     },
     log_creator: {
         placeholder_text: "Ada cerita apa?",

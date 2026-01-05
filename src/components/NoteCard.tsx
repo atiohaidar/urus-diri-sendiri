@@ -2,6 +2,7 @@ import type { Note } from '@/lib/storage';
 import { getRelativeDate } from '@/lib/storage';
 import { useLanguage } from '@/i18n/LanguageContext';
 import { cn } from '@/lib/utils';
+import { Tag } from 'lucide-react';
 
 interface NoteCardProps {
   note: Note;
@@ -59,6 +60,15 @@ const NoteCard = ({ note, onClick, index }: NoteCardProps) => {
           <p className="text-sm text-pencil line-clamp-2 italic">
             "{snippet || 'Catatan kosong...'}"
           </p>
+          {/* Category Badge */}
+          {note.category && (
+            <div className="mt-2 flex items-center gap-1">
+              <Tag className="w-3 h-3 text-ink/60" />
+              <span className="text-xs text-ink/70 font-medium">
+                {note.category}
+              </span>
+            </div>
+          )}
         </div>
         <span className="text-xs text-pencil/70 whitespace-nowrap font-handwriting">
           {getRelativeDate(note.updatedAt, language)}
@@ -69,3 +79,4 @@ const NoteCard = ({ note, onClick, index }: NoteCardProps) => {
 };
 
 export default NoteCard;
+

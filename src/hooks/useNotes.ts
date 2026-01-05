@@ -23,15 +23,15 @@ export const useNotes = () => {
         return () => { unsubscribe(); };
     }, [refreshNotes]);
 
-    const saveNote = useCallback((title: string, content: string) => {
+    const saveNote = useCallback((title: string, content: string, category: string | null = null) => {
         // saveNoteStorage updates cache synchronously before async save
-        const newNote = saveNoteStorage({ title, content });
+        const newNote = saveNoteStorage({ title, content, category });
         // Refresh from cache to get updated list
         refreshNotes();
         return newNote;
     }, [refreshNotes]);
 
-    const updateNote = useCallback((id: string, updates: Partial<Pick<Note, 'title' | 'content'>>) => {
+    const updateNote = useCallback((id: string, updates: Partial<Pick<Note, 'title' | 'content' | 'category'>>) => {
         // updateNoteStorage returns the updated list and already updates cache
         const updated = updateNoteStorage(id, updates);
         setNotes(updated);
@@ -45,12 +45,18 @@ export const useNotes = () => {
         return updated;
     }, []);
 
+    // Get all unique categories from notes (excluding null)
+    const getUniqueCategories = useCallback(() => {
+        return [...new Set(notes.map(n => n.category).filter((c): c is string => c !== null))];
+    }, [notes]);
+
     return {
         notes,
         isLoading,
         saveNote,
         updateNote,
         deleteNote,
-        refreshNotes
+        refreshNotes,
+        getUniqueCategories
     };
 };

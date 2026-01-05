@@ -24,7 +24,7 @@ export const saveNote = (note: Omit<Note, 'id' | 'createdAt' | 'updatedAt'>) => 
     return newNote;
 };
 
-export const updateNote = (id: string, updates: Partial<Pick<Note, 'title' | 'content'>>) => {
+export const updateNote = (id: string, updates: Partial<Pick<Note, 'title' | 'content' | 'category'>>) => {
     const notes = getNotes();
     const updated = notes.map(n =>
         n.id === id

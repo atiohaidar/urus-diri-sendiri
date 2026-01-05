@@ -157,6 +157,12 @@ export interface Translation {
         done: string;
         edited_prefix: string;
         created_prefix: string;
+        split_view_toggle: string;
+        reference_panel_title: string;
+        select_reference_note: string;
+        no_notes_available: string;
+        live_preview: string;
+        other_notes: string;
     };
     log_creator: {
         placeholder_text: string;

@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { X, Trash2, Save, ArrowLeft, PenLine } from 'lucide-react';
+import { X, Trash2, Save, ArrowLeft, PenLine, Tag, ChevronDown, Plus, PanelRightOpen, PanelRightClose } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
@@ -14,6 +14,13 @@ import { cn } from '@/lib/utils';
 import { useDebounce } from '@/hooks/useDebounce';
 import { saveDraft, loadDraft, clearDraft, hasDraft, cleanupOldDrafts } from '@/lib/draft-storage';
 import { DiffViewer } from '@/components/DiffViewer';
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from "@/components/ui/popover";
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
+import NoteReferencePanel, { CURRENT_NOTE_VALUE } from '@/components/NoteReferencePanel';
 
 const LazyEditor = lazy(() => import('@/components/ui/LazyEditor'));
 import {
@@ -31,7 +38,7 @@ import {
 const NoteEditorPage = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
-    const { notes, saveNote, updateNote, deleteNote } = useNotes();
+    const { notes, saveNote, updateNote, deleteNote, getUniqueCategories } = useNotes();
     const { toast } = useToast();
     const { t } = useLanguage();
 
@@ -40,6 +47,9 @@ const NoteEditorPage = () => {
 
     const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
+    const [category, setCategory] = useState<string | null>(null);
+    const [newCategoryInput, setNewCategoryInput] = useState('');
+    const [showCategoryPopover, setShowCategoryPopover] = useState(false);
     const hasInitialized = useRef(false);
     const [showDraftRecovery, setShowDraftRecovery] = useState(false);
     const [draftData, setDraftData] = useState<{ title: string; content: string } | null>(null);
@@ -49,6 +59,13 @@ const NoteEditorPage = () => {
     const [combo, setCombo] = useState(0);
     const [lastTyped, setLastTyped] = useState(0);
     const editorRef = useRef<any>(null);
+
+    // Split view state
+    const [showSplitView, setShowSplitView] = useState(false);
+    const [referenceNoteId, setReferenceNoteId] = useState<string | null>(CURRENT_NOTE_VALUE);
+
+    // Get unique categories
+    const categories = useMemo(() => getUniqueCategories(), [getUniqueCategories]);
 
     // Cleanup old drafts on mount (once)
     useEffect(() => {
@@ -76,6 +93,7 @@ const NoteEditorPage = () => {
         if (!isNew && existingNote) {
             setTitle(existingNote.title || '');
             setContent(existingNote.content || '');
+            setCategory(existingNote.category ?? null);
 
             // Then check for newer draft
             if (hasDraft(noteId)) {
@@ -195,7 +213,7 @@ const NoteEditorPage = () => {
         const noteId = id || 'new';
 
         if (isNew) {
-            const newNote = saveNote(finalTitle, content);
+            const newNote = saveNote(finalTitle, content, category);
             clearDraft(noteId); // Clear draft after successful save
             if (!silent) {
                 toast({ title: t.note_editor.toast_saved });
@@ -204,8 +222,13 @@ const NoteEditorPage = () => {
             // Navigate to the new note's URL so subsequent saves are updates, not creates
             navigate(`/notes/${newNote.id}`, { replace: true });
         } else if (existingNote) {
-            if (existingNote.title !== finalTitle || existingNote.content !== content) {
-                updateNote(existingNote.id, { title: finalTitle, content });
+            const hasChanges =
+                existingNote.title !== finalTitle ||
+                existingNote.content !== content ||
+                existingNote.category !== category;
+
+            if (hasChanges) {
+                updateNote(existingNote.id, { title: finalTitle, content, category });
                 clearDraft(noteId); // Clear draft after successful save
                 if (!silent) {
                     toast({ title: t.note_editor.toast_updated });
@@ -213,7 +236,7 @@ const NoteEditorPage = () => {
                 }
             }
         }
-    }, [title, content, id, isNew, existingNote, saveNote, updateNote, t.note_editor, toast]);
+    }, [title, content, category, id, isNew, existingNote, saveNote, updateNote, t.note_editor, toast]);
 
     const handleBack = useCallback(() => {
         handleSave(true);
@@ -264,7 +287,7 @@ const NoteEditorPage = () => {
         };
     }, [handleSave]);
 
-    // Unified scroll function
+    // Unified scroll function - handles both window scroll and container scroll in split view
     const scrollCursorIntoView = useCallback(() => {
         const quill = editorRef.current?.getEditor();
         if (!quill) return;
@@ -278,20 +301,40 @@ const NoteEditorPage = () => {
             // Actual cursor position relative to viewport
             const cursorBottom = editorRect.top + bounds.bottom;
 
-            const viewportHeight = window.visualViewport?.height || window.innerHeight;
+            if (showSplitView) {
+                // In split view, find the scrollable container (parent with overflow-y-auto)
+                const scrollContainer = editorElement.closest('.overflow-y-auto');
+                if (scrollContainer) {
+                    const containerRect = scrollContainer.getBoundingClientRect();
+                    const cursorRelativeToContainer = cursorBottom - containerRect.top;
+                    const containerHeight = containerRect.height;
 
-            // We want to keep the cursor at least 150px from the bottom of the visible area
-            const threshold = viewportHeight - 150;
+                    // Keep cursor at least 100px from the bottom
+                    const threshold = containerHeight - 100;
 
-            if (cursorBottom > threshold) {
-                const scrollNeeded = cursorBottom - threshold;
-                window.scrollBy({
-                    top: scrollNeeded,
-                    behavior: 'smooth'
-                });
+                    if (cursorRelativeToContainer > threshold) {
+                        const scrollNeeded = cursorRelativeToContainer - threshold;
+                        scrollContainer.scrollBy({
+                            top: scrollNeeded,
+                            behavior: 'smooth'
+                        });
+                    }
+                }
+            } else {
+                // Normal mode - scroll window
+                const viewportHeight = window.visualViewport?.height || window.innerHeight;
+                const threshold = viewportHeight - 150;
+
+                if (cursorBottom > threshold) {
+                    const scrollNeeded = cursorBottom - threshold;
+                    window.scrollBy({
+                        top: scrollNeeded,
+                        behavior: 'smooth'
+                    });
+                }
             }
         }
-    }, [editorRef]); // Depend on editorRef
+    }, [editorRef, showSplitView]);
 
     // Auto-scroll when typing
     useEffect(() => {
@@ -335,8 +378,26 @@ const NoteEditorPage = () => {
         setShowDraftRecovery(false);
     };
 
+    const handleSelectCategory = (cat: string | null) => {
+        setCategory(cat);
+        setShowCategoryPopover(false);
+        triggerHaptic();
+    };
+
+    const handleCreateCategory = () => {
+        if (newCategoryInput.trim()) {
+            setCategory(newCategoryInput.trim());
+            setNewCategoryInput('');
+            setShowCategoryPopover(false);
+            triggerHaptic();
+        }
+    };
+
     return (
-        <div className="min-h-screen bg-notebook flex flex-col">
+        <div className={cn(
+            "bg-notebook flex flex-col",
+            showSplitView ? "h-screen overflow-hidden" : "min-h-screen"
+        )}>
             {/* Draft Recovery Dialog */}
             <AlertDialog open={showDraftRecovery} onOpenChange={(open) => {
                 setShowDraftRecovery(open);
@@ -420,6 +481,31 @@ const NoteEditorPage = () => {
                     )}
                 </div>
                 <div className="flex items-center gap-2">
+                    {/* Split View Toggle - Hidden on mobile */}
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                            setShowSplitView(!showSplitView);
+                            triggerHaptic();
+                        }}
+                        className={cn(
+                            "hidden md:flex gap-1.5 font-handwriting text-sm rounded-sm",
+                            showSplitView
+                                ? "bg-doodle-primary/10 text-doodle-primary"
+                                : "text-pencil hover:text-ink"
+                        )}
+                    >
+                        {showSplitView ? (
+                            <PanelRightClose className="w-4 h-4" />
+                        ) : (
+                            <PanelRightOpen className="w-4 h-4" />
+                        )}
+                        <span className="hidden lg:inline">
+                            {t.note_editor.split_view_toggle}
+                        </span>
+                    </Button>
+
                     {/* Delete Button */}
                     {!isNew && (
                         <AlertDialog>
@@ -469,93 +555,295 @@ const NoteEditorPage = () => {
                 </div>
             </div>
 
-            {/* Content */}
-            <div className="flex-1 container max-w-2xl mx-auto p-4 pb-8 space-y-4">
-                <Input
-                    autoFocus={isNew}
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    placeholder={t.note_editor.placeholder_title}
-                    className={cn(
-                        "text-2xl font-handwriting text-ink border-0 border-b-2 border-dashed border-paper-lines",
-                        "focus-visible:border-doodle-primary rounded-none px-0 bg-transparent h-auto py-2",
-                        "focus-visible:ring-0 placeholder:text-pencil/50"
-                    )}
-                />
+            {/* Content - Wrapped in ResizablePanelGroup when split view is active */}
+            {showSplitView ? (
+                <ResizablePanelGroup direction="horizontal" className="flex-1 min-h-0">
+                    <ResizablePanel defaultSize={55} minSize={35} className="overflow-hidden">
+                        <div className="h-full overflow-y-auto">
+                            <div className="container max-w-2xl mx-auto p-4 pb-8 space-y-4">
+                                <Input
+                                    autoFocus={isNew}
+                                    value={title}
+                                    onChange={(e) => setTitle(e.target.value)}
+                                    placeholder={t.note_editor.placeholder_title}
+                                    className={cn(
+                                        "text-2xl font-handwriting text-ink border-0 border-b-2 border-dashed border-paper-lines",
+                                        "focus-visible:border-doodle-primary rounded-none px-0 bg-transparent h-auto py-2",
+                                        "focus-visible:ring-0 placeholder:text-pencil/50"
+                                    )}
+                                />
 
-                {/* Timestamp Metadata */}
-                <div className="font-handwriting text-xs text-pencil flex items-center gap-2">
-                    {isNew ? (
-                        <span>📅 {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}</span>
-                    ) : (
-                        <span>
-                            {existingNote?.updatedAt
-                                ? `✏️ ${t.note_editor.edited_prefix} ${new Date(existingNote.updatedAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}`
-                                : `📅 ${t.note_editor.created_prefix} ${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long' })}`
-                            }
-                        </span>
-                    )}
-                </div>
+                                {/* Timestamp Metadata */}
+                                <div className="font-handwriting text-xs text-pencil flex items-center gap-2">
+                                    {isNew ? (
+                                        <span>📅 {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}</span>
+                                    ) : (
+                                        <span>
+                                            {existingNote?.updatedAt
+                                                ? `✏️ ${t.note_editor.edited_prefix} ${new Date(existingNote.updatedAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}`
+                                                : `📅 ${t.note_editor.created_prefix} ${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long' })}`
+                                            }
+                                        </span>
+                                    )}
+                                </div>
 
-                <div className="flex-1 min-h-[60vh] bg-card rounded-sm border-2 border-paper-lines/50 shadow-notebook p-4">
-                    <Suspense fallback={
-                        <div className="h-full flex items-center justify-center">
-                            <div className="w-12 h-12 bg-sticky-yellow shadow-sticky rounded-sm flex items-center justify-center animate-pulse">
-                                <PenLine className="w-6 h-6 text-ink" />
+                                <div className="flex-1 min-h-[60vh] bg-card rounded-sm border-2 border-paper-lines/50 shadow-notebook p-4">
+                                    <Suspense fallback={
+                                        <div className="h-full flex items-center justify-center">
+                                            <div className="w-12 h-12 bg-sticky-yellow shadow-sticky rounded-sm flex items-center justify-center animate-pulse">
+                                                <PenLine className="w-6 h-6 text-ink" />
+                                            </div>
+                                        </div>
+                                    }>
+                                        <LazyEditor
+                                            ref={editorRef}
+                                            theme="snow"
+                                            value={content}
+                                            onChange={setContent}
+                                            onChangeSelection={handleSelectionChange}
+                                            modules={{
+                                                toolbar: [
+                                                    [{ 'header': [1, 2, false] }],
+                                                    ['bold', 'italic', 'underline', 'strike'],
+                                                    [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+                                                    ['link', 'clean']
+                                                ],
+                                            }}
+                                            placeholder={t.note_editor.placeholder_content}
+                                            className="h-full flex flex-col font-handwriting ql-typewriter"
+                                        />
+                                    </Suspense>
+                                </div>
+
+                                {/* Writing Stats */}
+                                <div className="flex flex-row items-center gap-1.5 px-1 py-2">
+                                    <div className="flex-1 flex items-center gap-3 bg-card/50 backdrop-blur-sm px-4 py-2 rounded-xl border-2 border-paper-lines/30 shadow-sm">
+                                        <span className="font-handwriting text-xs text-pencil/80 border-r-2 border-paper-lines/20 pr-3 leading-none whitespace-nowrap">
+                                            {wordCount} {wordCount === 1 ? 'word' : 'words'}
+                                        </span>
+                                        <div className="flex-1 h-2 bg-paper-lines/20 rounded-full overflow-hidden relative">
+                                            <div
+                                                className={cn(
+                                                    "h-full transition-all duration-150 ease-out rounded-full",
+                                                    getComboColor(combo),
+                                                    combo >= 90 && "animate-pulse shadow-[0_0_10px_rgba(239,68,68,0.5)]"
+                                                )}
+                                                style={{ width: `${combo}%` }}
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className={cn(
+                                        "font-handwriting text-xs font-bold transition-all duration-300 transform opacity-100 scale-100 translate-y-0",
+                                        combo >= 90 ? "text-doodle-red animate-bounce" : "text-pencil"
+                                    )}>
+                                        {getComboLabel(combo)}
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                    }>
-                        <LazyEditor
-                            ref={editorRef}
-                            theme="snow"
-                            value={content}
-                            onChange={setContent}
-                            onChangeSelection={handleSelectionChange}
-                            modules={{
-                                toolbar: [
-                                    [{ 'header': [1, 2, false] }],
-                                    ['bold', 'italic', 'underline', 'strike'],
-                                    [{ 'list': 'ordered' }, { 'list': 'bullet' }],
-                                    ['link', 'clean']
-                                ],
-                            }}
-                            placeholder={t.note_editor.placeholder_content}
-                            className="h-full flex flex-col font-handwriting ql-typewriter"
+                    </ResizablePanel>
+
+                    <ResizableHandle withHandle className="bg-paper-lines/30 hover:bg-doodle-primary/30 transition-colors" />
+
+                    <ResizablePanel defaultSize={45} minSize={25} className="overflow-hidden">
+                        <NoteReferencePanel
+                            notes={notes}
+                            currentNoteId={id}
+                            currentTitle={title}
+                            currentContent={content}
+                            selectedNoteId={referenceNoteId}
+                            onSelectNote={setReferenceNoteId}
+                            onClose={() => setShowSplitView(false)}
                         />
-                    </Suspense>
-                </div>
+                    </ResizablePanel>
+                </ResizablePanelGroup>
+            ) : (
+                /* Original Content without split view */
+                <div className="flex-1 container max-w-2xl mx-auto p-4 pb-8 space-y-4">
+                    <Input
+                        autoFocus={isNew}
+                        value={title}
+                        onChange={(e) => setTitle(e.target.value)}
+                        placeholder={t.note_editor.placeholder_title}
+                        className={cn(
+                            "text-2xl font-handwriting text-ink border-0 border-b-2 border-dashed border-paper-lines",
+                            "focus-visible:border-doodle-primary rounded-none px-0 bg-transparent h-auto py-2",
+                            "focus-visible:ring-0 placeholder:text-pencil/50"
+                        )}
+                    />
 
-                {/* Writing Stats (Word Count & Combo Meter) - Moved outside to prevent overlap */}
-                <div className="flex flex-row items-center gap-1.5 px-1 py-2">
+                    {/* Category Selector */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                        <Tag className="w-4 h-4 text-pencil flex-shrink-0" />
+                        <span className="font-handwriting text-sm text-pencil">Kategori:</span>
 
-                    <div className="flex-1 flex items-center gap-3 bg-card/50 backdrop-blur-sm px-4 py-2 rounded-xl border-2 border-paper-lines/30 shadow-sm">
-                        {/* Word Count */}
-                        <span className="font-handwriting text-xs text-pencil/80 border-r-2 border-paper-lines/20 pr-3 leading-none whitespace-nowrap">
-                            {wordCount} {wordCount === 1 ? 'word' : 'words'}
-                        </span>
+                        <Popover open={showCategoryPopover} onOpenChange={setShowCategoryPopover}>
+                            <PopoverTrigger asChild>
+                                <button
+                                    className={cn(
+                                        "flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-handwriting transition-all",
+                                        "border-2 border-dashed",
+                                        category
+                                            ? "bg-doodle-primary/10 text-doodle-primary border-doodle-primary/50"
+                                            : "bg-paper text-pencil border-paper-lines hover:border-doodle-primary/50"
+                                    )}
+                                >
+                                    {category || "Tanpa Kategori"}
+                                    <ChevronDown className="w-3 h-3" />
+                                </button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-64 p-2" align="start">
+                                <div className="space-y-2">
+                                    {/* No category option */}
+                                    <button
+                                        onClick={() => handleSelectCategory(null)}
+                                        className={cn(
+                                            "w-full text-left px-3 py-2 rounded-sm text-sm font-handwriting transition-colors",
+                                            category === null
+                                                ? "bg-doodle-primary/10 text-doodle-primary"
+                                                : "hover:bg-paper-lines/20 text-pencil"
+                                        )}
+                                    >
+                                        Tanpa Kategori
+                                    </button>
 
-                        {/* Combo Progress Bar */}
-                        <div className="flex-1 h-2 bg-paper-lines/20 rounded-full overflow-hidden relative">
-                            <div
-                                className={cn(
-                                    "h-full transition-all duration-150 ease-out rounded-full",
-                                    getComboColor(combo),
-                                    combo >= 90 && "animate-pulse shadow-[0_0_10px_rgba(239,68,68,0.5)]"
-                                )}
-                                style={{ width: `${combo}%` }}
+                                    {/* Existing categories */}
+                                    {categories.length > 0 && (
+                                        <div className="border-t border-paper-lines/50 pt-2">
+                                            {categories.map(cat => (
+                                                <button
+                                                    key={cat}
+                                                    onClick={() => handleSelectCategory(cat)}
+                                                    className={cn(
+                                                        "w-full text-left px-3 py-2 rounded-sm text-sm font-handwriting transition-colors",
+                                                        category === cat
+                                                            ? "bg-doodle-primary/10 text-doodle-primary"
+                                                            : "hover:bg-paper-lines/20 text-ink"
+                                                    )}
+                                                >
+                                                    {cat}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {/* Create new category */}
+                                    <div className="border-t border-paper-lines/50 pt-2">
+                                        <div className="flex gap-2">
+                                            <Input
+                                                value={newCategoryInput}
+                                                onChange={(e) => setNewCategoryInput(e.target.value)}
+                                                placeholder="Kategori baru..."
+                                                className="h-8 text-sm font-handwriting"
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') {
+                                                        e.preventDefault();
+                                                        handleCreateCategory();
+                                                    }
+                                                }}
+                                            />
+                                            <Button
+                                                size="sm"
+                                                onClick={handleCreateCategory}
+                                                disabled={!newCategoryInput.trim()}
+                                                className="h-8 px-2"
+                                            >
+                                                <Plus className="w-4 h-4" />
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </PopoverContent>
+                        </Popover>
+
+                        {/* Clear category button */}
+                        {category && (
+                            <button
+                                onClick={() => {
+                                    setCategory(null);
+                                    triggerHaptic();
+                                }}
+                                className="text-pencil/60 hover:text-doodle-red transition-colors"
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
+                        )}
+                    </div>
+
+                    {/* Timestamp Metadata */}
+                    <div className="font-handwriting text-xs text-pencil flex items-center gap-2">
+                        {isNew ? (
+                            <span>📅 {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}</span>
+                        ) : (
+                            <span>
+                                {existingNote?.updatedAt
+                                    ? `✏️ ${t.note_editor.edited_prefix} ${new Date(existingNote.updatedAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}`
+                                    : `📅 ${t.note_editor.created_prefix} ${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long' })}`
+                                }
+                            </span>
+                        )}
+                    </div>
+
+                    <div className="flex-1 min-h-[60vh] bg-card rounded-sm border-2 border-paper-lines/50 shadow-notebook p-4">
+                        <Suspense fallback={
+                            <div className="h-full flex items-center justify-center">
+                                <div className="w-12 h-12 bg-sticky-yellow shadow-sticky rounded-sm flex items-center justify-center animate-pulse">
+                                    <PenLine className="w-6 h-6 text-ink" />
+                                </div>
+                            </div>
+                        }>
+                            <LazyEditor
+                                ref={editorRef}
+                                theme="snow"
+                                value={content}
+                                onChange={setContent}
+                                onChangeSelection={handleSelectionChange}
+                                modules={{
+                                    toolbar: [
+                                        [{ 'header': [1, 2, false] }],
+                                        ['bold', 'italic', 'underline', 'strike'],
+                                        [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+                                        ['link', 'clean']
+                                    ],
+                                }}
+                                placeholder={t.note_editor.placeholder_content}
+                                className="h-full flex flex-col font-handwriting ql-typewriter"
                             />
-                        </div>
-                    </div>
-                    {/* Appreciation Label */}
-                    <div className={cn(
-                        "font-handwriting text-xs font-bold transition-all duration-300 transform opacity-100 scale-100 translate-y-0",
-                        combo >= 90 ? "text-doodle-red animate-bounce" : "text-pencil"
-                    )}>
-                        {getComboLabel(combo)}
+                        </Suspense>
                     </div>
 
+                    {/* Writing Stats (Word Count & Combo Meter) - Moved outside to prevent overlap */}
+                    <div className="flex flex-row items-center gap-1.5 px-1 py-2">
+
+                        <div className="flex-1 flex items-center gap-3 bg-card/50 backdrop-blur-sm px-4 py-2 rounded-xl border-2 border-paper-lines/30 shadow-sm">
+                            {/* Word Count */}
+                            <span className="font-handwriting text-xs text-pencil/80 border-r-2 border-paper-lines/20 pr-3 leading-none whitespace-nowrap">
+                                {wordCount} {wordCount === 1 ? 'word' : 'words'}
+                            </span>
+
+                            {/* Combo Progress Bar */}
+                            <div className="flex-1 h-2 bg-paper-lines/20 rounded-full overflow-hidden relative">
+                                <div
+                                    className={cn(
+                                        "h-full transition-all duration-150 ease-out rounded-full",
+                                        getComboColor(combo),
+                                        combo >= 90 && "animate-pulse shadow-[0_0_10px_rgba(239,68,68,0.5)]"
+                                    )}
+                                    style={{ width: `${combo}%` }}
+                                />
+                            </div>
+                        </div>
+                        {/* Appreciation Label */}
+                        <div className={cn(
+                            "font-handwriting text-xs font-bold transition-all duration-300 transform opacity-100 scale-100 translate-y-0",
+                            combo >= 90 ? "text-doodle-red animate-bounce" : "text-pencil"
+                        )}>
+                            {getComboLabel(combo)}
+                        </div>
+
+                    </div>
                 </div>
-            </div>
+            )}
         </div>
     );
 };

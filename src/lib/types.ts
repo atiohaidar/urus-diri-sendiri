@@ -32,6 +32,7 @@ export interface Note {
     id: string;
     title: string;
     content: string;
+    category: string | null;  // null = tanpa kategori
     createdAt: string;
     updatedAt: string;
     deletedAt?: string | null;

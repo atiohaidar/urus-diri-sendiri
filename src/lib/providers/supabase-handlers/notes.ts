@@ -19,6 +19,7 @@ export const fetchNotes = async (userId: string, since?: string) => {
         id: r.id,
         title: r.title,
         content: r.content,
+        category: r.category ?? null,
         createdAt: r.created_at,
         updatedAt: r.updated_at,
         deletedAt: r.deleted_at
@@ -32,6 +33,7 @@ export const syncNotes = async (userId: string, notes: Note[]) => {
         id: n.id,
         title: n.title,
         content: n.content,
+        category: n.category ?? null,
         created_at: n.createdAt,
         updated_at: n.updatedAt,
         deleted_at: n.deletedAt || null,

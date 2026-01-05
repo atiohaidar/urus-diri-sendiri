@@ -30,6 +30,7 @@ create table notes (
   id text primary key,
   title text,
   content text,
+  category text,
   created_at text,
   updated_at text,
   user_id uuid references auth.users not null default auth.uid()
