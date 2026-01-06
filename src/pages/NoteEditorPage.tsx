@@ -220,7 +220,7 @@ const NoteEditorPage = () => {
                 triggerHaptic();
             }
             // Navigate to the new note's URL so subsequent saves are updates, not creates
-            navigate(`/notes/${newNote.id}`, { replace: true });
+            navigate(`/note-editor/${newNote.id}`, { replace: true });
         } else if (existingNote) {
             const hasChanges =
                 existingNote.title !== finalTitle ||
