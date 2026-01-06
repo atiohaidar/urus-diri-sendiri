@@ -22,7 +22,7 @@ interface HabitFormModalProps {
     onSave: (habit: Omit<Habit, 'id' | 'createdAt' | 'updatedAt'> | Partial<Habit>) => void;
 }
 
-const EMOJI_OPTIONS = ['💪', '📚', '🧘', '🏃', '💧', '🎯', '✍️', '🛏️', '🍎', '💊', '🎸', '🌱'];
+const EMOJI_OPTIONS = ['💪', '📚', '💧', '🎯', '✍️', '🛏️', '🍎', '💊', '🌱'];
 
 const DAY_OPTIONS = [
     { value: 0, label: 'Min' },
