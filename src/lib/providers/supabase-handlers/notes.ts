@@ -31,10 +31,10 @@ export const fetchNotes = async (userId: string, since?: string) => {
     })) as Note[];
 };
 
-export const syncNotes = async (userId: string, notes: Note[]) => {
-    const activeIds = notes.map(n => n.id);
+export const syncNotes = async (userId: string, notes: Note[] | Note) => {
+    const items = Array.isArray(notes) ? notes : [notes];
 
-    const rows = notes.map(n => ({
+    const rows = items.map(n => ({
         id: n.id,
         title: n.title,
         content: n.content,
@@ -54,21 +54,14 @@ export const syncNotes = async (userId: string, notes: Note[]) => {
         const { error } = await supabase.from('notes').upsert(rows);
         if (error) throw error;
     }
+};
 
-    // Soft Delete Missing Items
-    if (activeIds.length > 0) {
-        const { error: delError } = await supabase
-            .from('notes')
-            .update({ deleted_at: new Date().toISOString() })
-            .not('id', 'in', `(${activeIds.join(',')})`)
-            .is('deleted_at', null);
+export const deleteRemoteNote = async (userId: string, id: string) => {
+    const { error } = await supabase
+        .from('notes')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', id)
+        .eq('user_id', userId);
 
-        if (delError) console.error("Error soft-syncing notes:", delError);
-    } else {
-        const { error: delError } = await supabase
-            .from('notes')
-            .update({ deleted_at: new Date().toISOString() })
-            .is('deleted_at', null);
-        if (delError) console.error("Error soft-clearing notes:", delError);
-    }
+    if (error) throw error;
 };

@@ -3,12 +3,13 @@ import { STORAGE_KEYS } from '../constants';
 /**
  * Queue item types for offline sync
  */
-export type QueueItemType = 'priorities' | 'reflection' | 'notes' | 'routines' | 'log' | 'delete_log' | 'habits' | 'habitLogs' | 'personal_notes';
+export type QueueItemType = 'priorities' | 'reflection' | 'notes' | 'delete_note' | 'routines' | 'log' | 'delete_log' | 'habits' | 'habitLogs' | 'personal_notes';
 
 export type QueueItem =
     | { type: 'priorities'; data: any[] }
     | { type: 'reflection'; data: any }
-    | { type: 'notes'; data: any[] }
+    | { type: 'notes'; data: any[] | any }
+    | { type: 'delete_note'; data: string }
     | { type: 'routines'; data: any[] }
     | { type: 'log'; data: any }
     | { type: 'delete_log'; data: string }

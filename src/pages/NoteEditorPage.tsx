@@ -43,7 +43,7 @@ import { UnlockNoteDialog } from '@/components/UnlockNoteDialog';
 const NoteEditorPage = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
-    const { notes, saveNote, updateNote, deleteNote, getUniqueCategories } = useNotes();
+    const { notes, saveNote, updateNote, deleteNote, getUniqueCategories, isLoading } = useNotes();
     const { toast } = useToast();
     const { t } = useLanguage();
 
@@ -59,7 +59,11 @@ const NoteEditorPage = () => {
     const [showDraftRecovery, setShowDraftRecovery] = useState(false);
     const [draftData, setDraftData] = useState<{ title: string; content: string } | null>(null);
     const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+    const initialNoteTimestamp = useRef<string | null>(null);
+    const [showConflictDialog, setShowConflictDialog] = useState(false);
+    const [conflictData, setConflictData] = useState<{ title: string; content: string; updatedAt: string } | null>(null);
     const [showDiff, setShowDiff] = useState(false);
+    const [showConflictDiff, setShowConflictDiff] = useState(false);
     const [wordCount, setWordCount] = useState(0);
     const [combo, setCombo] = useState(0);
     const [lastTyped, setLastTyped] = useState(0);
@@ -135,6 +139,9 @@ const NoteEditorPage = () => {
             } else {
                 setContent(existingNote.content || '');
             }
+
+            // Track initial timestamp for conflict detection
+            initialNoteTimestamp.current = existingNote.updatedAt || existingNote.createdAt;
 
             // Then check for newer draft
             if (hasDraft(noteId)) {
@@ -245,6 +252,11 @@ const NoteEditorPage = () => {
             return;
         }
 
+        if (isLocked && !isNew) {
+            if (!silent) toast({ title: "❌ Unlock note to save changes", variant: "destructive" });
+            return;
+        }
+
         let finalTitle = title;
         if (!finalTitle.trim() && content.trim()) {
             const plainContent = content.replace(/<[^>]*>/g, ' ').trim();
@@ -252,6 +264,28 @@ const NoteEditorPage = () => {
         }
 
         const noteId = id || 'new';
+
+        // Conflict Detection Logic for existing notes
+        if (!isNew && existingNote && initialNoteTimestamp.current) {
+            // Re-check from the latest notes in store
+            const latestNote = notes.find(n => n.id === existingNote.id);
+            if (latestNote && latestNote.updatedAt && initialNoteTimestamp.current) {
+                const serverTime = new Date(latestNote.updatedAt).getTime();
+                const clientStartTime = new Date(initialNoteTimestamp.current).getTime();
+
+                // If server version is newer than what we started with
+                if (serverTime > clientStartTime && !silent) {
+                    setConflictData({
+                        title: latestNote.title || '',
+                        content: latestNote.content || '',
+                        updatedAt: latestNote.updatedAt
+                    });
+                    setShowConflictDialog(true);
+                    return;
+                }
+            }
+        }
+
         let saveContent = content;
         let saveMetadata = {};
 
@@ -313,6 +347,9 @@ const NoteEditorPage = () => {
                 category,
                 ...saveMetadata
             });
+
+            // Update initial timestamp to prevent conflict on next immediate save
+            initialNoteTimestamp.current = new Date().toISOString();
 
             clearDraft(noteId);
             if (!silent) {
@@ -482,6 +519,18 @@ const NoteEditorPage = () => {
             "bg-notebook flex flex-col",
             showSplitView ? "h-screen overflow-hidden" : "min-h-screen"
         )}>
+            {/* Loading State */}
+            {isLoading && !isNew && !existingNote && (
+                <div className="fixed inset-0 z-[100] bg-notebook/80 backdrop-blur-sm flex items-center justify-center">
+                    <div className="flex flex-col items-center gap-4">
+                        <div className="w-12 h-12 bg-sticky-yellow shadow-sticky rounded-sm flex items-center justify-center animate-spin">
+                            <PenLine className="w-6 h-6 text-ink" />
+                        </div>
+                        <p className="font-handwriting text-pencil animate-pulse">{t.common.loading}</p>
+                    </div>
+                </div>
+            )}
+
             {/* Draft Recovery Dialog */}
             <AlertDialog open={showDraftRecovery} onOpenChange={(open) => {
                 setShowDraftRecovery(open);
@@ -535,6 +584,76 @@ const NoteEditorPage = () => {
                             className="bg-doodle-primary text-white hover:bg-doodle-primary/90 font-handwriting rounded-sm"
                         >
                             Recover Draft
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            {/* Conflict Detection Dialog */}
+            <AlertDialog open={showConflictDialog} onOpenChange={(open) => {
+                setShowConflictDialog(open);
+                if (!open) setShowConflictDiff(false);
+            }}>
+                <AlertDialogContent className="max-w-3xl">
+                    <AlertDialogHeader>
+                        <AlertDialogTitle className="font-handwriting text-xl text-ink flex items-center gap-2">
+                            <span>⚠️</span> Conflict Detected
+                        </AlertDialogTitle>
+                        <AlertDialogDescription className="font-handwriting text-pencil">
+                            This note has been modified on another device since you started editing.
+                            Saving now will overwrite those changes.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+
+                    {!showConflictDiff && conflictData && (
+                        <div className="bg-notebook border-2 border-dashed border-doodle-red/30 rounded-sm p-4 text-sm font-handwriting">
+                            <p className="font-bold text-doodle-red mb-2">Changes from other device:</p>
+                            <div className="space-y-2 opacity-80">
+                                <div>Title: {conflictData?.title}</div>
+                                <div className="line-clamp-3 italic">Content: {conflictData?.content.replace(/<[^>]*>/g, ' ').substring(0, 100)}...</div>
+                                <div className="text-xs mt-2 text-pencil">Modified: {new Date(conflictData.updatedAt).toLocaleString()}</div>
+                            </div>
+                            <div className="mt-4 flex justify-center">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setShowConflictDiff(true)}
+                                    className="font-handwriting gap-2"
+                                >
+                                    <span>🔍</span> Show Differences
+                                </Button>
+                            </div>
+                        </div>
+                    )}
+
+                    {showConflictDiff && conflictData && (
+                        <div className="border-2 border-dashed border-doodle-red/30 rounded-sm p-4 bg-notebook">
+                            <DiffViewer
+                                oldTitle={title} // My current title
+                                oldContent={content} // My current content
+                                newTitle={conflictData.title} // Remote title
+                                newContent={conflictData.content} // Remote content
+                            />
+                            <p className="text-xs text-pencil mt-2 text-center italic">
+                                Note: "Newer" side shows the changes from other device.
+                            </p>
+                        </div>
+                    )}
+
+                    <AlertDialogFooter className="mt-4">
+                        <AlertDialogCancel className="font-handwriting rounded-sm">
+                            Batal Simpan
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={() => {
+                                // Force save: Update our initial timestamp to "now" to bypass next check
+                                initialNoteTimestamp.current = new Date().toISOString();
+                                setShowConflictDialog(false);
+                                setTimeout(() => handleSave(), 100);
+                            }}
+                            className="bg-doodle-red text-white hover:bg-doodle-red/90 font-handwriting rounded-sm"
+                        >
+                            Timpa Paksa (Overwrite)
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

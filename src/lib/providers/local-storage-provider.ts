@@ -49,8 +49,25 @@ export class LocalStorageProvider implements IStorageProvider {
         return data ? JSON.parse(data) : [];
     }
 
+    async saveNote(note: Note): Promise<void> {
+        const notes = await this.getNotes();
+        const index = notes.findIndex(n => n.id === note.id);
+        if (index >= 0) {
+            notes[index] = note;
+        } else {
+            notes.unshift(note);
+        }
+        await this.saveNotes(notes);
+    }
+
     async saveNotes(notes: Note[]): Promise<void> {
         localStorage.setItem(STORAGE_KEYS.NOTES, JSON.stringify(notes));
+    }
+
+    async deleteNote(id: string): Promise<void> {
+        const notes = await this.getNotes();
+        const filtered = notes.filter(n => n.id !== id);
+        await this.saveNotes(filtered);
     }
 
     // --- Routines ---

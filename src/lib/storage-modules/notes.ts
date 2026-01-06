@@ -17,7 +17,7 @@ export const saveNote = (note: Omit<Note, 'id' | 'createdAt' | 'updatedAt'>) => 
     const updated = [newNote, ...notes];
 
     cache.notes = updated;
-    provider.saveNotes(updated).catch((error) => {
+    provider.saveNote(newNote).catch((error) => {
         handleSaveError(error, 'Menyimpan catatan');
     });
 
@@ -33,9 +33,12 @@ export const updateNote = (id: string, updates: Partial<Pick<Note, 'title' | 'co
     );
 
     cache.notes = updated;
-    provider.saveNotes(updated).catch((error) => {
-        handleSaveError(error, 'Memperbarui catatan');
-    });
+    const updatedNote = updated.find(n => n.id === id);
+    if (updatedNote) {
+        provider.saveNote(updatedNote).catch((error) => {
+            handleSaveError(error, 'Memperbarui catatan');
+        });
+    }
 
     return updated;
 };
@@ -45,7 +48,7 @@ export const deleteNote = (id: string) => {
     const filtered = notes.filter(n => n.id !== id);
 
     cache.notes = filtered;
-    provider.saveNotes(filtered).catch((error) => {
+    provider.deleteNote(id).catch((error) => {
         handleSaveError(error, 'Menghapus catatan');
     });
 

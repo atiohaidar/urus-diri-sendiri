@@ -7,7 +7,7 @@ import { offlineQueue, QueueItem } from './offline-queue';
 // Handlers
 import { fetchPriorities, syncPriorities } from './supabase-handlers/priorities';
 import { fetchReflections, syncReflection } from './supabase-handlers/reflections';
-import { fetchNotes, syncNotes } from './supabase-handlers/notes';
+import { fetchNotes, syncNotes, deleteRemoteNote } from './supabase-handlers/notes';
 import { fetchRoutines, syncRoutines } from './supabase-handlers/routines';
 import { fetchLogs, syncLog, deleteRemoteLog } from './supabase-handlers/logs';
 import { fetchHabits, syncHabits } from './supabase-handlers/habits';
@@ -28,6 +28,7 @@ export class SupabaseProvider implements IStorageProvider {
                 case 'priorities': await syncPriorities(userId, item.data); break;
                 case 'reflection': await syncReflection(userId, item.data); break;
                 case 'notes': await syncNotes(userId, item.data); break;
+                case 'delete_note': await deleteRemoteNote(userId, item.data); break;
                 case 'routines': await syncRoutines(userId, item.data); break;
                 case 'log': await syncLog(userId, item.data); break;
                 case 'delete_log': await deleteRemoteLog(userId, item.data); break;
@@ -175,6 +176,17 @@ export class SupabaseProvider implements IStorageProvider {
         }
     }
 
+    async saveNote(note: Note): Promise<void> {
+        await this.localProvider.saveNote(note);
+        await this.executeOrQueue(
+            { type: 'notes', data: note },
+            async () => {
+                const userId = await this.getUserId();
+                await syncNotes(userId, note);
+            }
+        );
+    }
+
     async saveNotes(notes: Note[]): Promise<void> {
         await this.localProvider.saveNotes(notes);
         await this.executeOrQueue(
@@ -182,6 +194,17 @@ export class SupabaseProvider implements IStorageProvider {
             async () => {
                 const userId = await this.getUserId();
                 await syncNotes(userId, notes);
+            }
+        );
+    }
+
+    async deleteNote(id: string): Promise<void> {
+        await this.localProvider.deleteNote(id);
+        await this.executeOrQueue(
+            { type: 'delete_note', data: id },
+            async () => {
+                const userId = await this.getUserId();
+                await deleteRemoteNote(userId, id);
             }
         );
     }

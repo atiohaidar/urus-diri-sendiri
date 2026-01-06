@@ -11,7 +11,9 @@ export interface IStorageProvider {
 
     // Notes
     getNotes(since?: string): Promise<Note[]>;
-    saveNotes(notes: Note[]): Promise<void>;
+    saveNote(note: Note): Promise<void>;
+    saveNotes(notes: Note[]): Promise<void>; // Keeps for batch operations
+    deleteNote(id: string): Promise<void>;
 
     // Routines
     getRoutines(since?: string): Promise<RoutineItem[]>;
