@@ -1,6 +1,6 @@
 import { useState, useMemo, forwardRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Plus, Lightbulb, PenLine, ArrowUpDown, Tag } from 'lucide-react';
+import { Search, Plus, Lightbulb, PenLine, ArrowUpDown, Tag, Lock } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import NoteCard from '@/components/NoteCard';
@@ -33,8 +33,9 @@ const ParkingLotScreen = () => {
   const { notes, getUniqueCategories } = useNotes();
   const { t } = useLanguage();
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null); // null = "Semua"
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null); // null = "Semua", "uncategorized" = "Tanpa Kategori"
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
+  const [showSecureNotes, setShowSecureNotes] = useState(false); // Toggle untuk menampilkan notes yang secure
 
   // Get unique categories from notes
   const categories = useMemo(() => getUniqueCategories(), [getUniqueCategories]);
@@ -42,8 +43,17 @@ const ParkingLotScreen = () => {
   const filteredAndSortedNotes = useMemo(() => {
     let result = notes;
 
+    // Filter out secure/encrypted notes by default
+    if (!showSecureNotes) {
+      result = result.filter(note => !note.isEncrypted);
+    }
+
     // Filter by category
-    if (selectedCategory !== null) {
+    if (selectedCategory === 'uncategorized') {
+      // Show only notes without category
+      result = result.filter(note => !note.category || note.category.trim() === '');
+    } else if (selectedCategory !== null) {
+      // Show notes with specific category
       result = result.filter(note => note.category === selectedCategory);
     }
 
@@ -65,7 +75,7 @@ const ParkingLotScreen = () => {
     });
 
     return result;
-  }, [notes, searchQuery, selectedCategory, sortOrder]);
+  }, [notes, searchQuery, selectedCategory, sortOrder, showSecureNotes]);
 
   const openNewNote = () => {
     navigate('/note-editor/new');
@@ -110,7 +120,7 @@ const ParkingLotScreen = () => {
             </div>
           </div>
 
-          {/* Category Filter Chips + Sort Toggle */}
+          {/* Category Filter Chips + Sort Toggle + Secure Toggle */}
           <div className="mt-4 flex flex-col sm:flex-row sm:items-center gap-3">
             {/* Category Chips */}
             <div className="flex-1 flex items-center gap-2 overflow-x-auto pb-2 sm:pb-0 scrollbar-hide">
@@ -126,6 +136,18 @@ const ParkingLotScreen = () => {
                 )}
               >
                 Semua
+              </button>
+              <button
+                onClick={() => setSelectedCategory('uncategorized')}
+                className={cn(
+                  "px-3 py-1 rounded-full text-sm font-handwriting whitespace-nowrap transition-all",
+                  "border-2 border-dashed",
+                  selectedCategory === 'uncategorized'
+                    ? "bg-doodle-primary text-white border-doodle-primary"
+                    : "bg-paper text-pencil border-paper-lines hover:border-doodle-primary/50"
+                )}
+              >
+                Tanpa Kategori
               </button>
               {categories.map(category => (
                 <button
@@ -144,16 +166,35 @@ const ParkingLotScreen = () => {
               ))}
             </div>
 
-            {/* Sort Toggle */}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={toggleSortOrder}
-              className="font-handwriting text-pencil hover:text-ink gap-1.5 flex-shrink-0"
-            >
-              <ArrowUpDown className="w-4 h-4" />
-              {sortOrder === 'newest' ? 'Terbaru' : 'Terlama'}
-            </Button>
+            {/* Controls: Secure Toggle + Sort Toggle */}
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {/* Secure Notes Toggle */}
+              <Button
+                variant={showSecureNotes ? "default" : "ghost"}
+                size="sm"
+                onClick={() => setShowSecureNotes(!showSecureNotes)}
+                className={cn(
+                  "font-handwriting gap-1.5",
+                  showSecureNotes
+                    ? "bg-doodle-primary text-white hover:bg-doodle-primary/90"
+                    : "text-pencil hover:text-ink"
+                )}
+              >
+                <Lock className="w-4 h-4" />
+                {showSecureNotes ? 'Sembunyikan Secure' : 'Tampilkan Secure'}
+              </Button>
+
+              {/* Sort Toggle */}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={toggleSortOrder}
+                className="font-handwriting text-pencil hover:text-ink gap-1.5"
+              >
+                <ArrowUpDown className="w-4 h-4" />
+                {sortOrder === 'newest' ? 'Terbaru' : 'Terlama'}
+              </Button>
+            </div>
           </div>
         </div>
       </header>

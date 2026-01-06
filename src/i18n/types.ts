@@ -35,6 +35,8 @@ export interface Translation {
         ideas: string;
         history: string;
         settings: string;
+        quick_log: string;
+        quick_log_shortcut: string;
     };
     history: {
         title: string;

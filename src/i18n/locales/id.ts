@@ -35,6 +35,8 @@ export const id: Translation = {
         ideas: "Ide",
         history: "Riwayat",
         settings: "Pengaturan",
+        quick_log: "Log Cepat",
+        quick_log_shortcut: "Ctrl+Shift+L",
     },
     history: {
         title: "Riwayat Refleksi",

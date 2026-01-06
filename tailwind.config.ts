@@ -104,6 +104,7 @@ export default {
         'card-hover': 'var(--card-shadow-hover)',
         'tape': 'var(--shadow-tape)',
         'sticky': 'var(--shadow-sticky)',
+        'sticky-hover': 'var(--shadow-sticky-hover)',
         // Optimized shadows for mobile - simpler, less layers
         'notebook': '2px 2px 0 0 rgba(0,0,0,0.08)',
         'notebook-hover': '3px 3px 0 0 rgba(0,0,0,0.1)',

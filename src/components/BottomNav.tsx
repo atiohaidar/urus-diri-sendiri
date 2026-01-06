@@ -124,6 +124,27 @@ const BottomNav = ({ activeTab }: BottomNavProps) => {
           ))}
         </div>
 
+        {/* Desktop: Quick Log Special Button */}
+        <div className="hidden md:block px-4 mt-4">
+          <div className="border-t-2 border-dashed border-paper-lines pt-4 mb-4">
+            <button
+              onClick={() => handleNavigate('/log-creator')}
+              className={cn(
+                "w-full flex items-center gap-3 px-4 py-3 transition-all duration-150",
+                "bg-sticky-blue text-ink shadow-sticky rounded-sm font-handwriting",
+                "hover:shadow-sticky-hover hover:-rotate-1",
+                "transform active:scale-95"
+              )}
+            >
+              <Plus className="w-5 h-5" strokeWidth={2.5} />
+              <div className="flex flex-col items-start flex-1">
+                <span className="text-sm font-semibold">{t.navigation.quick_log}</span>
+                <span className="text-[10px] opacity-70">{t.navigation.quick_log_shortcut}</span>
+              </div>
+            </button>
+          </div>
+        </div>
+
         {/* Desktop: Additional Doodle Decoration */}
         <div className="hidden md:block mt-auto px-4 pt-8">
           <div className="border-t-2 border-dashed border-paper-lines pt-4">

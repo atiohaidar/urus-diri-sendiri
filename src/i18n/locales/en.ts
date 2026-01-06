@@ -35,6 +35,8 @@ export const en: Translation = {
         ideas: "Ideas",
         history: "History",
         settings: "Settings",
+        quick_log: "Quick Log",
+        quick_log_shortcut: "Ctrl+Shift+L",
     },
     history: {
         title: "Reflection History",
