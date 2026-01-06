@@ -163,6 +163,11 @@ export interface Translation {
         no_notes_available: string;
         live_preview: string;
         other_notes: string;
+        custom_url: string;
+        custom_url_placeholder: string;
+        load_url: string;
+        iframe_blocked: string;
+        open_in_new_tab: string;
     };
     log_creator: {
         placeholder_text: string;
@@ -199,5 +204,23 @@ export interface Translation {
         other_section: string;
         progress_today: string;
         completed_suffix: string;
+    };
+    updates: {
+        title: string;
+        check_button: string;
+        checking: string;
+        downloading: string;
+        current_version: string;
+        new_version: string;
+        whats_new: string;
+        download_button: string;
+        cancel_button: string;
+        up_to_date: string;
+        up_to_date_desc: string;
+        error_check: string;
+        error_download: string;
+        file_size: string;
+        release_date: string;
+        install_prompt: string;
     };
 }

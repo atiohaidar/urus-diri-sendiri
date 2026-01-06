@@ -1,18 +1,29 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Moon, Sun, Download, Upload, Monitor, Languages } from 'lucide-react';
+import { ArrowLeft, Moon, Sun, Download, Upload, Monitor, Languages, RefreshCw, Smartphone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { exportData, importData } from '@/lib/backup';
 import { useTheme } from '@/components/theme-provider';
 import { useLanguage } from '@/i18n/LanguageContext';
 import MainLayout from '@/components/layout/MainLayout';
 import { toast } from 'sonner';
+import { checkForUpdates, downloadUpdate, UpdateInfo, getCurrentVersion } from '@/lib/updateChecker';
+import { UpdateDialog } from '@/components/UpdateDialog';
+import AppUpdater from '@/plugins/appUpdater';
+import { Capacitor } from '@capacitor/core';
 
 const Settings = () => {
     const navigate = useNavigate();
     const { setTheme, theme } = useTheme();
     const { language, setLanguage, t } = useLanguage();
     const [importing, setImporting] = useState(false);
+
+    // Update checker state
+    const [checking, setChecking] = useState(false);
+    const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
+    const [showUpdateDialog, setShowUpdateDialog] = useState(false);
+    const [downloading, setDownloading] = useState(false);
+    const [downloadProgress, setDownloadProgress] = useState(0);
 
     const handleExport = () => {
         if (exportData()) {
@@ -36,6 +47,61 @@ const Settings = () => {
         } catch (error) {
             toast.error(t.settings.import_error);
             setImporting(false);
+        }
+    };
+
+    const handleCheckUpdate = async () => {
+        // Only available on Android
+        if (!Capacitor.isNativePlatform() || Capacitor.getPlatform() !== 'android') {
+            toast.error('Update check is only available on Android');
+            return;
+        }
+
+        setChecking(true);
+        try {
+            const info = await checkForUpdates();
+            setUpdateInfo(info);
+
+            if (info.available) {
+                setShowUpdateDialog(true);
+            } else {
+                toast.success(t.updates.up_to_date, {
+                    description: t.updates.up_to_date_desc,
+                });
+            }
+        } catch (error) {
+            console.error('Error checking for updates:', error);
+            toast.error(t.updates.error_check);
+        } finally {
+            setChecking(false);
+        }
+    };
+
+    const handleDownloadUpdate = async () => {
+        if (!updateInfo?.downloadUrl) return;
+
+        setDownloading(true);
+        setDownloadProgress(0);
+
+        try {
+            const filePath = await downloadUpdate(
+                updateInfo.downloadUrl,
+                (progress) => setDownloadProgress(progress)
+            );
+
+            // Close dialog
+            setShowUpdateDialog(false);
+
+            // Trigger installation
+            await AppUpdater.installApk({ filePath });
+
+            toast.success(t.updates.install_prompt);
+        } catch (error) {
+            console.error('Error downloading update:', error);
+            toast.error(t.updates.error_download);
+        } finally {
+            setDownloading(false);
+            setDownloadProgress(0);
         }
     };
 
@@ -145,10 +211,47 @@ const Settings = () => {
                     </div>
                 </section>
 
+                {/* App Updates Section - Only show on Android */}
+                {Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android' && (
+                    <section className="bg-card rounded-3xl p-6 border border-border/50 shadow-sm">
+                        <h2 className="text-lg font-semibold mb-4">{t.updates.title}</h2>
+                        <div className="space-y-3">
+                            <Button
+                                variant="outline"
+                                className="w-full justify-start gap-3 h-12 rounded-xl"
+                                onClick={handleCheckUpdate}
+                                disabled={checking}
+                            >
+                                {checking ? (
+                                    <RefreshCw className="w-5 h-5 text-muted-foreground animate-spin" />
+                                ) : (
+                                    <Smartphone className="w-5 h-5 text-muted-foreground" />
+                                )}
+                                <div className="flex flex-col items-start">
+                                    <span className="font-medium">{t.updates.check_button}</span>
+                                    <span className="text-xs text-muted-foreground">
+                                        {checking ? t.updates.checking : `v${getCurrentVersion()}`}
+                                    </span>
+                                </div>
+                            </Button>
+                        </div>
+                    </section>
+                )}
+
                 <div className="text-center text-xs text-muted-foreground pt-8">
                     <p>UrusDiriSendiri v1.0.0</p>
                 </div>
             </div>
+
+            {/* Update Dialog */}
+            <UpdateDialog
+                open={showUpdateDialog}
+                onOpenChange={setShowUpdateDialog}
+                updateInfo={updateInfo}
+                onDownload={handleDownloadUpdate}
+                downloading={downloading}
+                downloadProgress={downloadProgress}
+            />
         </MainLayout>
     );
 };
