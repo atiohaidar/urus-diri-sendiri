@@ -3,7 +3,6 @@ import { toast } from 'sonner';
 import {
     getRoutines,
     getPriorities,
-    getVisiblePriorities,
     updatePriorityCompletion,
     findCurrentRoutineIndex,
     toggleRoutineCompletion,
@@ -42,7 +41,8 @@ export const useRoutines = () => {
             const loadedRoutines = getRoutines();
             setRoutines(loadedRoutines);
 
-            const visiblePriorities = getVisiblePriorities();
+            // Priorities: Load using centralized intelligent filter/sort
+            const visiblePriorities = getPriorities();
             setPriorities(visiblePriorities);
             setStats(getCompletionStats(loadedRoutines));
 

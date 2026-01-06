@@ -24,6 +24,12 @@ export const resetOldCompletions = async (): Promise<void> => {
                 return p;
             }
 
+            // NEW: Skip reset if this is a one-time task (has a scheduled date)
+            // Dated tasks should stay completed once they are done.
+            if (p.scheduledFor) {
+                return p;
+            }
+
             // Check if priority was updated on a previous day and is completed
             if (p.updatedAt) {
                 const priorityDateISO = p.updatedAt.split('T')[0]; // Extract YYYY-MM-DD
@@ -50,20 +56,46 @@ export const resetOldCompletions = async (): Promise<void> => {
 };
 
 export const getPriorities = (): PriorityTask[] => {
-    // Return cache directly - reset is handled separately during initialization
-    return cache.priorities || [];
-};
-
-/**
- * Returns priorities that are scheduled for today or in the past.
- * Use this for UI displays and daily snapshots.
- */
-export const getVisiblePriorities = (): PriorityTask[] => {
-    const priorities = getPriorities();
+    const priorities = cache.priorities || [];
     const todayISO = getTodayDateString();
 
-    // Filter out future-scheduled priorities for display (non-mutating)
-    return priorities.filter(p => !p.scheduledFor || p.scheduledFor <= todayISO);
+    return priorities
+        .filter(p => {
+            // 1. Never show future tasks
+            if (p.scheduledFor && p.scheduledFor > todayISO) return false;
+
+            // 2. Hide completed tasks from previous days
+            // If it's completed, we only show it if it was scheduled for today OR updated today
+            if (p.completed) {
+                const isScheduledToday = p.scheduledFor === todayISO;
+                const isUpdatedToday = p.updatedAt?.startsWith(todayISO);
+                const isUnscheduled = !p.scheduledFor; // Unscheduled recurring tasks being shown today
+
+                return isScheduledToday || isUpdatedToday || isUnscheduled;
+            }
+
+            // 3. Show all incomplete tasks (Today and Overdue)
+            return true;
+        })
+        .sort((a, b) => {
+            // Sort by completion (Incomplete first)
+            if (a.completed !== b.completed) {
+                return a.completed ? 1 : -1;
+            }
+
+            // Secondary: Sort by date (Today tasks first, then overdue tasks)
+            // We treat null (daily recurring) as "today"
+            const dateA = a.scheduledFor || todayISO;
+            const dateB = b.scheduledFor || todayISO;
+
+            if (dateA !== dateB) {
+                // Descending to put today (larger date) at the top of active list
+                return dateB.localeCompare(dateA);
+            }
+
+            // Final: Newest updated first
+            return (b.updatedAt || "").localeCompare(a.updatedAt || "");
+        });
 };
 
 export const savePriorities = (priorities: PriorityTask[]) => {

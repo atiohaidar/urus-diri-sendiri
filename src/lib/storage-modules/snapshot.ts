@@ -2,7 +2,7 @@ import { Reflection, PriorityTask } from '../types';
 import { cache, provider, generateId } from './core';
 import { getReflectionsAsync } from './reflections';
 import { getRoutines } from './routines';
-import { getVisiblePriorities } from './priorities';
+import { getPriorities } from './priorities';
 
 // Lock to prevent concurrent updates to snapshot
 let isUpdatingSnapshot = false;
@@ -18,7 +18,7 @@ export const updateDailySnapshot = async () => {
         const todayIndex = reflections.findIndex(r => new Date(r.date).toDateString() === todayStr);
 
         const currentRoutines = getRoutines();
-        const currentPriorities = getVisiblePriorities();
+        const currentPriorities = getPriorities();
 
         if (todayIndex !== -1) {
             // Update existing reflection
