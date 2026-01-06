@@ -1,6 +1,6 @@
 import { Reflection, PriorityTask } from '../types';
 import { cache, provider, generateId, hydrateTable } from './core';
-import { savePriorities } from './priorities';
+import { getVisiblePriorities } from './priorities';
 import { getTomorrowDateString } from '../time-utils';
 
 /** @deprecated Use getReflectionsAsync for better performance */
@@ -52,7 +52,7 @@ export const saveReflection = async (reflection: Omit<Reflection, 'id'>) => {
             ...reflections[todayIndex],
             ...reflection,
             todayRoutines: reflection.todayRoutines || reflections[todayIndex].todayRoutines,
-            todayPriorities: reflection.todayPriorities || reflections[todayIndex].todayPriorities,
+            todayPriorities: reflection.todayPriorities || reflections[todayIndex].todayPriorities || getVisiblePriorities(),
         };
         // Optimistic update
         cache.reflections![todayIndex] = savedItem;

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, PenLine, Leaf } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { getReflectionsAsync, saveReflection, getRoutines, getPriorities, initializeStorage } from '@/lib/storage';
+import { getReflectionsAsync, saveReflection, getRoutines, getVisiblePriorities, initializeStorage } from '@/lib/storage';
 import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/i18n/LanguageContext';
 import { cn } from '@/lib/utils';
@@ -68,7 +68,7 @@ const MaghribCheckinPage = () => {
 
     const handleSave = async () => {
         const todayRoutines = getRoutines();
-        const todayPriorities = getPriorities();
+        const todayPriorities = getVisiblePriorities();
 
         const reflections = await getReflectionsAsync();
         const todayStr = new Date().toDateString();

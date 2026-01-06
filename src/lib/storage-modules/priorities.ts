@@ -51,7 +51,15 @@ export const resetOldCompletions = async (): Promise<void> => {
 
 export const getPriorities = (): PriorityTask[] => {
     // Return cache directly - reset is handled separately during initialization
-    const priorities = cache.priorities || [];
+    return cache.priorities || [];
+};
+
+/**
+ * Returns priorities that are scheduled for today or in the past.
+ * Use this for UI displays and daily snapshots.
+ */
+export const getVisiblePriorities = (): PriorityTask[] => {
+    const priorities = getPriorities();
     const todayISO = getTodayDateString();
 
     // Filter out future-scheduled priorities for display (non-mutating)

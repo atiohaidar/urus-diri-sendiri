@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import {
     getRoutines,
     getPriorities,
+    getVisiblePriorities,
     updatePriorityCompletion,
     findCurrentRoutineIndex,
     toggleRoutineCompletion,
@@ -41,14 +42,7 @@ export const useRoutines = () => {
             const loadedRoutines = getRoutines();
             setRoutines(loadedRoutines);
 
-            // Filter priorities: Show if NO schedule OR schedule is Today/Past
-            const allPriorities = getPriorities();
-            const todayStr = getTodayDateString();
-
-            const visiblePriorities = allPriorities.filter(p =>
-                !p.scheduledFor || p.scheduledFor <= todayStr
-            );
-
+            const visiblePriorities = getVisiblePriorities();
             setPriorities(visiblePriorities);
             setStats(getCompletionStats(loadedRoutines));
 
