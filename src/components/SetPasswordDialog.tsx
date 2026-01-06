@@ -17,8 +17,14 @@ export const SetPasswordDialog = ({ open, onClose, onConfirm, isChanging = false
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [error, setError] = useState('');
+    const [isProcessing, setIsProcessing] = useState(false);
 
     const handleConfirm = () => {
+        // Guard: Prevent double-clicking
+        if (isProcessing) {
+            return;
+        }
+
         // Validate password length
         if (password.length < 8) {
             setError(t.note_editor.password_placeholder);
@@ -31,6 +37,7 @@ export const SetPasswordDialog = ({ open, onClose, onConfirm, isChanging = false
             return;
         }
 
+        setIsProcessing(true);
         onConfirm(password);
         handleClose();
     };
@@ -39,6 +46,7 @@ export const SetPasswordDialog = ({ open, onClose, onConfirm, isChanging = false
         setPassword('');
         setConfirmPassword('');
         setError('');
+        setIsProcessing(false);
         onClose();
     };
 
@@ -119,19 +127,21 @@ export const SetPasswordDialog = ({ open, onClose, onConfirm, isChanging = false
                             variant="outline"
                             onClick={handleClose}
                             className="flex-1 font-handwriting border-2 border-dashed border-paper-lines hover:bg-paper-lines/20"
+                            disabled={isProcessing}
                         >
                             {t.note_editor.cancel}
                         </Button>
                         <Button
                             onClick={handleConfirm}
                             className="flex-1 font-handwriting bg-doodle-primary hover:bg-doodle-primary/90 text-white shadow-notebook"
+                            disabled={isProcessing}
                         >
                             <Lock className="w-4 h-4 mr-2" />
-                            {isChanging ? t.common.save : t.note_editor.lock_note}
+                            {isProcessing ? '...' : (isChanging ? t.common.save : t.note_editor.lock_note)}
                         </Button>
                     </div>
                 </div>
             </DialogContent>
-        </Dialog>
+        </Dialog >
     );
 };

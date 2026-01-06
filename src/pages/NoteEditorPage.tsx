@@ -82,6 +82,9 @@ const NoteEditorPage = () => {
     const [encryptionIv, setEncryptionIv] = useState<string | undefined>(undefined);
     const [passwordHash, setPasswordHash] = useState<string | undefined>(undefined);
 
+    // Save guard state
+    const [isSaving, setIsSaving] = useState(false);
+
     // Split view state
     const [showSplitView, setShowSplitView] = useState(false);
     const [referenceNoteId, setReferenceNoteId] = useState<string | null>(CURRENT_NOTE_VALUE);
@@ -248,6 +251,12 @@ const NoteEditorPage = () => {
     };
 
     const handleSave = useCallback(async (silent = false) => {
+        // Guard: Prevent concurrent saves
+        if (isSaving) {
+            console.log('Save already in progress, ignoring duplicate save request');
+            return;
+        }
+
         if (!title.trim() && !content.trim()) {
             return;
         }
@@ -257,107 +266,126 @@ const NoteEditorPage = () => {
             return;
         }
 
-        let finalTitle = title;
-        if (!finalTitle.trim() && content.trim()) {
-            const plainContent = content.replace(/<[^>]*>/g, ' ').trim();
-            finalTitle = plainContent.substring(0, 30) + (plainContent.length > 30 ? '...' : '');
-        }
+        // Set saving flag
+        setIsSaving(true);
 
-        const noteId = id || 'new';
+        try {
+            let finalTitle = title;
+            if (!finalTitle.trim() && content.trim()) {
+                const plainContent = content.replace(/<[^>]*>/g, ' ').trim();
+                finalTitle = plainContent.substring(0, 30) + (plainContent.length > 30 ? '...' : '');
+            }
 
-        // Conflict Detection Logic for existing notes
-        if (!isNew && existingNote && initialNoteTimestamp.current) {
-            // Re-check from the latest notes in store
-            const latestNote = notes.find(n => n.id === existingNote.id);
-            if (latestNote && latestNote.updatedAt && initialNoteTimestamp.current) {
-                const serverTime = new Date(latestNote.updatedAt).getTime();
-                const clientStartTime = new Date(initialNoteTimestamp.current).getTime();
+            const noteId = id || 'new';
 
-                // If server version is newer than what we started with
-                if (serverTime > clientStartTime && !silent) {
-                    setConflictData({
-                        title: latestNote.title || '',
-                        content: latestNote.content || '',
-                        updatedAt: latestNote.updatedAt
-                    });
-                    setShowConflictDialog(true);
-                    return;
+            // Conflict Detection Logic for existing notes
+            if (!isNew && existingNote && initialNoteTimestamp.current) {
+                // Re-check from the latest notes in store
+                const latestNote = notes.find(n => n.id === existingNote.id);
+                if (latestNote && latestNote.updatedAt && initialNoteTimestamp.current) {
+                    const serverTime = new Date(latestNote.updatedAt).getTime();
+                    const clientStartTime = new Date(initialNoteTimestamp.current).getTime();
+
+                    // If server version is newer than what we started with
+                    if (serverTime > clientStartTime && !silent) {
+                        setConflictData({
+                            title: latestNote.title || '',
+                            content: latestNote.content || '',
+                            updatedAt: latestNote.updatedAt
+                        });
+                        setShowConflictDialog(true);
+                        setIsSaving(false); // Reset flag before returning
+                        return;
+                    }
                 }
             }
-        }
 
-        let saveContent = content;
-        let saveMetadata = {};
+            let saveContent = content;
+            let saveMetadata = {};
 
-        // Handle Encryption
-        if (isEncrypted && encryptionPassword) {
-            try {
-                // Encrypt content before saving
-                const { encryptedContent, salt, iv, passwordHash: newHash } = await encryptNote(content, encryptionPassword);
-                saveContent = encryptedContent;
+            // Handle Encryption
+            if (isEncrypted && encryptionPassword) {
+                try {
+                    // Encrypt content before saving
+                    const { encryptedContent, salt, iv, passwordHash: newHash } = await encryptNote(content, encryptionPassword);
+                    saveContent = encryptedContent;
+                    saveMetadata = {
+                        isEncrypted: true,
+                        encryptionSalt: salt,
+                        encryptionIv: iv,
+                        passwordHash: newHash
+                    };
+                } catch (error) {
+                    console.error("Encryption failed during save:", error);
+                    toast({ title: "❌ Failed to encrypt note", variant: "destructive" });
+                    setIsSaving(false); // Reset flag on error
+                    return;
+                }
+            } else if (!isEncrypted) {
+                // Explicitly remove encryption fields if not encrypted
                 saveMetadata = {
-                    isEncrypted: true,
-                    encryptionSalt: salt,
-                    encryptionIv: iv,
-                    passwordHash: newHash
+                    isEncrypted: false,
+                    encryptionSalt: null,
+                    encryptionIv: null,
+                    passwordHash: null
                 };
-            } catch (error) {
-                console.error("Encryption failed during save:", error);
-                toast({ title: "❌ Failed to encrypt note", variant: "destructive" });
-                return;
             }
-        } else if (!isEncrypted) {
-            // Explicitly remove encryption fields if not encrypted
-            saveMetadata = {
-                isEncrypted: false,
-                encryptionSalt: null,
-                encryptionIv: null,
-                passwordHash: null
-            };
-        }
 
-        if (isNew) {
-            // New Note
-            const noteData = { title: finalTitle, content: saveContent, category, ...saveMetadata };
-            // @ts-ignore - saveNote signature update pending in useNotes type, but functional
-            const newNote = saveNote(noteData.title, noteData.content, noteData.category, saveMetadata); // Pass metadata
+            if (isNew) {
+                // New Note
+                const noteData = { title: finalTitle, content: saveContent, category, ...saveMetadata };
+                // @ts-ignore - saveNote signature update pending in useNotes type, but functional
+                const newNote = saveNote(noteData.title, noteData.content, noteData.category, saveMetadata); // Pass metadata
 
-            clearDraft(noteId);
+                clearDraft(noteId);
+                if (!silent) {
+                    toast({ title: t.note_editor.toast_saved });
+                    triggerHaptic();
+                }
+                navigate(`/note-editor/${newNote.id}`, { replace: true });
+            } else if (existingNote) {
+                // Update Existing Note
+                const hasChanges =
+                    existingNote.title !== finalTitle ||
+                    (isEncrypted ? false : existingNote.content !== content) || // Skip content check if encrypted (always changes)
+                    existingNote.category !== category ||
+                    existingNote.isEncrypted !== isEncrypted; // Check encryption status change
+
+                // For encrypted notes, we generally always save if triggered manually, 
+                // but for partial updates (auto-save), we might want to be careful.
+                // Simplified: Just update. Efficient enough.
+
+                // NOTE: We need to pass the encryption metadata to updateNote
+                updateNote(existingNote.id, {
+                    title: finalTitle,
+                    content: saveContent,
+                    category,
+                    ...saveMetadata
+                });
+
+                // Update initial timestamp to prevent conflict on next immediate save
+                initialNoteTimestamp.current = new Date().toISOString();
+
+                clearDraft(noteId);
+                if (!silent) {
+                    toast({ title: t.note_editor.toast_updated });
+                    triggerHaptic();
+                }
+            }
+        } catch (error) {
+            console.error("Save failed:", error);
             if (!silent) {
-                toast({ title: t.note_editor.toast_saved });
-                triggerHaptic();
+                toast({
+                    title: "❌ Failed to save note",
+                    description: "Please try again",
+                    variant: "destructive"
+                });
             }
-            navigate(`/note-editor/${newNote.id}`, { replace: true });
-        } else if (existingNote) {
-            // Update Existing Note
-            const hasChanges =
-                existingNote.title !== finalTitle ||
-                (isEncrypted ? false : existingNote.content !== content) || // Skip content check if encrypted (always changes)
-                existingNote.category !== category ||
-                existingNote.isEncrypted !== isEncrypted; // Check encryption status change
-
-            // For encrypted notes, we generally always save if triggered manually, 
-            // but for partial updates (auto-save), we might want to be careful.
-            // Simplified: Just update. Efficient enough.
-
-            // NOTE: We need to pass the encryption metadata to updateNote
-            updateNote(existingNote.id, {
-                title: finalTitle,
-                content: saveContent,
-                category,
-                ...saveMetadata
-            });
-
-            // Update initial timestamp to prevent conflict on next immediate save
-            initialNoteTimestamp.current = new Date().toISOString();
-
-            clearDraft(noteId);
-            if (!silent) {
-                toast({ title: t.note_editor.toast_updated });
-                triggerHaptic();
-            }
+        } finally {
+            // Always reset saving flag
+            setIsSaving(false);
         }
-    }, [title, content, category, id, isNew, existingNote, saveNote, updateNote, t.note_editor, toast, isEncrypted, encryptionPassword]);
+    }, [title, content, category, id, isNew, existingNote, saveNote, updateNote, t.note_editor, toast, isEncrypted, encryptionPassword, isSaving, notes]);
 
     const handleBack = useCallback(() => {
         handleSave(true);
@@ -747,12 +775,12 @@ const NoteEditorPage = () => {
                         {isNew ? t.note_editor.new_title : t.note_editor.edit_title} 📝
                     </h1>
                     {/* Auto-save indicator */}
-                    {saveStatus !== 'idle' && (
+                    {(saveStatus !== 'idle' || isSaving) && (
                         <span className={cn(
                             "text-xs font-handwriting transition-opacity duration-200 hidden sm:inline",
-                            saveStatus === 'saving' ? "text-pencil/60" : "text-doodle-green"
+                            (saveStatus === 'saving' || isSaving) ? "text-pencil/60" : "text-doodle-green"
                         )}>
-                            {saveStatus === 'saving' ? '💾 Saving...' : '✓ Saved'}
+                            {(saveStatus === 'saving' || isSaving) ? '💾 Saving...' : '✓ Saved'}
                         </span>
                     )}
                 </div>
