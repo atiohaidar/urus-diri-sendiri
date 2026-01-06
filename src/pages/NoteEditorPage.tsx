@@ -90,12 +90,12 @@ const NoteEditorPage = () => {
         cleanupOldDrafts();
     }, []);
 
-    // Reset initialization when id changes (navigating to different note)
     useEffect(() => {
         hasInitialized.current = false;
         // Reset encryption state
         setIsEncrypted(false);
         setIsLocked(false);
+        setShowUnlockDialog(false);
         setEncryptionPassword(null);
         setEncryptionSalt(undefined);
         setEncryptionIv(undefined);
@@ -577,14 +577,7 @@ const NoteEditorPage = () => {
             {/* Unlock Note Dialog */}
             <UnlockNoteDialog
                 open={showUnlockDialog}
-                onClose={() => {
-                    if (isLocked) {
-                        // If cancelling unlock on a locked note, go back
-                        navigate(-1);
-                    } else {
-                        setShowUnlockDialog(false);
-                    }
-                }}
+                onClose={() => setShowUnlockDialog(false)}
                 onUnlock={async (password) => {
                     try {
                         // Validate password first if hash exists
