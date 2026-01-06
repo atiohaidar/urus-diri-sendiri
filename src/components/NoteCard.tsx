@@ -26,16 +26,6 @@ const NoteCard = ({ note, onClick, index }: NoteCardProps) => {
   const colorIndex = index % stickyColors.length;
   const rotation = rotations[index % rotations.length];
 
-  // Strip HTML tags and entities for preview
-  const plainText = note.content
-    .replace(/<[^>]*>/g, ' ')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-  const snippet = plainText.length > 80
-    ? plainText.substring(0, 80) + '...'
-    : plainText;
-
   return (
     <button
       onClick={onClick}
@@ -66,12 +56,6 @@ const NoteCard = ({ note, onClick, index }: NoteCardProps) => {
               </div>
             )}
           </div>
-          <p className="text-sm text-pencil line-clamp-2 italic">
-            {note.isEncrypted
-              ? '"••••••••••••••••••••"'
-              : `"${snippet || 'Catatan kosong...'}"`
-            }
-          </p>
           {/* Category Badge */}
           {note.category && (
             <div className="mt-2 flex items-center gap-1">
@@ -83,7 +67,7 @@ const NoteCard = ({ note, onClick, index }: NoteCardProps) => {
           )}
         </div>
         <span className="text-xs text-pencil/70 whitespace-nowrap font-handwriting">
-          {getRelativeDate(note.updatedAt, language)}
+          {getRelativeDate(note.updatedAt || note.createdAt, language)}
         </span>
       </div>
     </button>
@@ -91,4 +75,3 @@ const NoteCard = ({ note, onClick, index }: NoteCardProps) => {
 };
 
 export default NoteCard;
-
