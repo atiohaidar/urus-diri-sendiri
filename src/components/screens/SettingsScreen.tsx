@@ -5,6 +5,7 @@ import { AuthSection } from '@/components/settings/AuthSection';
 import { PreferencesSection } from '@/components/settings/PreferencesSection';
 import { CloudLegacySection } from '@/components/settings/CloudLegacySection';
 import { DataBackupSection } from '@/components/settings/DataBackupSection';
+import { PersonalNotesSection } from '@/components/settings/PersonalNotesSection';
 import { Button } from '@/components/ui/button';
 import packageJson from '../../../package.json';
 import { cn } from '@/lib/utils';
@@ -50,6 +51,9 @@ const SettingsScreen = () => {
 
                 {/* Legacy Cloud Sync (Google Sheets) */}
                 <CloudLegacySection />
+
+                {/* Personal Notes (Secure Storage) */}
+                <PersonalNotesSection />
 
                 {/* Local Data Backup */}
                 <DataBackupSection />

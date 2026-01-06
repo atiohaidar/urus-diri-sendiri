@@ -29,6 +29,7 @@ const MaghribCheckinPage = lazy(() => import("./pages/MaghribCheckinPage"));
 const AboutPage = lazy(() => import("./pages/AboutPage"));
 const LogCreatorPage = lazy(() => import("./pages/LogCreatorPage"));
 const ReflectionDetailPage = lazy(() => import("./pages/ReflectionDetailPage"));
+const PersonalNotesPage = lazy(() => import("./pages/PersonalNotesPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
@@ -193,6 +194,7 @@ const App = () => {
                     <Route path="/about" element={<AboutPage />} />
                     <Route path="/log-creator" element={<LogCreatorPage />} />
                     <Route path="/reflection/:id" element={<ReflectionDetailPage />} />
+                    <Route path="/personal-notes" element={<PersonalNotesPage />} />
                     <Route path="*" element={<NotFound />} />
                   </Routes>
                 </Suspense>

@@ -12,6 +12,7 @@ import { fetchRoutines, syncRoutines } from './supabase-handlers/routines';
 import { fetchLogs, syncLog, deleteRemoteLog } from './supabase-handlers/logs';
 import { fetchHabits, syncHabits } from './supabase-handlers/habits';
 import { fetchHabitLogs, syncHabitLogs } from './supabase-handlers/habit-logs';
+import { fetchPersonalNotes, syncPersonalNotes } from './supabase-handlers/personal-notes';
 
 export class SupabaseProvider implements IStorageProvider {
 
@@ -32,6 +33,7 @@ export class SupabaseProvider implements IStorageProvider {
                 case 'delete_log': await deleteRemoteLog(userId, item.data); break;
                 case 'habits': await syncHabits(userId, item.data); break;
                 case 'habitLogs': await syncHabitLogs(userId, item.data); break;
+                case 'personal_notes': await syncPersonalNotes(userId, item.data); break;
             }
         });
 
@@ -324,6 +326,37 @@ export class SupabaseProvider implements IStorageProvider {
             async () => {
                 const userId = await this.getUserId();
                 await syncHabitLogs(userId, habitLogs);
+            }
+        );
+    }
+
+    // --- Personal Notes ---
+    async getPersonalNotes(): Promise<any> {
+        if (!this.isOnline()) return this.localProvider.getPersonalNotes();
+        try {
+            const userId = await this.getUserId();
+            const data = await fetchPersonalNotes(userId);
+
+            if (data) {
+                await this.localProvider.savePersonalNotes(data);
+                return data;
+            } else {
+                return this.localProvider.getPersonalNotes();
+            }
+        } catch (error) {
+            if (await this.handleAuthError(error)) return null;
+            console.error('Error fetching personal notes:', error);
+            return this.localProvider.getPersonalNotes();
+        }
+    }
+
+    async savePersonalNotes(data: any): Promise<void> {
+        await this.localProvider.savePersonalNotes(data);
+        await this.executeOrQueue(
+            { type: 'personal_notes', data: data },
+            async () => {
+                const userId = await this.getUserId();
+                await syncPersonalNotes(userId, data);
             }
         );
     }

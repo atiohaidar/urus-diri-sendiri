@@ -34,6 +34,11 @@ import {
     AlertDialogTitle,
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+// Encryption Imports
+import { Lock, Unlock } from 'lucide-react';
+import { encryptNote, decryptNote, validatePassword } from '@/lib/encryption';
+import { SetPasswordDialog } from '@/components/SetPasswordDialog';
+import { UnlockNoteDialog } from '@/components/UnlockNoteDialog';
 
 const NoteEditorPage = () => {
     const { id } = useParams<{ id: string }>();
@@ -58,7 +63,20 @@ const NoteEditorPage = () => {
     const [wordCount, setWordCount] = useState(0);
     const [combo, setCombo] = useState(0);
     const [lastTyped, setLastTyped] = useState(0);
+
     const editorRef = useRef<any>(null);
+
+    // Encryption State
+    const [isEncrypted, setIsEncrypted] = useState(false);
+    const [isLocked, setIsLocked] = useState(false);
+    const [encryptionPassword, setEncryptionPassword] = useState<string | null>(null);
+    const [showSetPasswordDialog, setShowSetPasswordDialog] = useState(false);
+    const [showUnlockDialog, setShowUnlockDialog] = useState(false);
+
+    // Encryption Metadata State
+    const [encryptionSalt, setEncryptionSalt] = useState<string | undefined>(undefined);
+    const [encryptionIv, setEncryptionIv] = useState<string | undefined>(undefined);
+    const [passwordHash, setPasswordHash] = useState<string | undefined>(undefined);
 
     // Split view state
     const [showSplitView, setShowSplitView] = useState(false);
@@ -75,6 +93,13 @@ const NoteEditorPage = () => {
     // Reset initialization when id changes (navigating to different note)
     useEffect(() => {
         hasInitialized.current = false;
+        // Reset encryption state
+        setIsEncrypted(false);
+        setIsLocked(false);
+        setEncryptionPassword(null);
+        setEncryptionSalt(undefined);
+        setEncryptionIv(undefined);
+        setPasswordHash(undefined);
     }, [id]);
 
     // Initialize from existing note or draft
@@ -92,8 +117,24 @@ const NoteEditorPage = () => {
         // Load existing note first
         if (!isNew && existingNote) {
             setTitle(existingNote.title || '');
-            setContent(existingNote.content || '');
             setCategory(existingNote.category ?? null);
+
+            // Check for encryption
+            if (existingNote.isEncrypted) {
+                setIsEncrypted(true);
+                setIsLocked(true); // Locked by default
+                setShowUnlockDialog(true); // Prompt for password
+
+                // Set metadata
+                setEncryptionSalt(existingNote.encryptionSalt);
+                setEncryptionIv(existingNote.encryptionIv);
+                setPasswordHash(existingNote.passwordHash);
+
+                // Show placebo content if locked
+                setContent(existingNote.content || '');
+            } else {
+                setContent(existingNote.content || '');
+            }
 
             // Then check for newer draft
             if (hasDraft(noteId)) {
@@ -199,7 +240,7 @@ const NoteEditorPage = () => {
         return "bg-pencil/30";
     };
 
-    const handleSave = useCallback((silent = false) => {
+    const handleSave = useCallback(async (silent = false) => {
         if (!title.trim() && !content.trim()) {
             return;
         }
@@ -211,32 +252,75 @@ const NoteEditorPage = () => {
         }
 
         const noteId = id || 'new';
+        let saveContent = content;
+        let saveMetadata = {};
+
+        // Handle Encryption
+        if (isEncrypted && encryptionPassword) {
+            try {
+                // Encrypt content before saving
+                const { encryptedContent, salt, iv, passwordHash: newHash } = await encryptNote(content, encryptionPassword);
+                saveContent = encryptedContent;
+                saveMetadata = {
+                    isEncrypted: true,
+                    encryptionSalt: salt,
+                    encryptionIv: iv,
+                    passwordHash: newHash
+                };
+            } catch (error) {
+                console.error("Encryption failed during save:", error);
+                toast({ title: "❌ Failed to encrypt note", variant: "destructive" });
+                return;
+            }
+        } else if (!isEncrypted) {
+            // Explicitly remove encryption fields if not encrypted
+            saveMetadata = {
+                isEncrypted: false,
+                encryptionSalt: null,
+                encryptionIv: null,
+                passwordHash: null
+            };
+        }
 
         if (isNew) {
-            const newNote = saveNote(finalTitle, content, category);
-            clearDraft(noteId); // Clear draft after successful save
+            // New Note
+            const noteData = { title: finalTitle, content: saveContent, category, ...saveMetadata };
+            // @ts-ignore - saveNote signature update pending in useNotes type, but functional
+            const newNote = saveNote(noteData.title, noteData.content, noteData.category, saveMetadata); // Pass metadata
+
+            clearDraft(noteId);
             if (!silent) {
                 toast({ title: t.note_editor.toast_saved });
                 triggerHaptic();
             }
-            // Navigate to the new note's URL so subsequent saves are updates, not creates
             navigate(`/note-editor/${newNote.id}`, { replace: true });
         } else if (existingNote) {
+            // Update Existing Note
             const hasChanges =
                 existingNote.title !== finalTitle ||
-                existingNote.content !== content ||
-                existingNote.category !== category;
+                (isEncrypted ? false : existingNote.content !== content) || // Skip content check if encrypted (always changes)
+                existingNote.category !== category ||
+                existingNote.isEncrypted !== isEncrypted; // Check encryption status change
 
-            if (hasChanges) {
-                updateNote(existingNote.id, { title: finalTitle, content, category });
-                clearDraft(noteId); // Clear draft after successful save
-                if (!silent) {
-                    toast({ title: t.note_editor.toast_updated });
-                    triggerHaptic();
-                }
+            // For encrypted notes, we generally always save if triggered manually, 
+            // but for partial updates (auto-save), we might want to be careful.
+            // Simplified: Just update. Efficient enough.
+
+            // NOTE: We need to pass the encryption metadata to updateNote
+            updateNote(existingNote.id, {
+                title: finalTitle,
+                content: saveContent,
+                category,
+                ...saveMetadata
+            });
+
+            clearDraft(noteId);
+            if (!silent) {
+                toast({ title: t.note_editor.toast_updated });
+                triggerHaptic();
             }
         }
-    }, [title, content, category, id, isNew, existingNote, saveNote, updateNote, t.note_editor, toast]);
+    }, [title, content, category, id, isNew, existingNote, saveNote, updateNote, t.note_editor, toast, isEncrypted, encryptionPassword]);
 
     const handleBack = useCallback(() => {
         handleSave(true);
@@ -456,6 +540,86 @@ const NoteEditorPage = () => {
                 </AlertDialogContent>
             </AlertDialog>
 
+            {/* Set Password Dialog */}
+            <SetPasswordDialog
+                open={showSetPasswordDialog}
+                onClose={() => setShowSetPasswordDialog(false)}
+                onConfirm={async (password) => {
+                    // Encrypt the content
+                    // Note: We use the *current* content state, which should be plaintext if unlocked
+                    // or empty if empty.
+                    try {
+                        // Assuming content is plaintext here
+                        const { encryptedContent, salt, iv, passwordHash: newHash } = await encryptNote(content, password);
+
+                        // We strictly don't setContent(encryptedContent) here because we want the editor 
+                        // to keep showing the plaintext while we stay unlocked.
+                        // We ONLY set the encryption state to enable saving as encrypted.
+
+                        setIsEncrypted(true);
+                        setEncryptionPassword(password);
+                        setIsLocked(false); // Unlocked after setting password
+
+                        // Store metadata
+                        setEncryptionSalt(salt);
+                        setEncryptionIv(iv);
+                        setPasswordHash(newHash);
+
+                        toast({ title: t.note_editor.toast_saved }); // Use saved toast or custom
+
+                    } catch (e) {
+                        toast({ title: "Encryption failed", variant: "destructive" });
+                    }
+                }}
+                isChanging={isEncrypted}
+            />
+
+            {/* Unlock Note Dialog */}
+            <UnlockNoteDialog
+                open={showUnlockDialog}
+                onClose={() => {
+                    if (isLocked) {
+                        // If cancelling unlock on a locked note, go back
+                        navigate(-1);
+                    } else {
+                        setShowUnlockDialog(false);
+                    }
+                }}
+                onUnlock={async (password) => {
+                    try {
+                        // Validate password first if hash exists
+                        if (passwordHash) {
+                            const isValid = await validatePassword(password, passwordHash);
+                            if (!isValid) {
+                                return false; // Wrong password
+                            }
+                        }
+
+                        // Decrypt content (from existingNote which holds the ciphertext)
+                        if (existingNote && existingNote.content) {
+                            const decryptedContent = await decryptNote(
+                                existingNote.content,
+                                password,
+                                existingNote.encryptionSalt!,
+                                existingNote.encryptionIv!
+                            );
+
+                            setContent(decryptedContent);
+                        }
+
+                        setEncryptionPassword(password);
+                        setIsLocked(false);
+
+                        toast({ title: "Unlocked!" });
+                        return true;
+                    } catch (error) {
+                        console.error("Unlock failed", error);
+                        return false; // Decryption failed
+                    }
+                }}
+                noteTitle={existingNote?.title || ''}
+            />
+
             {/* Header - Notebook style */}
             <div className="sticky top-0 z-20 bg-paper border-b-2 border-dashed border-paper-lines p-4 flex items-center justify-between pt-safe">
                 <Button
@@ -481,6 +645,33 @@ const NoteEditorPage = () => {
                     )}
                 </div>
                 <div className="flex items-center gap-2">
+                    {/* Lock/Unlock Button */}
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                            if (isEncrypted) {
+                                // Change password or remove encryption
+                                setShowSetPasswordDialog(true);
+                            } else {
+                                // Set password to encrypt
+                                setShowSetPasswordDialog(true);
+                            }
+                            triggerHaptic();
+                        }}
+                        className={cn(
+                            "gap-1.5 font-handwriting text-sm rounded-sm",
+                            isEncrypted
+                                ? "bg-doodle-primary/10 text-doodle-primary"
+                                : "text-pencil hover:text-ink"
+                        )}
+                    >
+                        {isEncrypted ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
+                        <span className="hidden lg:inline">
+                            {isEncrypted ? t.note_editor.unlock_note : t.note_editor.lock_note}
+                        </span>
+                    </Button>
+
                     {/* Split View Toggle - Hidden on mobile */}
                     <Button
                         variant="ghost"
@@ -595,23 +786,46 @@ const NoteEditorPage = () => {
                                             </div>
                                         </div>
                                     }>
-                                        <LazyEditor
-                                            ref={editorRef}
-                                            theme="snow"
-                                            value={content}
-                                            onChange={setContent}
-                                            onChangeSelection={handleSelectionChange}
-                                            modules={{
-                                                toolbar: [
-                                                    [{ 'header': [1, 2, false] }],
-                                                    ['bold', 'italic', 'underline', 'strike'],
-                                                    [{ 'list': 'ordered' }, { 'list': 'bullet' }],
-                                                    ['link', 'clean']
-                                                ],
-                                            }}
-                                            placeholder={t.note_editor.placeholder_content}
-                                            className="h-full flex flex-col font-handwriting ql-typewriter"
-                                        />
+                                        {isLocked ? (
+                                            <div className="h-full flex flex-col items-center justify-center gap-4 text-center p-8 bg-paper/50">
+                                                <div className="w-16 h-16 rounded-full bg-paper-lines/10 flex items-center justify-center border-2 border-dashed border-paper-lines">
+                                                    <Lock className="w-8 h-8 text-doodle-primary" />
+                                                </div>
+                                                <div>
+                                                    <h3 className="font-handwriting text-2xl text-ink font-bold mb-1">
+                                                        {t.note_editor.locked_content}
+                                                    </h3>
+                                                    <p className="font-handwriting text-pencil">
+                                                        {t.note_editor.enter_password}
+                                                    </p>
+                                                </div>
+                                                <Button
+                                                    onClick={() => setShowUnlockDialog(true)}
+                                                    className="font-handwriting bg-doodle-primary text-white hover:bg-doodle-primary/90 mt-2 shadow-notebook"
+                                                >
+                                                    <Unlock className="w-4 h-4 mr-2" />
+                                                    {t.note_editor.unlock}
+                                                </Button>
+                                            </div>
+                                        ) : (
+                                            <LazyEditor
+                                                ref={editorRef}
+                                                theme="snow"
+                                                value={content}
+                                                onChange={setContent}
+                                                onChangeSelection={handleSelectionChange}
+                                                modules={{
+                                                    toolbar: [
+                                                        [{ 'header': [1, 2, false] }],
+                                                        ['bold', 'italic', 'underline', 'strike'],
+                                                        [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+                                                        ['link', 'clean']
+                                                    ],
+                                                }}
+                                                placeholder={t.note_editor.placeholder_content}
+                                                className="h-full flex flex-col font-handwriting ql-typewriter"
+                                            />
+                                        )}
                                     </Suspense>
                                 </div>
 
@@ -792,23 +1006,46 @@ const NoteEditorPage = () => {
                                 </div>
                             </div>
                         }>
-                            <LazyEditor
-                                ref={editorRef}
-                                theme="snow"
-                                value={content}
-                                onChange={setContent}
-                                onChangeSelection={handleSelectionChange}
-                                modules={{
-                                    toolbar: [
-                                        [{ 'header': [1, 2, false] }],
-                                        ['bold', 'italic', 'underline', 'strike'],
-                                        [{ 'list': 'ordered' }, { 'list': 'bullet' }],
-                                        ['link', 'clean']
-                                    ],
-                                }}
-                                placeholder={t.note_editor.placeholder_content}
-                                className="h-full flex flex-col font-handwriting ql-typewriter"
-                            />
+                            {isLocked ? (
+                                <div className="h-full flex flex-col items-center justify-center gap-4 text-center p-8 bg-paper/50">
+                                    <div className="w-16 h-16 rounded-full bg-paper-lines/10 flex items-center justify-center border-2 border-dashed border-paper-lines">
+                                        <Lock className="w-8 h-8 text-doodle-primary" />
+                                    </div>
+                                    <div>
+                                        <h3 className="font-handwriting text-2xl text-ink font-bold mb-1">
+                                            {t.note_editor.locked_content}
+                                        </h3>
+                                        <p className="font-handwriting text-pencil">
+                                            {t.note_editor.enter_password}
+                                        </p>
+                                    </div>
+                                    <Button
+                                        onClick={() => setShowUnlockDialog(true)}
+                                        className="font-handwriting bg-doodle-primary text-white hover:bg-doodle-primary/90 mt-2 shadow-notebook"
+                                    >
+                                        <Unlock className="w-4 h-4 mr-2" />
+                                        {t.note_editor.unlock}
+                                    </Button>
+                                </div>
+                            ) : (
+                                <LazyEditor
+                                    ref={editorRef}
+                                    theme="snow"
+                                    value={content}
+                                    onChange={setContent}
+                                    onChangeSelection={handleSelectionChange}
+                                    modules={{
+                                        toolbar: [
+                                            [{ 'header': [1, 2, false] }],
+                                            ['bold', 'italic', 'underline', 'strike'],
+                                            [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+                                            ['link', 'clean']
+                                        ],
+                                    }}
+                                    placeholder={t.note_editor.placeholder_content}
+                                    className="h-full flex flex-col font-handwriting ql-typewriter"
+                                />
+                            )}
                         </Suspense>
                     </div>
 

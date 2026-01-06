@@ -33,7 +33,12 @@ create table notes (
   category text,
   created_at text,
   updated_at text,
-  user_id uuid references auth.users not null default auth.uid()
+  user_id uuid references auth.users not null default auth.uid(),
+  -- Encryption fields
+  is_encrypted boolean default false,
+  encryption_salt text,
+  encryption_iv text,
+  password_hash text
 );
 
 create table reflections (

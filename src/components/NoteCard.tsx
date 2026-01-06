@@ -2,7 +2,7 @@ import type { Note } from '@/lib/storage';
 import { getRelativeDate } from '@/lib/storage';
 import { useLanguage } from '@/i18n/LanguageContext';
 import { cn } from '@/lib/utils';
-import { Tag } from 'lucide-react';
+import { Tag, Lock } from 'lucide-react';
 
 interface NoteCardProps {
   note: Note;
@@ -54,11 +54,23 @@ const NoteCard = ({ note, onClick, index }: NoteCardProps) => {
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
-          <h3 className="font-handwriting text-lg font-semibold text-ink mb-1 truncate">
-            {note.title || 'Catatan tanpa judul'}
-          </h3>
+          <div className="flex items-center gap-2 mb-1">
+            <h3 className="font-handwriting text-lg font-semibold text-ink truncate">
+              {note.title || 'Catatan tanpa judul'}
+            </h3>
+            {/* Encrypted Badge */}
+            {note.isEncrypted && (
+              <div className="flex items-center gap-1 px-2 py-0.5 bg-doodle-primary/10 border border-dashed border-doodle-primary/30 rounded-sm flex-shrink-0">
+                <Lock className="w-3 h-3 text-doodle-primary" />
+                <span className="text-xs text-doodle-primary font-medium">🔒</span>
+              </div>
+            )}
+          </div>
           <p className="text-sm text-pencil line-clamp-2 italic">
-            "{snippet || 'Catatan kosong...'}"
+            {note.isEncrypted
+              ? '"••••••••••••••••••••"'
+              : `"${snippet || 'Catatan kosong...'}"`
+            }
           </p>
           {/* Category Badge */}
           {note.category && (

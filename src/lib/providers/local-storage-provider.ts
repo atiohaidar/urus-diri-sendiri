@@ -121,6 +121,16 @@ export class LocalStorageProvider implements IStorageProvider {
         }
     }
 
+    // --- Personal Notes ---
+    async getPersonalNotes(): Promise<any> {
+        const data = localStorage.getItem('personal_notes_data');
+        return data ? JSON.parse(data) : null;
+    }
+
+    async savePersonalNotes(data: any): Promise<void> {
+        localStorage.setItem('personal_notes_data', JSON.stringify(data));
+    }
+
     // --- Config / Utils ---
     async clearAll(): Promise<void> {
         localStorage.removeItem(STORAGE_KEYS.PRIORITIES);

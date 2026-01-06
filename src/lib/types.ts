@@ -31,11 +31,17 @@ export interface Reflection {
 export interface Note {
     id: string;
     title: string;
-    content: string;
+    content: string; // Encrypted if isEncrypted=true
     category: string | null;  // null = tanpa kategori
     createdAt: string;
     updatedAt: string;
     deletedAt?: string | null;
+
+    // Encryption fields
+    isEncrypted?: boolean;
+    encryptionSalt?: string;
+    encryptionIv?: string;
+    passwordHash?: string;
 }
 
 export interface RoutineItem {
@@ -101,3 +107,23 @@ export interface HabitLog {
     updatedAt?: string;
     deletedAt?: string | null;
 }
+
+// --- Personal Notes (Encrypted) ---
+
+export interface PersonalNoteEntry {
+    id: string;
+    label: string;      // e.g., "NIM", "Alamat Rumah", "Rekening BCA"
+    value: string;      // e.g., "123456789", "Jl. Contoh No. 123"
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface PersonalNotesData {
+    isSetup: boolean;           // true if user has setup password
+    passwordHash: string;       // SHA-256 hash for validation
+    encryptedData: string;      // Encrypted JSON of PersonalNoteEntry[]
+    salt: string;               // For PBKDF2 key derivation
+    iv: string;                 // For AES-GCM encryption
+    updatedAt: string;
+}
+

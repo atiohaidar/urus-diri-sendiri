@@ -168,6 +168,23 @@ export interface Translation {
         load_url: string;
         iframe_blocked: string;
         open_in_new_tab: string;
+        // Encryption
+        lock_note: string;
+        unlock_note: string;
+        set_password: string;
+        change_password: string;
+        remove_password: string;
+        password_required: string;
+        enter_password: string;
+        wrong_password: string;
+        password_placeholder: string;
+        confirm_password: string;
+        passwords_dont_match: string;
+        password_warning: string;
+        locked_content: string;
+        encrypted_badge: string;
+        unlock: string;
+        cancel: string;
     };
     log_creator: {
         placeholder_text: string;
@@ -223,4 +240,59 @@ export interface Translation {
         release_date: string;
         install_prompt: string;
     };
+    personal_notes: {
+        // Settings
+        title: string;
+        description: string;
+        not_setup_badge: string;
+        encrypted_badge: string;
+
+        // Setup
+        setup_title: string;
+        setup_description: string;
+        setup_warning: string;
+        setup_button: string;
+
+        // Unlock
+        unlock_title: string;
+        unlock_description: string;
+        unlock_button: string;
+        unlock_error: string;
+        forgot_password_warning: string;
+
+        // Table
+        table_label: string;
+        table_value: string;
+        table_actions: string;
+        add_entry: string;
+        no_entries: string;
+
+        // Actions
+        lock_button: string;
+        change_password_button: string;
+        delete_all_button: string;
+        copy_button: string;
+        copied: string;
+
+        // Entry Dialog
+        entry_dialog_add_title: string;
+        entry_dialog_edit_title: string;
+        entry_label_placeholder: string;
+        entry_value_placeholder: string;
+
+        // Confirmations
+        delete_entry_title: string;
+        delete_entry_desc: string;
+        delete_all_title: string;
+        delete_all_desc: string;
+
+        // Toasts
+        setup_success: string;
+        entry_added: string;
+        entry_updated: string;
+        entry_deleted: string;
+        password_changed: string;
+        all_deleted: string;
+    };
 }
+
