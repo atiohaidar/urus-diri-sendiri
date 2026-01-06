@@ -278,17 +278,17 @@ const PersonalNotesPage = () => {
                                     {t.personal_notes.no_entries}
                                 </div>
                             ) : (
-                                <div className="overflow-x-auto">
-                                    <table className="w-full">
+                                <div className="overflow-x-auto -webkit-overflow-scrolling-touch">
+                                    <table className="w-full min-w-[640px]">
                                         <thead className="bg-muted/50 border-b border-border/50">
                                             <tr>
-                                                <th className="px-4 py-3 text-left text-sm font-semibold">
+                                                <th className="px-4 py-3 text-left text-sm font-semibold w-[180px] min-w-[140px]">
                                                     {t.personal_notes.table_label}
                                                 </th>
                                                 <th className="px-4 py-3 text-left text-sm font-semibold">
                                                     {t.personal_notes.table_value}
                                                 </th>
-                                                <th className="px-4 py-3 text-right text-sm font-semibold">
+                                                <th className="px-4 py-3 text-right text-sm font-semibold w-[140px] min-w-[140px]">
                                                     {t.personal_notes.table_actions}
                                                 </th>
                                             </tr>
@@ -296,12 +296,12 @@ const PersonalNotesPage = () => {
                                         <tbody>
                                             {entries.map((entry) => (
                                                 <tr key={entry.id} className="border-b border-border/30 last:border-0">
-                                                    <td className="px-4 py-3 font-medium">{entry.label}</td>
-                                                    <td className="px-4 py-3 font-mono text-sm whitespace-pre-wrap break-all">
+                                                    <td className="px-4 py-3 font-medium whitespace-nowrap">{entry.label}</td>
+                                                    <td className="px-4 py-3 font-mono text-sm max-w-[300px] break-words">
                                                         {entry.value}
                                                     </td>
                                                     <td className="px-4 py-3">
-                                                        <div className="flex items-center justify-end gap-2">
+                                                        <div className="flex items-center justify-end gap-2 whitespace-nowrap">
                                                             <Button
                                                                 variant="ghost"
                                                                 size="icon"
