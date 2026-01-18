@@ -29,9 +29,17 @@ const BottomNav = ({ activeTab }: BottomNavProps) => {
   ];
 
   return (
+    /**
+     * LOGIKA RESPONSIF BOTTOM NAV vs SIDEBAR:
+     * - 'fixed bottom-0': DI HP, nempel di bawah layar.
+     * - 'md:top-0 md:w-64 md:h-screen': DI LAPTOP, pindah ke atas-kiri dan jadi Sidebar tinggi penuh.
+     * - 'md:flex-col': DI LAPTOP, susunan ikonnya berderet ke bawah (column).
+     */
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-paper border-t-2 border-dashed border-paper-lines safe-bottom md:top-0 md:w-64 md:border-t-0 md:border-r-2 md:h-screen md:flex md:flex-col">
+      {/* Kode di atas: 'fixed bottom-0' (HP) VS 'md:top-0 md:w-64' (Laptop) */}
       <div className="w-full md:px-4 md:py-6">
-        {/* Desktop Header Title */}
+
+        {/* Judul ini 'hidden' (Sembunyi) di HP, tapi 'md:flex' (Muncul) di Laptop */}
         <div className="hidden md:flex flex-col items-start gap-2 mb-8 px-4">
           <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-sm bg-sticky-yellow text-ink text-[10px] font-handwriting shadow-tape -rotate-2">
             <Sparkles className="w-3 h-3" />
@@ -75,7 +83,7 @@ const BottomNav = ({ activeTab }: BottomNavProps) => {
             </button>
           ))}
 
-          {/* Central Log Button (Mobile) - Pencil/Pen style */}
+          {/* Tombol Plus (+) Tengah ini 'md:hidden' (Sembunyi pas di Laptop) */}
           <div className="md:hidden -mt-8">
             <button
               onClick={() => handleNavigate('/log-creator')}
@@ -124,7 +132,7 @@ const BottomNav = ({ activeTab }: BottomNavProps) => {
           ))}
         </div>
 
-        {/* Desktop: Quick Log Special Button */}
+        {/* Tombol Log ini 'hidden' (Sembunyi) di HP, 'md:block' (Muncul) di Laptop */}
         <div className="hidden md:block px-4 mt-4">
           <div className="border-t-2 border-dashed border-paper-lines pt-4 mb-4">
             <button

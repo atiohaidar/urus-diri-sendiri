@@ -20,15 +20,22 @@ const AppLayout = () => {
     const activeTab = getActiveTab();
 
     return (
+        /**
+         * PENGATURAN LAYOUT RESPONSIF (HP vs LAPTOP):
+         * - 'min-h-screen': Tinggi minimal layar penuh.
+         * - 'md:pl-64': DI LAPTOP (layar medium), kasih jarak kiri 64 unit buat Sidebar.
+         * - 'transition-all': Biar pas layar berubah ukuran, gerakannya mulus.
+         */
         <div className="min-h-screen bg-background md:pl-64 transition-all duration-300">
-            {/* Screen Content */}
+            {/* Area Konten Utama: Tempat halaman (HomeScreen, dll) muncul */}
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                 <Outlet />
             </div>
 
-            {/* Bottom Navigation */}
+            {/* Navigasi: Bisa jadi Bottom Bar (HP) atau Sidebar (Laptop) */}
             <BottomNav activeTab={activeTab} />
 
+            {/* Kotak Notifikasi */}
             <Toaster />
         </div>
     );

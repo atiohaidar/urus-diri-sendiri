@@ -1,23 +1,23 @@
+// --- 1. IMPORT LIBRARY & KOMPONEN ---
+// Library React & UI Utama
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
-import { toast } from "sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { ThemeProvider } from "@/components/theme-provider";
-import { LanguageProvider } from "@/i18n/LanguageContext";
-import { useBackButton } from "@/hooks/useBackButton";
-import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { initializeStorage } from "@/lib/storage";
-import { useEffect, Suspense, lazy, useState } from "react";
-import { App as CapacitorApp } from '@capacitor/app';
-import { supabase } from '@/lib/supabase';
-import { Loader2 } from "lucide-react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"; // Untuk manage data/API
+import { BrowserRouter, Routes, Route } from "react-router-dom"; // Untuk navigasi halaman
+import { ThemeProvider } from "@/components/theme-provider"; // Untuk atur Dark/Light mode
+import { LanguageProvider } from "@/i18n/LanguageContext"; // Untuk fitur multi-bahasa
+import { useBackButton } from "@/hooks/useBackButton"; // Hook buat handle tombol back di HP
+import { ErrorBoundary } from "@/components/ErrorBoundary"; // Penjaga kalau ada error biar nggak crash
+import { Suspense, lazy } from "react"; // Buat fitur loading halaman (lazy load)
+import { Loader2 } from "lucide-react"; // Icon loading putar
+import { useAppInit } from "@/hooks/useAppInit"; // Hook buatan kita buat persiapan aplikasi
 
-// Layouts - Keep eager if small, or lazy if large. Layout usually needed immediately.
+// Layout utama (misal Header/Footer yang selalu muncul)
 import AppLayout from "./components/layout/AppLayout";
 
-// Lazy Load Pages
+// --- 2. LAZY LOADING PAGES ---
+// Cara ini bikin aplikasi ringan: Halaman cuma di-download pas dibuka aja
 const HomeScreen = lazy(() => import("./components/screens/HomeScreen"));
 const HabitsScreen = lazy(() => import("./components/screens/HabitsScreen"));
 const ParkingLotScreen = lazy(() => import("./components/screens/ParkingLotScreen"));
@@ -32,14 +32,22 @@ const ReflectionDetailPage = lazy(() => import("./pages/ReflectionDetailPage"));
 const PersonalNotesPage = lazy(() => import("./pages/PersonalNotesPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
+/**
+ * Inisialisasi React Query (Si "Asisten Pribadi" pengelola data).
+ * Tugasnya: 
+ * 1. Menyimpan data yang sudah diambil (Caching) biar aplikasi tidak loading terus.
+ * 2. Mengambil data baru secara otomatis di balik layar jika data lama dianggap "basi".
+ * 3. Memberi tahu komponen apakah data masih loading, sukses, atau error.
+ */
 const queryClient = new QueryClient();
 
+// Komponen kecil buat nangkep tombol Back di Android/HP
 const BackButtonHandler = () => {
   useBackButton();
   return null;
 };
 
-// Global Loading Fallback
+// Tampilan Loading pas lagi pindah halaman
 const PageLoader = () => (
   <div className="flex items-center justify-center min-h-[50vh]">
     <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -47,119 +55,10 @@ const PageLoader = () => (
 );
 
 const App = () => {
-  const [isReady, setIsReady] = useState(false);
+  // Jalankan persiapan aplikasi (Capacitor, Storage, Auth)
+  const { isReady } = useAppInit(queryClient);
 
-  useEffect(() => {
-    // 1. Initialize Storage & Capacitor
-    const initApp = async () => {
-      try {
-        await initializeStorage();
-        setIsReady(true);
-
-        // Hide Splash Screen manually ONLY after React state is ready
-        try {
-          const { SplashScreen } = await import('@capacitor/splash-screen');
-          await SplashScreen.hide();
-        } catch (e) {
-          // Ignore on web
-        }
-      } catch (error) {
-        console.error("Failed to initialize app:", error);
-        setIsReady(true); // Proceed anyway to show ErrorBoundary if needed
-      }
-    };
-
-    initApp();
-
-    // 2. Setup Deep Link Listener for Supabase Auth
-    const handleDeepLink = async (url: string) => {
-      try {
-        console.log('Deep link received:', url);
-
-        const urlObj = new URL(url);
-        // Validasi sederhana
-        const allowedSchemes = ['urusdiri', 'http', 'https'];
-        if (!allowedSchemes.includes(urlObj.protocol.replace(':', ''))) {
-          return;
-        }
-
-        // Handle PKCE Flow (code in query params)
-        const code = urlObj.searchParams.get('code');
-        if (code) {
-          console.log('Detected PKCE code, exchanging for session...');
-          const { error } = await supabase.auth.exchangeCodeForSession(code);
-          if (error) throw error;
-          toast.success("Login berhasil! (PKCE)");
-          return;
-        }
-
-        // Handle Implicit Flow (tokens in hash)
-        if (urlObj.hash) {
-          const hashParams = new URLSearchParams(urlObj.hash.substring(1));
-          const access_token = hashParams.get('access_token');
-          const refresh_token = hashParams.get('refresh_token');
-
-          if (access_token && refresh_token) {
-            console.log('Detected Implicit tokens, setting session...');
-            await supabase.auth.setSession({ access_token, refresh_token });
-            toast.success("Login berhasil!");
-            return;
-          }
-        }
-
-        // Fallback: Parse query params for implicit tokens
-        const access_token_query = urlObj.searchParams.get('access_token');
-        const refresh_token_query = urlObj.searchParams.get('refresh_token');
-        if (access_token_query && refresh_token_query) {
-          await supabase.auth.setSession({
-            access_token: access_token_query,
-            refresh_token: refresh_token_query,
-          });
-          toast.success("Login berhasil!");
-          return;
-        }
-
-      } catch (e: any) {
-        console.error('Deep link handling error:', e);
-        toast.error(`Login failed: ${e.message || e}`);
-      }
-    };
-
-    const deepLinkListener = CapacitorApp.addListener('appUrlOpen', (data) => {
-      handleDeepLink(data.url);
-    });
-
-    // 3. Initialize Standard Capacitor Plugins
-    const initCapacitorPlugins = async () => {
-      try {
-        const { StatusBar, Style } = await import('@capacitor/status-bar');
-        await StatusBar.setStyle({ style: Style.Light });
-        await StatusBar.setBackgroundColor({ color: '#F4F1EA' });
-        await StatusBar.setOverlaysWebView({ overlay: false });
-
-        const { Keyboard, KeyboardResize } = await import('@capacitor/keyboard');
-        await Keyboard.setResizeMode({ mode: KeyboardResize.Body });
-      } catch (e) {
-        console.debug('Capacitor plugins not available or browser environment');
-      }
-    };
-    initCapacitorPlugins();
-
-    // 4. Smart Resume: Refresh data
-    const resumeListener = CapacitorApp.addListener('appStateChange', ({ isActive }) => {
-      if (isActive) {
-        console.log('📱 App resumed - refreshing data...');
-        queryClient.invalidateQueries();
-      }
-    });
-
-    return () => {
-      deepLinkListener.then(handle => handle.remove());
-      resumeListener.then(handle => handle.remove());
-    };
-  }, []);
-
-  // Show white screen / loader until storage is ready
+  // Jika aplikasi belum siap (sedang inisialisasi), tampilkan layar loading putih
   if (!isReady) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-[#F4F1EA]">
@@ -168,18 +67,35 @@ const App = () => {
     );
   }
 
+  // --- 3. SUSUNAN PROVIDER & ROUTING (Lapis-lapis Pelindung Aplikasi) ---
   return (
+    /* Lapis 1: Pengelola Data (React Query) - Mengatur cache & sinkronisasi data database */
     <QueryClientProvider client={queryClient}>
+
+      /* Lapis 2: Pengelola Tema - Mengatur mode Terang/Gelap (Light/Dark mode) */
       <ThemeProvider defaultTheme="system" storageKey="urus-diri-theme">
+
+        /* Lapis 3: Pengelola Bahasa - Menyediakan info bahasa (ID/EN) ke seluruh halaman */
         <LanguageProvider>
+
+          /* Lapis 4: Sabuk Pengaman - Menangkap error agar aplikasi tidak crash total/blank putih */
           <ErrorBoundary>
+
+            /* Lapis 5: Fitur Tooltip - Mengaktifkan teks mungil yang muncul saat tombol ditahan */
             <TooltipProvider>
+
+              /* Komponen Notifikasi - Disiagakan agar bisa muncul kapan saja (popup kecil) */
               <Toaster />
               <Sonner />
+
+              /* Lapis 6: Sistem Navigasi - Mengatur perpindahan halaman tanpa refresh browser */
               <BrowserRouter>
                 <BackButtonHandler />
+
+                /* Lapis 7: Layar Tunggu - Menampilkan loading ikon saat halaman sedang di-download */
                 <Suspense fallback={<PageLoader />}>
                   <Routes>
+                    {/* Grup Halaman yang pakai Menu Navigasi Bawah (AppLayout) */}
                     <Route element={<AppLayout />}>
                       <Route path="/" element={<HomeScreen />} />
                       <Route path="/habits" element={<HabitsScreen />} />
@@ -187,6 +103,7 @@ const App = () => {
                       <Route path="/history" element={<HistoryScreen />} />
                     </Route>
 
+                    {/* Halaman Mandiri (Halaman Full tanpa menu bawah) */}
                     <Route path="/settings" element={<SettingsScreen />} />
                     <Route path="/schedule-editor" element={<EditSchedule />} />
                     <Route path="/note-editor/:id" element={<NoteEditorPage />} />
@@ -195,10 +112,13 @@ const App = () => {
                     <Route path="/log-creator" element={<LogCreatorPage />} />
                     <Route path="/reflection/:id" element={<ReflectionDetailPage />} />
                     <Route path="/personal-notes" element={<PersonalNotesPage />} />
+
+                    {/* fallback: Kalau alamat URL tidak ditemukan */}
                     <Route path="*" element={<NotFound />} />
                   </Routes>
                 </Suspense>
               </BrowserRouter>
+
             </TooltipProvider>
           </ErrorBoundary>
         </LanguageProvider>
