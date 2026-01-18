@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase'; // Koneksi ke database Supabase
 import { toast } from "sonner"; // Library buat munculin notifikasi kecil
 import { initializeStorage } from "@/lib/storage"; // Fungsi buat siapin database lokal
 import { QueryClient } from "@tanstack/react-query";
+import { waitForAuthSync, getAuthSyncStatus } from "@/lib/auth-sync-manager";
 
 /**
  * Hook khusus untuk menangani persiapan aplikasi saat pertama kali dibuka.
@@ -19,6 +20,15 @@ export const useAppInit = (queryClient: QueryClient) => {
             try {
                 // Tunggu database lokal siap
                 await initializeStorage();
+
+                // Tunggu auth sync selesai (jika ada)
+                // Ini memastikan data sudah ter-hydrate dengan benar
+                const authStatus = getAuthSyncStatus();
+                if (authStatus.state === 'syncing') {
+                    console.log('AppInit: Menunggu auth sync selesai...');
+                    await waitForAuthSync();
+                    console.log('AppInit: Auth sync selesai!');
+                }
 
                 // Tandai aplikasi sudah siap
                 setIsReady(true);
@@ -48,9 +58,23 @@ export const useAppInit = (queryClient: QueryClient) => {
                 // Ambil kode login dari URL
                 const code = urlObj.searchParams.get('code');
                 if (code) {
+                    console.log('DeepLink: Menukar kode untuk session...');
                     const { error } = await supabase.auth.exchangeCodeForSession(code);
                     if (error) throw error;
-                    toast.success("Login berhasil!");
+
+                    // Tunggu auth sync selesai sebelum menampilkan toast sukses
+                    // Ini memastikan data sudah ter-hydrate dari cloud
+                    console.log('DeepLink: Menunggu auth sync selesai...');
+                    const status = await waitForAuthSync();
+
+                    if (status.state === 'ready') {
+                        toast.success("Login berhasil! Data tersinkronisasi.");
+                    } else if (status.state === 'error') {
+                        toast.warning("Login berhasil, tapi sync data gagal. Coba refresh.");
+                    }
+
+                    // Invalidate queries untuk memastikan UI menggunakan data terbaru
+                    queryClient.invalidateQueries();
                     return;
                 }
 
@@ -61,8 +85,21 @@ export const useAppInit = (queryClient: QueryClient) => {
                     const refresh_token = hashParams.get('refresh_token');
 
                     if (access_token && refresh_token) {
+                        console.log('DeepLink: Setting session dari token...');
                         await supabase.auth.setSession({ access_token, refresh_token });
-                        toast.success("Login berhasil!");
+
+                        // Tunggu auth sync selesai
+                        console.log('DeepLink: Menunggu auth sync selesai...');
+                        const status = await waitForAuthSync();
+
+                        if (status.state === 'ready') {
+                            toast.success("Login berhasil! Data tersinkronisasi.");
+                        } else if (status.state === 'error') {
+                            toast.warning("Login berhasil, tapi sync data gagal. Coba refresh.");
+                        }
+
+                        // Invalidate queries untuk memastikan UI menggunakan data terbaru
+                        queryClient.invalidateQueries();
                         return;
                     }
                 }

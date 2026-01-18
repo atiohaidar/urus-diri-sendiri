@@ -123,7 +123,10 @@ export const useRoutines = () => {
     };
 
     const handleAddPriority = (text: string) => {
-        const updated = addPriority(text);
+        // Default to today's date when adding from home screen
+        // This makes it a "todo for today" instead of a recurring daily task
+        const todayDate = getTodayDateString();
+        const updated = addPriority(text, todayDate);
         setPriorities(updated);
         toast.success("Prioritas ditambahkan!");
     };

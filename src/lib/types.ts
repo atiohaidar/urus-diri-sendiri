@@ -10,6 +10,7 @@ export interface PriorityTask {
     updatedAt?: string; // ISO date string
     scheduledFor?: string; // "YYYY-MM-DD" - Date when this priority becomes active
     deletedAt?: string | null; // For soft delete sync
+    calendarEventId?: string; // Native calendar event ID for sync tracking
 }
 
 export interface Reflection {
@@ -55,6 +56,7 @@ export interface RoutineItem {
     updatedAt?: string; // Timestamp of when it was checked
     description?: string; // Optional detailed description
     deletedAt?: string | null;
+    calendarEventId?: string; // Native calendar event ID for sync tracking
 }
 
 export interface ActivityLog {

@@ -1,35 +1,23 @@
-import { useState, useEffect } from 'react';
-import { Cloud, LogOut, LogIn, Mail, Sparkles, CheckCircle2 } from 'lucide-react';
+import { useState } from 'react';
+import { Cloud, LogOut, LogIn, Mail, Sparkles, CheckCircle2, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { supabase, signInWithGoogle, signInWithEmail, verifyEmailOtp, signOut, isSupabaseConfigured } from '@/lib/supabase';
+import { signInWithGoogle, signInWithEmail, verifyEmailOtp, signOut, isSupabaseConfigured } from '@/lib/supabase';
 import { useLanguage } from '@/i18n/LanguageContext';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import type { User } from '@supabase/supabase-js';
+import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { cn } from '@/lib/utils';
+import { useAuthSync } from '@/hooks/useAuthSync';
+import { waitForAuthSync } from '@/lib/auth-sync-manager';
 
 export const AuthSection = () => {
     const { t } = useLanguage();
-    const [user, setUser] = useState<User | null>(null);
+    // Menggunakan hook terpusat untuk auth state - tidak ada lagi duplicate listeners!
+    const { user, isLoading: isSyncing, isCloudMode } = useAuthSync();
     const [loginLoading, setLoginLoading] = useState(false);
     const [email, setEmail] = useState('');
     const [otp, setOtp] = useState('');
     const [showOtpInput, setShowOtpInput] = useState(false);
-
-    useEffect(() => {
-        if (!isSupabaseConfigured) return;
-
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            setUser(session?.user ?? null);
-        });
-
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-            setUser(session?.user ?? null);
-        });
-
-        return () => subscription.unsubscribe();
-    }, []);
 
     const handleLogin = async () => {
         if (!isSupabaseConfigured) {
@@ -64,7 +52,13 @@ export const AuthSection = () => {
         setLoginLoading(true);
         try {
             await verifyEmailOtp(email, otp);
-            toast.success("Login successful!");
+            // Tunggu auth sync selesai sebelum menampilkan pesan sukses
+            const status = await waitForAuthSync();
+            if (status.state === 'ready') {
+                toast.success("Login successful! Data synced.");
+            } else {
+                toast.warning("Login successful, but sync failed. Try refreshing.");
+            }
         } catch (error) {
             toast.error(error instanceof Error ? error.message : "Invalid code");
         } finally {
@@ -73,12 +67,18 @@ export const AuthSection = () => {
     };
 
     const handleLogout = async () => {
+        setLoginLoading(true);
         try {
             await signOut();
+            // Tunggu auth sync selesai (switch ke local mode)
+            await waitForAuthSync();
             toast.success("Signed out successfully");
-            setTimeout(() => window.location.reload(), 500);
+            // Reload untuk memastikan state bersih
+            setTimeout(() => window.location.reload(), 300);
         } catch (error) {
             toast.error(error instanceof Error ? error.message : "Failed to logout");
+        } finally {
+            setLoginLoading(false);
         }
     };
 
@@ -94,8 +94,14 @@ export const AuthSection = () => {
                     </div>
                     <div>
                         <h2 className="font-handwriting text-xl text-ink">{t.settings.account_title} ☁️</h2>
-                        <p className="text-xs font-handwriting text-pencil">
-                            {user ? t.settings.account_sync_active : t.settings.account_guest}
+                        <p className="text-xs font-handwriting text-pencil flex items-center gap-1">
+                            {isSyncing ? (
+                                <><Loader2 className="w-3 h-3 animate-spin" /> Syncing...</>
+                            ) : user ? (
+                                t.settings.account_sync_active
+                            ) : (
+                                t.settings.account_guest
+                            )}
                         </p>
                     </div>
                 </div>

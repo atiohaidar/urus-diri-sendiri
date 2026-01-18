@@ -6,6 +6,7 @@ import { supabase } from '../supabase';
 import { cleanupImages } from '../idb';
 import { STORAGE_KEYS } from '../constants';
 import { toast } from 'sonner';
+import { startAuthSync, completeAuthSync } from '../auth-sync-manager';
 
 // --- Error Handling Helper ---
 // Provides user feedback when save operations fail
@@ -101,6 +102,7 @@ supabase.auth.onAuthStateChange((event, session) => {
             }
         }
 
+        const isCloud = !!session;
         if (session) {
             provider = new SupabaseProvider();
             console.log(`Storage: Cloud Mode (${event}) - User: ${newUserId}`);
@@ -122,7 +124,20 @@ supabase.auth.onAuthStateChange((event, session) => {
             }
         }
 
-        hydrateCache();
+        // Start auth sync (notifies listeners that sync is in progress)
+        startAuthSync(session?.user || null, isCloud);
+
+        // Hydrate cache and mark sync complete when done
+        // Using IIFE to handle async within sync callback
+        (async () => {
+            try {
+                await hydrateCache();
+                completeAuthSync();
+            } catch (error) {
+                console.error('Storage: Hydration failed during auth change:', error);
+                completeAuthSync(error instanceof Error ? error : new Error(String(error)));
+            }
+        })();
     }
 });
 
