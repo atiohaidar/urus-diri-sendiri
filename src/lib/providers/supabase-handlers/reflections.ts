@@ -51,9 +51,10 @@ export const syncReflection = async (userId: string, reflection: Reflection) => 
                 if (!error && data) {
                     const { data: { publicUrl } } = supabase.storage.from('images').getPublicUrl(fileName);
                     finalImageUrls.push(publicUrl);
-                    // Successfully uploaded, we can delete from local IDB to save space
-                    // OR keep it for caching. But logic says delete.
-                    await deleteImage(id);
+
+                    // PERFORMANCE: We keep the local image in IDB as a cache.
+                    // This allows instant viewing even when offline or on slow connections.
+                    // await deleteImage(id); 
                 } else if (error) {
                     throw error;
                 }

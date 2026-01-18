@@ -9,7 +9,7 @@ import { ThemeProvider } from "@/components/theme-provider"; // Untuk atur Dark/
 import { LanguageProvider } from "@/i18n/LanguageContext"; // Untuk fitur multi-bahasa
 import { useBackButton } from "@/hooks/useBackButton"; // Hook buat handle tombol back di HP
 import { ErrorBoundary } from "@/components/ErrorBoundary"; // Penjaga kalau ada error biar nggak crash
-import { Suspense, lazy } from "react"; // Buat fitur loading halaman (lazy load)
+import { Suspense, lazy, useState, useEffect } from "react"; // Buat fitur loading halaman (lazy load)
 import { Loader2 } from "lucide-react"; // Icon loading putar
 import { useAppInit } from "@/hooks/useAppInit"; // Hook buatan kita buat persiapan aplikasi
 
@@ -56,7 +56,16 @@ const PageLoader = () => (
 
 const App = () => {
   // Jalankan persiapan aplikasi (Capacitor, Storage, Auth)
-  const { isReady } = useAppInit(queryClient);
+  const { isReady, forceEntry } = useAppInit(queryClient);
+  const [showForceButton, setShowForceButton] = useState(false);
+
+  useEffect(() => {
+    // Tampilkan tombol "Masuk Paksa" kalau loading kelamaan (5 detik)
+    const timer = setTimeout(() => {
+      if (!isReady) setShowForceButton(true);
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [isReady]);
 
   // --- 3. SUSUNAN PROVIDER & ROUTING (Lapis-lapis Pelindung Aplikasi) ---
   return (
@@ -68,10 +77,22 @@ const App = () => {
 
         {/* Jika aplikasi belum siap (sedang inisialisasi), tampilkan layar loading yang sesuai tema */}
         {!isReady ? (
-          <div className="flex items-center justify-center min-h-screen bg-background">
-            <div className="flex flex-col items-center gap-4">
-              <Loader2 className="w-10 h-10 animate-spin text-primary" />
-              <p className="font-handwriting text-lg animate-pulse text-muted-foreground">Menyiapkan buku jurnal...</p>
+          <div className="flex items-center justify-center min-h-screen bg-background px-6 text-center">
+            <div className="flex flex-col items-center gap-6">
+              <Loader2 className="w-12 h-12 animate-spin text-primary" />
+              <div className="space-y-2">
+                <p className="font-handwriting text-xl animate-pulse text-ink">Menyiapkan jurnal harianmu...</p>
+                <p className="font-handwriting text-sm text-pencil">Sedang merapikan meja dan mencuci pena.</p>
+              </div>
+
+              {showForceButton && (
+                <button
+                  onClick={forceEntry}
+                  className="mt-4 px-6 py-2 border-2 border-dashed border-ink/40 text-ink font-handwriting rounded-sm hover:bg-ink/5 transition-colors animate-in fade-in slide-in-from-bottom-2 duration-500"
+                >
+                  Gagal sinkronisasi? Masuk sekarang &rarr;
+                </button>
+              )}
             </div>
           </div>
         ) : (

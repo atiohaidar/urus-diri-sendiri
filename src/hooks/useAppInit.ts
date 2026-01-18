@@ -14,71 +14,44 @@ export const useAppInit = (queryClient: QueryClient) => {
     // Status apakah aplikasi sudah siap digunakan
     const [isReady, setIsReady] = useState(false);
 
+    // Fungsi untuk memaksa masuk jika macet
+    const forceEntry = () => {
+        console.warn("AppInit: Force entry triggered by user.");
+        setIsReady(true);
+        hideSplashScreen();
+    };
+
+    const hideSplashScreen = async () => {
+        try {
+            const { SplashScreen } = await import('@capacitor/splash-screen');
+            await SplashScreen.hide();
+        } catch (e) {
+            // Abaikan kalau dibuka di browser biasa
+        }
+    };
+
     useEffect(() => {
-        // --- 1. INISIALISASI STORAGE & SPLASH SCREEN ---
-        const initApp = async () => {
-            // Kita kasih batas waktu maksimal (timeout) biar aplikasi nggak macet di loading screen puluhan detik
-            // Kalau dalam 6 detik belum selesai sync, kita tancap gas aja masuk ke aplikasi pake data lokal.
-            const timeoutId = setTimeout(() => {
-                if (!isReady) {
-                    console.warn("AppInit: Initialization timed out! Proceeding with local data.");
-                    setIsReady(true);
-                    hideSplashScreen();
-                }
-            }, 6000);
-
-            try {
-                // Cek URL saat ini untuk token login (penting untuk Web Redirect)
-                // Harus dijalankan sebelum initializeStorage agar provider yang benar terpilih
-                await handleDeepLink(window.location.href);
-
-                // Tunggu database lokal siap
-                await initializeStorage();
-
-                // Tunggu auth sync selesai (jika ada)
-                // Ini memastikan data sudah ter-hydrate dengan benar
-                const authStatus = getAuthSyncStatus();
-                if (authStatus.state === 'syncing') {
-                    console.log('AppInit: Menunggu auth sync selesai...');
-                    await waitForAuthSync();
-                    console.log('AppInit: Auth sync selesai!');
-                }
-
-                // Tandai aplikasi sudah siap
-                clearTimeout(timeoutId);
-                setIsReady(true);
-
-                // Di HP: Matikan gambar loading (Splash Screen) kalau React-nya sudah siap
-                hideSplashScreen();
-            } catch (error) {
-                console.error("Gagal memulai aplikasi:", error);
-                clearTimeout(timeoutId);
-                setIsReady(true); // Tetap lanjut biar aplikasi nggak macet di loading terus
-            }
-        };
-
-        const hideSplashScreen = async () => {
-            try {
-                const { SplashScreen } = await import('@capacitor/splash-screen');
-                await SplashScreen.hide();
-            } catch (e) {
-                // Abaikan kalau dibuka di browser biasa
-            }
-        };
-
-        initApp();
+        // Hapus logo native secepat mungkin agar webview terlihat
+        hideSplashScreen();
 
         // --- 2. HANDLE LOGIN LEWAT LINK (DEEP LINK) ---
-        // Dipakai kalau kita klik link 'Login' dari Email pas di HP
-        // Atau redirect OAuth di Browser
         const handleDeepLink = async (url: string) => {
+            console.log("AppInit: Memproses URL:", url);
             try {
-                if (!url || (!url.includes('code=') && !url.includes('#access_token='))) {
+                if (!url) return;
+
+                // Pastikan URL valid sebelum diproses
+                let urlObj;
+                try {
+                    urlObj = new URL(url);
+                } catch (e) {
+                    console.warn("AppInit: URL tidak valid untuk deep link:", url);
                     return;
                 }
 
-                console.log('Deep link diterima:', url);
-                const urlObj = new URL(url);
+                if (!url.includes('code=') && !url.includes('#access_token=')) {
+                    return;
+                }
 
                 // Ambil kode login dari URL (PKCE Flow)
                 const code = urlObj.searchParams.get('code');
@@ -90,16 +63,13 @@ export const useAppInit = (queryClient: QueryClient) => {
                     // Bersihkan URL dari parameter code
                     window.history.replaceState(null, '', window.location.pathname);
 
-                    // Tunggu auth sync selesai sebelum menampilkan toast sukses
+                    // Tunggu auth sync selesai
                     console.log('DeepLink: Menunggu auth sync selesai...');
                     const status = await waitForAuthSync();
 
                     if (status.state === 'ready') {
                         toast.success("Login berhasil! Data tersinkronisasi.");
-                    } else if (status.state === 'error') {
-                        toast.warning("Login berhasil, tapi sync data gagal. Coba refresh.");
                     }
-
                     queryClient.invalidateQueries();
                     return;
                 }
@@ -115,19 +85,14 @@ export const useAppInit = (queryClient: QueryClient) => {
                         const { error } = await supabase.auth.setSession({ access_token, refresh_token });
                         if (error) throw error;
 
-                        // Bersihkan hash dari URL
                         window.history.replaceState(null, '', window.location.pathname);
 
-                        // Tunggu auth sync selesai
                         console.log('DeepLink: Menunggu auth sync selesai...');
                         const status = await waitForAuthSync();
 
                         if (status.state === 'ready') {
                             toast.success("Login berhasil! Data tersinkronisasi.");
-                        } else if (status.state === 'error') {
-                            toast.warning("Login berhasil, tapi sync data gagal. Coba refresh.");
                         }
-
                         queryClient.invalidateQueries();
                         return;
                     }
@@ -138,7 +103,47 @@ export const useAppInit = (queryClient: QueryClient) => {
             }
         };
 
-        // Pasang pendengar: Kalau aplikasi dibuka lewat link (saat sudah running di HP)
+        // --- 1. INISIALISASI STORAGE & SPLASH SCREEN ---
+        const initApp = async () => {
+            // Kita kasih batas waktu maksimal (timeout) biar aplikasi nggak macet di loading screen puluhan detik
+            const timeoutId = setTimeout(() => {
+                console.warn("AppInit: Initialization timed out! Proceeding with local data.");
+                setIsReady(true);
+                hideSplashScreen();
+            }, 6000);
+
+            try {
+                // Sekarang handleDeepLink sudah didefinisikan di atas
+                await handleDeepLink(window.location.href);
+
+                // Tunggu database lokal siap
+                await initializeStorage();
+
+                // Tunggu auth sync selesai (jika ada)
+                const authStatus = getAuthSyncStatus();
+                if (authStatus.state === 'syncing') {
+                    console.log('AppInit: Menunggu auth sync selesai...');
+                    await Promise.race([
+                        waitForAuthSync(),
+                        new Promise(resolve => setTimeout(resolve, 4000))
+                    ]);
+                    console.log('AppInit: Auth sync selesai atau dilewati.');
+                }
+
+                // Tandai aplikasi sudah siap
+                clearTimeout(timeoutId);
+                setIsReady(true);
+                hideSplashScreen();
+            } catch (error) {
+                console.error("Gagal memulai aplikasi:", error);
+                clearTimeout(timeoutId);
+                setIsReady(true);
+                hideSplashScreen();
+            }
+        };
+
+        initApp();
+
         const deepLinkListener = CapacitorApp.addListener('appUrlOpen', (data) => {
             handleDeepLink(data.url);
         });
@@ -149,32 +154,26 @@ export const useAppInit = (queryClient: QueryClient) => {
                 // Atur warna bar baterai/jam di atas
                 const { StatusBar, Style } = await import('@capacitor/status-bar');
                 await StatusBar.setStyle({ style: Style.Light });
-                await StatusBar.setBackgroundColor({ color: '#F4F1EA' }); // Warna krem sesuai desain
+                await StatusBar.setBackgroundColor({ color: '#F4F1EA' });
 
-                // Atur agar aplikasi nggak ketutup keyboard pas ngetik
                 const { Keyboard, KeyboardResize } = await import('@capacitor/keyboard');
                 await Keyboard.setResizeMode({ mode: KeyboardResize.Body });
-            } catch (e) {
-                // Abaikan kalau bukan di HP
-            }
+            } catch (e) { }
         };
         initCapacitorPlugins();
 
-        // --- 4. REFRESH OTOMATIS (SMART RESUME) ---
-        // Kalau kita pindah aplikasi terus balik lagi, otomatis ambil data terbaru
         const resumeListener = CapacitorApp.addListener('appStateChange', ({ isActive }) => {
             if (isActive) {
                 console.log('📱 Balik ke aplikasi - menyegarkan data...');
-                queryClient.invalidateQueries(); // Tukang suruh refresh data
+                queryClient.invalidateQueries();
             }
         });
 
-        // Bersihkan semua listener kalau komponen ini nggak dipakai lagi
         return () => {
             deepLinkListener.then(handle => handle.remove());
             resumeListener.then(handle => handle.remove());
         };
     }, [queryClient]);
 
-    return { isReady };
+    return { isReady, forceEntry };
 };

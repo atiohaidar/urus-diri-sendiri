@@ -161,26 +161,31 @@ export const initializeStorage = () => {
     if (initPromise) return initPromise;
 
     initPromise = (async () => {
-        // 1. Basic Migrations
-        const oldReflections = localStorage.getItem(STORAGE_KEYS.REFLECTIONS);
-        if (oldReflections) {
-            try {
-                const reflections: Reflection[] = JSON.parse(oldReflections);
-                for (const r of reflections) await provider.saveReflection(r);
-                localStorage.removeItem(STORAGE_KEYS.REFLECTIONS);
-            } catch (e) { console.error(e); }
+        // 1. Basic Migrations (localStorage -> IndexedDB)
+        const migrationTasks = [
+            { key: STORAGE_KEYS.PRIORITIES, table: 'priorities', save: (d: any) => provider.savePriorities(d) },
+            { key: STORAGE_KEYS.REFLECTIONS, table: 'reflections', save: async (d: any) => { for (const r of d) await provider.saveReflection(r); } },
+            { key: STORAGE_KEYS.NOTES, table: 'notes', save: (d: any) => provider.saveNotes(d) },
+            { key: STORAGE_KEYS.ROUTINES, table: 'routines', save: (d: any) => provider.saveRoutines(d) },
+            { key: STORAGE_KEYS.LOGS, table: 'logs', save: async (d: any) => { for (const l of d) await provider.saveLog(l); } },
+            { key: STORAGE_KEYS.HABITS, table: 'habits', save: (d: any) => provider.saveHabits(d) },
+            { key: STORAGE_KEYS.HABIT_LOGS, table: 'habitLogs', save: (d: any) => provider.saveHabitLogs(d) },
+            { key: 'personal_notes_data', table: 'personal_notes', save: (d: any) => provider.savePersonalNotes(d) },
+        ];
+
+        for (const task of migrationTasks) {
+            const oldData = localStorage.getItem(task.key);
+            if (oldData) {
+                try {
+                    const data = JSON.parse(oldData);
+                    await task.save(data);
+                    localStorage.removeItem(task.key);
+                    console.log(`Storage: Migrated ${task.table} to IndexedDB`);
+                } catch (e) {
+                    console.error(`Storage: Failed to migrate ${task.table}:`, e);
+                }
+            }
         }
-
-        const oldLogs = localStorage.getItem(STORAGE_KEYS.LOGS);
-        if (oldLogs) {
-            try {
-                const logs: ActivityLog[] = JSON.parse(oldLogs);
-                for (const l of logs) await provider.saveLog(l);
-                localStorage.removeItem(STORAGE_KEYS.LOGS);
-            } catch (e) { console.error(e); }
-        }
-
-
 
         // 2. Initial Hydration
         await hydrateCache();
@@ -200,7 +205,6 @@ export const initializeStorage = () => {
                 console.warn("Storage: Skipping Image GC because cache is incomplete.");
             } else {
                 const usedIds: string[] = [];
-
 
                 // From Reflections
                 cache.reflections?.forEach(r => {
@@ -277,7 +281,7 @@ const setSyncToken = (table: string, timestamp: string) => {
     }
 };
 
-// Generic Merge Logic
+// Generic Merge Logic with Conflict Resolution
 function mergeData<T extends { id: string, updatedAt?: string, deletedAt?: string | null }>(
     current: T[] | null,
     incoming: T[]
@@ -288,7 +292,12 @@ function mergeData<T extends { id: string, updatedAt?: string, deletedAt?: strin
         if (item.deletedAt) {
             existingMap.delete(item.id);
         } else {
-            existingMap.set(item.id, item);
+            const existing = existingMap.get(item.id);
+            // CONFLICT RESOLUTION: Only overwrite if incoming is newer
+            // If timestamps are missing, overwrite by default (safe for initial load)
+            if (!existing || !existing.updatedAt || !item.updatedAt || item.updatedAt > existing.updatedAt) {
+                existingMap.set(item.id, item);
+            }
         }
     }
 
@@ -320,15 +329,15 @@ export async function hydrateTable(table: keyof typeof cache, force = false): Pr
             }
 
             // If we are in Cloud mode, strictly merge.
-            // If Local mode, usually it returns full list, so replacing is fine.
-            // BUT, if we want to be safe, standard merge works for full lists too (overwrites old).
+            // If Local mode, biasanya mengembalikan full list, jadi replace aman.
+            // Tapi untuk amannya, kita gunakan mergeData.
 
-            // Optimization: If local cache is null (first load), just set it.
+            // Optimization: Jika cache lokal masih null (load pertama), langsung set.
             if (cache[table] === null) {
-                // Filter deleted items for initial load just in case provider returned them
+                // Filter data yang sudah di-delete (soft delete)
                 cache[table] = incoming.filter((i: any) => !i.deletedAt);
             } else {
-                // Merge incremental updates
+                // Gabungkan data update (incremental)
                 cache[table] = mergeData(cache[table], incoming);
             }
 

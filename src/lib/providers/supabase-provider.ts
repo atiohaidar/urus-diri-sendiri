@@ -44,10 +44,20 @@ export class SupabaseProvider implements IStorageProvider {
 
     private async handleAuthError(error: any) {
         if (error && (error.code === 'PGRST301' || error.message?.includes('JWT') || error.status === 401)) {
-            console.warn('Auth session expired or invalid, signing out...');
+            console.warn('Auth session expired or invalid:', error);
             this.userIdPromise = null;
-            await supabase.auth.signOut();
-            window.location.reload(); // Refresh to clear state
+
+            // Notification instead of hard loop
+            import('sonner').then(({ toast }) => {
+                toast.warning("Sesi login berakhir", {
+                    description: "Beberapa data mungkin tidak sinkron. Silakan login kembali.",
+                    action: {
+                        label: "Refresh",
+                        onClick: () => window.location.reload()
+                    }
+                });
+            });
+
             return true;
         }
         return false;

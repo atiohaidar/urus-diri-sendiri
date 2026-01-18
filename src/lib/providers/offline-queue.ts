@@ -1,4 +1,5 @@
 import { STORAGE_KEYS } from '../constants';
+import { IDB_STORES, getAllItems, putItem, openDB } from '../idb';
 
 /**
  * Queue item types for offline sync
@@ -21,14 +22,13 @@ export type QueueProcessor = (item: QueueItem) => Promise<void>;
 
 /**
  * Manages offline queue for syncing data when back online
+ * Uses IndexedDB for unlimited capacity and better resilience
  */
 export class OfflineQueue {
-    private queueKey = STORAGE_KEYS.OFFLINE_QUEUE;
     private processor: QueueProcessor | null = null;
     private isProcessing = false;
 
     constructor() {
-        // Auto-process queue when coming back online
         if (typeof window !== 'undefined') {
             window.addEventListener('online', () => {
                 console.log("Network back online. Processing sync queue...");
@@ -37,58 +37,59 @@ export class OfflineQueue {
         }
     }
 
-    /**
-     * Set the processor function that handles each queue item
-     */
     setProcessor(processor: QueueProcessor) {
         this.processor = processor;
     }
 
-    /**
-     * Get all items in the queue
-     */
-    getAll(): QueueItem[] {
-        const raw = localStorage.getItem(this.queueKey);
-        return raw ? JSON.parse(raw) : [];
+    async getAllWithKeys(): Promise<{ key: number, item: QueueItem }[]> {
+        const db = await openDB();
+        return new Promise((resolve, reject) => {
+            const transaction = db.transaction(IDB_STORES.OFFLINE_QUEUE, 'readonly');
+            const store = transaction.objectStore(IDB_STORES.OFFLINE_QUEUE);
+            const request = store.openCursor();
+            const results: { key: number, item: QueueItem }[] = [];
+
+            request.onsuccess = (event) => {
+                const cursor = (event.target as IDBRequest<IDBCursorWithValue>).result;
+                if (cursor) {
+                    results.push({ key: cursor.key as number, item: cursor.value as QueueItem });
+                    cursor.continue();
+                } else {
+                    resolve(results);
+                }
+            };
+            request.onerror = () => reject(request.error);
+        });
     }
 
-    /**
-     * Save the queue to localStorage
-     */
-    private save(queue: QueueItem[]) {
-        localStorage.setItem(this.queueKey, JSON.stringify(queue));
+    async add(item: QueueItem) {
+        // DEDUPLICATION: If we are saving the same entity again, we can technically replace it
+        // but for simplicity and sequence preservation, we just append to IDB.
+        // IDB handles high volume much better than localStorage.
+        try {
+            const db = await openDB();
+            const transaction = db.transaction(IDB_STORES.OFFLINE_QUEUE, 'readwrite');
+            const store = transaction.objectStore(IDB_STORES.OFFLINE_QUEUE);
+            store.add(item);
+            console.log(`🔌 Offline: Action queued (${item.type}) in IndexedDB.`);
+        } catch (e) {
+            console.error("Failed to add to offline queue:", e);
+        }
     }
 
-    /**
-     * Add an item to the offline queue
-     */
-    add(item: QueueItem) {
-        const queue = this.getAll();
-        queue.push(item);
-        this.save(queue);
-        console.log(`🔌 Offline: Action queued (${item.type}). Will sync when online.`);
+    async delete(key: number) {
+        const db = await openDB();
+        const transaction = db.transaction(IDB_STORES.OFFLINE_QUEUE, 'readwrite');
+        transaction.objectStore(IDB_STORES.OFFLINE_QUEUE).delete(key);
     }
 
-    /**
-     * Clear the entire queue
-     */
-    clear() {
-        localStorage.removeItem(this.queueKey);
-    }
-
-    /**
-     * Check if online
-     */
     isOnline(): boolean {
         return typeof navigator !== 'undefined' ? navigator.onLine : true;
     }
 
-    /**
-     * Execute a function or add to queue if offline
-     */
     async executeOrQueue(item: QueueItem, fn: () => Promise<void>) {
         if (!this.isOnline()) {
-            this.add(item);
+            await this.add(item);
             return;
         }
 
@@ -96,55 +97,38 @@ export class OfflineQueue {
             await fn();
         } catch (err: any) {
             console.error(`Operation failed (will queue):`, err);
-            this.add(item);
+            await this.add(item);
         }
     }
 
-    /**
-     * Process all items in the queue
-     */
     async process() {
         if (!this.isOnline() || !this.processor || this.isProcessing) return;
 
         this.isProcessing = true;
-        const queue = this.getAll();
-        if (queue.length === 0) {
+        const queueWithKeys = await this.getAllWithKeys();
+
+        if (queueWithKeys.length === 0) {
             this.isProcessing = false;
             return;
         }
 
-        console.log(`🔄 Syncing ${queue.length} offline actions...`);
+        console.log(`🔄 Syncing ${queueWithKeys.length} offline actions from IndexedDB...`);
 
-        const remainingQueue: QueueItem[] = [];
-
-        for (const item of queue) {
+        for (const entry of queueWithKeys) {
             try {
-                await this.processor(item);
-                // Throttle requests to prevent rate limiting / freezing UI
-                await new Promise(resolve => setTimeout(resolve, 150));
+                await this.processor(entry.item);
+                await this.delete(entry.key);
+                // Moderate throttle
+                await new Promise(resolve => setTimeout(resolve, 100));
             } catch (err) {
-                console.error(`Failed to process queue item (${item.type}) during sync:`, err);
-                remainingQueue.push(item);
+                console.error(`Failed to process queue item (${entry.item.type}) during sync:`, err);
+                // Stop processing on error to preserve sequence
+                break;
             }
         }
 
-        this.save(remainingQueue);
         this.isProcessing = false;
-
-        if (remainingQueue.length === 0) {
-            console.log("✅ Offline queue synced successfully!");
-        } else {
-            console.warn(`⚠️ ${remainingQueue.length} items failed to sync.`);
-        }
-    }
-
-    /**
-     * Get the number of pending items
-     */
-    get pendingCount(): number {
-        return this.getAll().length;
     }
 }
 
-// Singleton instance
 export const offlineQueue = new OfflineQueue();

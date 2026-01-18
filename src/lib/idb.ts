@@ -7,9 +7,16 @@ const DB_NAME = 'urus-diri-db';
 const STORES = {
     IMAGES: 'images',
     REFLECTIONS: 'reflections',
-    LOGS: 'logs'
+    LOGS: 'logs',
+    PRIORITIES: 'priorities',
+    NOTES: 'notes',
+    ROUTINES: 'routines',
+    HABITS: 'habits',
+    HABIT_LOGS: 'habit_logs',
+    PERSONAL_NOTES: 'personal_notes',
+    OFFLINE_QUEUE: 'offline_queue'
 };
-const DB_VERSION = 2;
+const DB_VERSION = 4;
 
 // Singleton instance
 let dbInstance: IDBDatabase | null = null;
@@ -56,6 +63,27 @@ export const openDB = (): Promise<IDBDatabase> => {
             if (!db.objectStoreNames.contains(STORES.LOGS)) {
                 db.createObjectStore(STORES.LOGS, { keyPath: 'id' });
             }
+            if (!db.objectStoreNames.contains(STORES.PRIORITIES)) {
+                db.createObjectStore(STORES.PRIORITIES, { keyPath: 'id' });
+            }
+            if (!db.objectStoreNames.contains(STORES.NOTES)) {
+                db.createObjectStore(STORES.NOTES, { keyPath: 'id' });
+            }
+            if (!db.objectStoreNames.contains(STORES.ROUTINES)) {
+                db.createObjectStore(STORES.ROUTINES, { keyPath: 'id' });
+            }
+            if (!db.objectStoreNames.contains(STORES.HABITS)) {
+                db.createObjectStore(STORES.HABITS, { keyPath: 'id' });
+            }
+            if (!db.objectStoreNames.contains(STORES.HABIT_LOGS)) {
+                db.createObjectStore(STORES.HABIT_LOGS, { keyPath: 'id' });
+            }
+            if (!db.objectStoreNames.contains(STORES.PERSONAL_NOTES)) {
+                db.createObjectStore(STORES.PERSONAL_NOTES, { keyPath: 'id' });
+            }
+            if (!db.objectStoreNames.contains(STORES.OFFLINE_QUEUE)) {
+                db.createObjectStore(STORES.OFFLINE_QUEUE, { autoIncrement: true });
+            }
         };
     });
 
@@ -76,6 +104,25 @@ export const putItem = async <T>(storeName: string, item: T): Promise<T> => {
             request.onsuccess = () => resolve(item);
         } catch (err) {
             // Retry once if transaction fails (e.g. connection stale)
+            dbInstance = null;
+            reject(err);
+        }
+    });
+};
+
+export const putItems = async <T>(storeName: string, items: T[]): Promise<void> => {
+    if (items.length === 0) return;
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+        try {
+            const transaction = db.transaction(storeName, 'readwrite');
+            const store = transaction.objectStore(storeName);
+
+            items.forEach(item => store.put(item));
+
+            transaction.oncomplete = () => resolve();
+            transaction.onerror = () => reject(transaction.error);
+        } catch (err) {
             dbInstance = null;
             reject(err);
         }
