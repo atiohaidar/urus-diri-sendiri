@@ -14,6 +14,7 @@ import {
     type PriorityTask,
     deletePriority,
     updatePriorityText,
+    updatePrioritySchedule,
     registerListener,
     getTodayDateString
 } from '@/lib/storage';
@@ -159,6 +160,16 @@ export const useRoutines = () => {
         }
     };
 
+    const handleUpdatePrioritySchedule = (id: string, scheduledFor: string | undefined) => {
+        const updated = updatePrioritySchedule(id, scheduledFor);
+        setPriorities(updated);
+        if (scheduledFor) {
+            toast.success(`Dijadwalkan untuk ${scheduledFor}`);
+        } else {
+            toast.success("Diubah ke tugas harian");
+        }
+    };
+
     return {
         routines,
         priorities,
@@ -170,6 +181,7 @@ export const useRoutines = () => {
         handleAddPriority,
         handleDeletePriority,
         handleUpdatePriorityText,
+        handleUpdatePrioritySchedule,
         handleCheckIn,
         refreshData: () => loadData(true)
     };

@@ -12,6 +12,7 @@ interface HomePrioritySectionProps {
     onToggle: (id: string, completed: boolean, note?: string) => void;
     onDelete: (id: string) => void;
     onUpdate: (id: string, text: string) => void;
+    onUpdateSchedule: (id: string, scheduledFor: string | undefined) => void;
     onAdd: (text: string) => void;
     variant?: 'mobile' | 'desktop';
     className?: string;
@@ -22,6 +23,7 @@ export const HomePrioritySection = ({
     onToggle,
     onDelete,
     onUpdate,
+    onUpdateSchedule,
     onAdd,
     variant = 'mobile',
     className
@@ -84,6 +86,7 @@ export const HomePrioritySection = ({
                                 onToggle={onToggle}
                                 onDelete={onDelete}
                                 onUpdate={onUpdate}
+                                onUpdateSchedule={onUpdateSchedule}
                             />
                         ))}
                     </div>

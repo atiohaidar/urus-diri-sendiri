@@ -154,3 +154,24 @@ export const updatePriorityText = (id: string, text: string) => {
     notifyListeners();
     return updated;
 };
+
+/**
+ * Update the scheduledFor date of a priority.
+ * @param id - Priority ID
+ * @param scheduledFor - Date string "YYYY-MM-DD" or undefined for recurring/daily
+ */
+export const updatePrioritySchedule = (id: string, scheduledFor: string | undefined) => {
+    const priorities = getPriorities();
+    const updated = priorities.map(p =>
+        p.id === id ? {
+            ...p,
+            scheduledFor,
+            // Reset completion if changing to a future date
+            completed: scheduledFor && scheduledFor > getTodayDateString() ? false : p.completed,
+            updatedAt: new Date().toISOString()
+        } : p
+    );
+    savePriorities(updated);
+    notifyListeners();
+    return updated;
+};

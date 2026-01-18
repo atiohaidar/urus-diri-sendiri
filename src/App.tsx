@@ -72,27 +72,27 @@ const App = () => {
     /* Lapis 1: Pengelola Data (React Query) - Mengatur cache & sinkronisasi data database */
     <QueryClientProvider client={queryClient}>
 
-      /* Lapis 2: Pengelola Tema - Mengatur mode Terang/Gelap (Light/Dark mode) */
+      {/* /* Lapis 2: Pengelola Tema - Mengatur mode Terang/Gelap (Light/Dark mode) */}
       <ThemeProvider defaultTheme="system" storageKey="urus-diri-theme">
 
-        /* Lapis 3: Pengelola Bahasa - Menyediakan info bahasa (ID/EN) ke seluruh halaman */
+        {/* /* Lapis 3: Pengelola Bahasa - Menyediakan info bahasa (ID/EN) ke seluruh halaman */}
         <LanguageProvider>
 
-          /* Lapis 4: Sabuk Pengaman - Menangkap error agar aplikasi tidak crash total/blank putih */
+          {/* /* Lapis 4: Sabuk Pengaman - Menangkap error agar aplikasi tidak crash total/blank putih */}
           <ErrorBoundary>
 
-            /* Lapis 5: Fitur Tooltip - Mengaktifkan teks mungil yang muncul saat tombol ditahan */
+            {/* /* Lapis 5: Fitur Tooltip - Mengaktifkan teks mungil yang muncul saat tombol ditahan */}
             <TooltipProvider>
 
-              /* Komponen Notifikasi - Disiagakan agar bisa muncul kapan saja (popup kecil) */
+              {/* Komponen Notifikasi - Disiagakan agar bisa muncul kapan saja (popup kecil) */}
               <Toaster />
               <Sonner />
 
-              /* Lapis 6: Sistem Navigasi - Mengatur perpindahan halaman tanpa refresh browser */
+              {/* Lapis 6: Sistem Navigasi - Mengatur perpindahan halaman tanpa refresh browser */}
               <BrowserRouter>
                 <BackButtonHandler />
 
-                /* Lapis 7: Layar Tunggu - Menampilkan loading ikon saat halaman sedang di-download */
+                {/* Lapis 7: Layar Tunggu - Menampilkan loading ikon saat halaman sedang di-download */}
                 <Suspense fallback={<PageLoader />}>
                   <Routes>
                     {/* Grup Halaman yang pakai Menu Navigasi Bawah (AppLayout) */}

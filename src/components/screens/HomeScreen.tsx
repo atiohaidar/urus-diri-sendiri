@@ -34,7 +34,8 @@ const HomeScreen = () => {
     handleTogglePriority,
     handleAddPriority,
     handleDeletePriority,
-    handleUpdatePriorityText
+    handleUpdatePriorityText,
+    handleUpdatePrioritySchedule
   } = useRoutines();
 
   const {
@@ -140,6 +141,7 @@ const HomeScreen = () => {
             onToggle={handleTogglePriority}
             onDelete={handleDeletePriority}
             onUpdate={handleUpdatePriorityText}
+            onUpdateSchedule={handleUpdatePrioritySchedule}
             onAdd={handleAddPriority}
             variant="mobile"
             className="md:hidden"
@@ -157,6 +159,7 @@ const HomeScreen = () => {
             onToggle={handleTogglePriority}
             onDelete={handleDeletePriority}
             onUpdate={handleUpdatePriorityText}
+            onUpdateSchedule={handleUpdatePrioritySchedule}
             onAdd={handleAddPriority}
             variant="desktop"
           />
