@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- SEO Meta Tags -->
+    <title>Urus Diri Sendiri - Aplikasi Produktivitas Sederhana</title>
+    <meta name="description"
+        content="Aplikasi sederhana untuk mencatat rutinitas harian, kebiasaan, dan ide. Tanpa fitur berlebihan, hanya yang kamu butuhkan.">
+    <meta name="keywords" content="produktivitas, rutinitas harian, habit tracker, catatan ide, self improvement">
+    <meta name="author" content="atiohaidar">
+
+    <!-- Open Graph / Social Media -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Urus Diri Sendiri - Aplikasi Produktivitas Sederhana">
+    <meta property="og:description" content="Aplikasi sederhana untuk mencatat rutinitas harian, kebiasaan, dan ide.">
+    <meta property="og:url" content="https://urus-diri-sendiri.pages.dev/">
+    <meta property="og:image" content="https://urus-diri-sendiri.pages.dev/logo-dark.png">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Urus Diri Sendiri">
+    <meta name="twitter:description" content="Aplikasi sederhana untuk mencatat rutinitas harian, kebiasaan, dan ide.">
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="https://urus-diri-sendiri.pages.dev/logo-dark.png">
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Patrick+Hand&display=swap"
+        rel="stylesheet">
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <!-- Navigation -->
+    <nav class="nav">
+        <div class="nav-container">
+            <div class="nav-brand">
+                <span class="logo">📓</span>
+                <span class="brand-name">Urus Diri Sendiri</span>
+            </div>
+            <div class="nav-links">
+                <a href="#fitur" class="nav-link">Fitur</a>
+                <a href="#tentang" class="nav-link">Tentang</a>
+                <a href="https://urus-diri-sendiri.pages.dev/" class="nav-cta">Buka Aplikasi →</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <header class="hero">
+        <div class="hero-bg-elements">
+            <div class="bg-circle circle-1"></div>
+            <div class="bg-circle circle-2"></div>
+            <div class="bg-circle circle-3"></div>
+        </div>
+
+        <div class="hero-container">
+            <div class="hero-content">
+                <div class="hero-badge">
+                    <span>✨</span> Produktivitas tanpa drama
+                </div>
+                <h1 class="hero-title">
+                    Catat. Lacak.<br>
+                    <span class="highlight">Refleksi.</span>
+                </h1>
+                <p class="hero-subtitle">
+                    Aplikasi sederhana untuk mencatat rutinitas harian, melacak kebiasaan, dan menyimpan ide.
+                    <strong>Tanpa fitur berlebihan</strong> — hanya yang kamu butuhkan.
+                </p>
+                <div class="hero-actions">
+                    <a href="https://urus-diri-sendiri.pages.dev/" class="btn btn-primary">
+                        <span>Mulai Sekarang</span>
+                        <span class="btn-arrow">→</span>
+                    </a>
+                    <a href="#fitur" class="btn btn-secondary">
+                        Lihat Fitur
+                    </a>
+                </div>
+                <p class="hero-note">
+                    <span class="check-icon">✓</span> Gratis
+                    <span class="separator">•</span>
+                    <span class="check-icon">✓</span> Tanpa daftar
+                    <span class="separator">•</span>
+                    <span class="check-icon">✓</span> Langsung pakai
+                </p>
+            </div>
+
+            <div class="hero-visual">
+                <!-- Phone Mockup (99% Similar to Real App) -->
+                <div class="phone-mockup">
+                    <div class="phone-screen">
+                        <!-- Actual App Header Style -->
+                        <div class="mock-header">
+                            <div class="header-left">
+                                <h2 class="greeting"><span class="header-highlight">Selamat Malam</span> 👋</h2>
+                                <p class="header-date">[ Ming, 19 Jan • 21:00 ]</p>
+                            </div>
+                            <div class="header-right">
+                                <div class="header-icons">
+                                    <span class="icon-small">🔄</span>
+                                    <span class="icon-small">🗓️</span>
+                                    <span class="icon-small">⚙️</span>
+                                </div>
+                                <div class="progress-rings">
+                                    <div class="ring outer"></div>
+                                    <div class="ring inner"></div>
+                                    <div class="dot"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mock-scroll-area">
+                            <!-- Habits Section -->
+                            <div class="app-section">
+                                <div class="section-header-inline">
+                                    <h3 class="section-title">🔥 <span class="underline-squiggle">Today's Habits</span>
+                                        ✨</h3>
+                                    <span class="view-all">View All →</span>
+                                </div>
+
+                                <div class="habit-stack">
+                                    <!-- Habit Card 1 (Yellow) -->
+                                    <div class="mock-habit-card yellow rot-1">
+                                        <div class="habit-left">
+                                            <div class="habit-check-box checked">✓</div>
+                                            <div class="habit-info">
+                                                <p class="habit-name strikethrough">Olahraga Pagi</p>
+                                                <p class="habit-freq">Setiap Hari</p>
+                                            </div>
+                                        </div>
+                                        <div class="streak-badge">🔥 12</div>
+                                    </div>
+
+                                    <!-- Habit Card 2 (Pink) -->
+                                    <div class="mock-habit-card pink rot-2">
+                                        <div class="habit-left">
+                                            <div class="habit-check-box">📚</div>
+                                            <div class="habit-info">
+                                                <p class="habit-name">Baca Buku</p>
+                                                <p class="habit-freq">Setiap Hari</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Routine Section -->
+                            <div class="app-section">
+                                <div class="section-header-inline">
+                                    <h3 class="section-title"><span class="underline-squiggle">Jadwal Rutinitas</span> ⭐
+                                    </h3>
+                                    <span class="view-all">Edit →</span>
+                                </div>
+
+                                <div class="routine-list">
+                                    <!-- Routine Card Active (Blueish/Yellow) -->
+                                    <div class="mock-routine-card active">
+                                        <div class="routine-left">
+                                            <div class="routine-check-box"></div>
+                                            <div class="routine-content">
+                                                <p class="routine-time">21:00 - 22:00 <span class="duration">•
+                                                        60m</span> <span class="badge-active">SEKARANG</span></p>
+                                                <p class="routine-activity">Belajar Coding 💻</p>
+                                            </div>
+                                        </div>
+                                        <div class="category-tag blue">🎯</div>
+                                    </div>
+
+                                    <!-- Routine Card Upcoming -->
+                                    <div class="mock-routine-card upcoming">
+                                        <div class="routine-left">
+                                            <div class="routine-check-box"></div>
+                                            <div class="routine-content">
+                                                <p class="routine-time">22:00 - 22:30 <span class="duration">•
+                                                        30m</span> <span class="badge-upcoming">SELANJUTNYA</span></p>
+                                                <p class="routine-activity">Refleksi Harian 📖</p>
+                                            </div>
+                                        </div>
+                                        <div class="category-tag pink">✨</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Floating Sticky Notes -->
+                <div class="sticky-note yellow note-1">
+                    <span class="note-icon">✓</span>
+                    <span class="note-text">Rutinitas</span>
+                </div>
+                <div class="sticky-note green note-2">
+                    <span class="note-icon">💡</span>
+                    <span class="note-text">Ide Parkir</span>
+                </div>
+                <div class="sticky-note pink note-3">
+                    <span class="note-icon">🔥</span>
+                    <span class="note-text">Habits</span>
+                </div>
+                <div class="sticky-note blue note-4">
+                    <span class="note-icon">📖</span>
+                    <span class="note-text">Refleksi</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Features Section -->
+    <section class="features" id="fitur">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-badge">Fitur</span>
+                <h2 class="section-title">Apa yang bisa dilakukan?</h2>
+                <p class="section-subtitle">Fitur-fitur yang <em>benar-benar</em> ada di aplikasi ini. Tidak lebih,
+                    tidak kurang.</p>
+            </div>
+
+            <div class="features-grid">
+                <!-- Feature 1: Rutinitas -->
+                <div class="feature-card">
+                    <div class="feature-icon blue">📋</div>
+                    <h3>Jadwal Rutinitas</h3>
+                    <p>Buat jadwal aktivitas harian dengan waktu mulai dan selesai. Lihat mana yang sedang aktif.</p>
+                    <ul class="feature-list">
+                        <li>Atur jam mulai & selesai</li>
+                        <li>Indikator aktivitas aktif</li>
+                        <li>Check-in harian</li>
+                    </ul>
+                </div>
+
+                <!-- Feature 2: Habits -->
+                <div class="feature-card">
+                    <div class="feature-icon orange">🔥</div>
+                    <h3>Pelacak Kebiasaan</h3>
+                    <p>Lacak kebiasaan yang ingin kamu bangun. Pilih hari-hari tertentu untuk setiap kebiasaan.</p>
+                    <ul class="feature-list">
+                        <li>Atur jadwal per hari</li>
+                        <li>Streak counter</li>
+                        <li>Catatan saat menyelesaikan</li>
+                    </ul>
+                </div>
+
+                <!-- Feature 3: Ideas -->
+                <div class="feature-card">
+                    <div class="feature-icon green">💡</div>
+                    <h3>Parkir Ide</h3>
+                    <p>Tempat menyimpan ide, catatan, atau apapun yang terlintas. Bisa dikategorikan dan dicari.</p>
+                    <ul class="feature-list">
+                        <li>Kategori custom</li>
+                        <li>Fitur pencarian</li>
+                        <li>Catatan terenkripsi (opsional)</li>
+                    </ul>
+                </div>
+
+                <!-- Feature 4: Priorities -->
+                <div class="feature-card">
+                    <div class="feature-icon yellow">⭐</div>
+                    <h3>Prioritas Hari Ini</h3>
+                    <p>Daftar tugas sederhana untuk fokus hari ini. Bisa dengan atau tanpa jadwal waktu.</p>
+                    <ul class="feature-list">
+                        <li>Tambah tugas cepat</li>
+                        <li>Centang saat selesai</li>
+                        <li>Reset setiap hari</li>
+                    </ul>
+                </div>
+
+                <!-- Feature 5: Reflections -->
+                <div class="feature-card">
+                    <div class="feature-icon purple">📖</div>
+                    <h3>Refleksi Harian</h3>
+                    <p>Catat apa yang sudah dilakukan dan bagaimana perasaanmu. Bisa dilihat kembali di riwayat.</p>
+                    <ul class="feature-list">
+                        <li>Check-in Maghrib</li>
+                        <li>Riwayat refleksi</li>
+                        <li>Activity log</li>
+                    </ul>
+                </div>
+
+                <!-- Feature 6: Settings -->
+                <div class="feature-card">
+                    <div class="feature-icon gray">⚙️</div>
+                    <h3>Pengaturan</h3>
+                    <p>Atur sesuai kebutuhanmu. Tersedia dark mode dan pilihan bahasa.</p>
+                    <ul class="feature-list">
+                        <li>Tema terang/gelap</li>
+                        <li>Bahasa ID/EN</li>
+                        <li>Sync data (opsional)</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Honest Section -->
+    <section class="honest-section" id="tentang">
+        <div class="container">
+            <div class="honest-content">
+                <div class="honest-left">
+                    <span class="section-badge dark">Jujur</span>
+                    <h2>Yang <span class="strikethrough">Tidak</span> Kami Klaim</h2>
+                    <p class="honest-desc">
+                        Ini bukan aplikasi ajaib. Ini hanya alat sederhana.<br>
+                        Yang mengubah hidupmu tetap <strong>usahamu sendiri</strong>.
+                    </p>
+                </div>
+                <div class="honest-right">
+                    <div class="honest-card">
+                        <span class="honest-icon">❌</span>
+                        <p><strong>Bukan</strong> aplikasi AI canggih</p>
+                    </div>
+                    <div class="honest-card">
+                        <span class="honest-icon">❌</span>
+                        <p><strong>Bukan</strong> solusi ajaib produktivitas</p>
+                    </div>
+                    <div class="honest-card">
+                        <span class="honest-icon">❌</span>
+                        <p><strong>Bukan</strong> pengganti konsistensi kamu</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="cta-section">
+        <div class="container">
+            <div class="cta-content">
+                <h2>Mau coba?</h2>
+                <p>Langsung pakai, tanpa perlu daftar akun. Gratis selamanya.</p>
+                <a href="https://urus-diri-sendiri.pages.dev/" class="btn btn-primary btn-large">
+                    <span>Buka Aplikasi Sekarang</span>
+                    <span class="btn-arrow">→</span>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-brand">
+                    <span class="logo">📓</span>
+                    <span>Urus Diri Sendiri</span>
+                </div>
+                <p class="footer-note">Dibuat dengan ☕ untuk diri sendiri, lalu dibagikan.</p>
+                <div class="footer-links">
+                    <a href="https://github.com/atiohaidar" target="_blank" rel="noopener">GitHub</a>
+                </div>
+            </div>
+            <p class="footer-copyright">© 2024 atiohaidar</p>
+        </div>
+    </footer>
+</body>
+
+</html>

@@ -18,6 +18,10 @@ export const useAppInit = (queryClient: QueryClient) => {
         // --- 1. INISIALISASI STORAGE & SPLASH SCREEN ---
         const initApp = async () => {
             try {
+                // Cek URL saat ini untuk token login (penting untuk Web Redirect)
+                // Harus dijalankan sebelum initializeStorage agar provider yang benar terpilih
+                await handleDeepLink(window.location.href);
+
                 // Tunggu database lokal siap
                 await initializeStorage();
 
@@ -50,20 +54,27 @@ export const useAppInit = (queryClient: QueryClient) => {
 
         // --- 2. HANDLE LOGIN LEWAT LINK (DEEP LINK) ---
         // Dipakai kalau kita klik link 'Login' dari Email pas di HP
+        // Atau redirect OAuth di Browser
         const handleDeepLink = async (url: string) => {
             try {
+                if (!url || (!url.includes('code=') && !url.includes('#access_token='))) {
+                    return;
+                }
+
                 console.log('Deep link diterima:', url);
                 const urlObj = new URL(url);
 
-                // Ambil kode login dari URL
+                // Ambil kode login dari URL (PKCE Flow)
                 const code = urlObj.searchParams.get('code');
                 if (code) {
                     console.log('DeepLink: Menukar kode untuk session...');
                     const { error } = await supabase.auth.exchangeCodeForSession(code);
                     if (error) throw error;
 
+                    // Bersihkan URL dari parameter code
+                    window.history.replaceState(null, '', window.location.pathname);
+
                     // Tunggu auth sync selesai sebelum menampilkan toast sukses
-                    // Ini memastikan data sudah ter-hydrate dari cloud
                     console.log('DeepLink: Menunggu auth sync selesai...');
                     const status = await waitForAuthSync();
 
@@ -73,12 +84,11 @@ export const useAppInit = (queryClient: QueryClient) => {
                         toast.warning("Login berhasil, tapi sync data gagal. Coba refresh.");
                     }
 
-                    // Invalidate queries untuk memastikan UI menggunakan data terbaru
                     queryClient.invalidateQueries();
                     return;
                 }
 
-                // Kalau pakai token langsung di URL
+                // Kalau pakai token langsung di URL (Implicit Flow / Hash)
                 if (urlObj.hash) {
                     const hashParams = new URLSearchParams(urlObj.hash.substring(1));
                     const access_token = hashParams.get('access_token');
@@ -86,7 +96,11 @@ export const useAppInit = (queryClient: QueryClient) => {
 
                     if (access_token && refresh_token) {
                         console.log('DeepLink: Setting session dari token...');
-                        await supabase.auth.setSession({ access_token, refresh_token });
+                        const { error } = await supabase.auth.setSession({ access_token, refresh_token });
+                        if (error) throw error;
+
+                        // Bersihkan hash dari URL
+                        window.history.replaceState(null, '', window.location.pathname);
 
                         // Tunggu auth sync selesai
                         console.log('DeepLink: Menunggu auth sync selesai...');
@@ -98,7 +112,6 @@ export const useAppInit = (queryClient: QueryClient) => {
                             toast.warning("Login berhasil, tapi sync data gagal. Coba refresh.");
                         }
 
-                        // Invalidate queries untuk memastikan UI menggunakan data terbaru
                         queryClient.invalidateQueries();
                         return;
                     }
@@ -109,7 +122,7 @@ export const useAppInit = (queryClient: QueryClient) => {
             }
         };
 
-        // Pasang pendengar: Kalau aplikasi dibuka lewat link, jalankan handleDeepLink
+        // Pasang pendengar: Kalau aplikasi dibuka lewat link (saat sudah running di HP)
         const deepLinkListener = CapacitorApp.addListener('appUrlOpen', (data) => {
             handleDeepLink(data.url);
         });
