@@ -58,15 +58,6 @@ const App = () => {
   // Jalankan persiapan aplikasi (Capacitor, Storage, Auth)
   const { isReady } = useAppInit(queryClient);
 
-  // Jika aplikasi belum siap (sedang inisialisasi), tampilkan layar loading putih
-  if (!isReady) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-[#F4F1EA]">
-        <Loader2 className="w-10 h-10 animate-spin text-primary" />
-      </div>
-    );
-  }
-
   // --- 3. SUSUNAN PROVIDER & ROUTING (Lapis-lapis Pelindung Aplikasi) ---
   return (
     /* Lapis 1: Pengelola Data (React Query) - Mengatur cache & sinkronisasi data database */
@@ -75,53 +66,63 @@ const App = () => {
       {/* /* Lapis 2: Pengelola Tema - Mengatur mode Terang/Gelap (Light/Dark mode) */}
       <ThemeProvider defaultTheme="system" storageKey="urus-diri-theme">
 
-        {/* /* Lapis 3: Pengelola Bahasa - Menyediakan info bahasa (ID/EN) ke seluruh halaman */}
-        <LanguageProvider>
+        {/* Jika aplikasi belum siap (sedang inisialisasi), tampilkan layar loading yang sesuai tema */}
+        {!isReady ? (
+          <div className="flex items-center justify-center min-h-screen bg-background">
+            <div className="flex flex-col items-center gap-4">
+              <Loader2 className="w-10 h-10 animate-spin text-primary" />
+              <p className="font-handwriting text-lg animate-pulse text-muted-foreground">Menyiapkan buku jurnal...</p>
+            </div>
+          </div>
+        ) : (
+          /* Lapis 3: Pengelola Bahasa - Menyediakan info bahasa (ID/EN) ke seluruh halaman */
+          <LanguageProvider>
 
-          {/* /* Lapis 4: Sabuk Pengaman - Menangkap error agar aplikasi tidak crash total/blank putih */}
-          <ErrorBoundary>
+            {/* /* Lapis 4: Sabuk Pengaman - Menangkap error agar aplikasi tidak crash total/blank putih */}
+            <ErrorBoundary>
 
-            {/* /* Lapis 5: Fitur Tooltip - Mengaktifkan teks mungil yang muncul saat tombol ditahan */}
-            <TooltipProvider>
+              {/* /* Lapis 5: Fitur Tooltip - Mengaktifkan teks mungil yang muncul saat tombol ditahan */}
+              <TooltipProvider>
 
-              {/* Komponen Notifikasi - Disiagakan agar bisa muncul kapan saja (popup kecil) */}
-              <Toaster />
-              <Sonner />
+                {/* Komponen Notifikasi - Disiagakan agar bisa muncul kapan saja (popup kecil) */}
+                <Toaster />
+                <Sonner />
 
-              {/* Lapis 6: Sistem Navigasi - Mengatur perpindahan halaman tanpa refresh browser */}
-              <BrowserRouter>
-                <BackButtonHandler />
+                {/* Lapis 6: Sistem Navigasi - Mengatur perpindahan halaman tanpa refresh browser */}
+                <BrowserRouter>
+                  <BackButtonHandler />
 
-                {/* Lapis 7: Layar Tunggu - Menampilkan loading ikon saat halaman sedang di-download */}
-                <Suspense fallback={<PageLoader />}>
-                  <Routes>
-                    {/* Grup Halaman yang pakai Menu Navigasi Bawah (AppLayout) */}
-                    <Route element={<AppLayout />}>
-                      <Route path="/" element={<HomeScreen />} />
-                      <Route path="/habits" element={<HabitsScreen />} />
-                      <Route path="/ideas" element={<ParkingLotScreen />} />
-                      <Route path="/history" element={<HistoryScreen />} />
-                    </Route>
+                  {/* Lapis 7: Layar Tunggu - Menampilkan loading ikon saat halaman sedang di-download */}
+                  <Suspense fallback={<PageLoader />}>
+                    <Routes>
+                      {/* Grup Halaman yang pakai Menu Navigasi Bawah (AppLayout) */}
+                      <Route element={<AppLayout />}>
+                        <Route path="/" element={<HomeScreen />} />
+                        <Route path="/habits" element={<HabitsScreen />} />
+                        <Route path="/ideas" element={<ParkingLotScreen />} />
+                        <Route path="/history" element={<HistoryScreen />} />
+                      </Route>
 
-                    {/* Halaman Mandiri (Halaman Full tanpa menu bawah) */}
-                    <Route path="/settings" element={<SettingsScreen />} />
-                    <Route path="/schedule-editor" element={<EditSchedule />} />
-                    <Route path="/note-editor/:id" element={<NoteEditorPage />} />
-                    <Route path="/maghrib-checkin" element={<MaghribCheckinPage />} />
-                    <Route path="/about" element={<AboutPage />} />
-                    <Route path="/log-creator" element={<LogCreatorPage />} />
-                    <Route path="/reflection/:id" element={<ReflectionDetailPage />} />
-                    <Route path="/personal-notes" element={<PersonalNotesPage />} />
+                      {/* Halaman Mandiri (Halaman Full tanpa menu bawah) */}
+                      <Route path="/settings" element={<SettingsScreen />} />
+                      <Route path="/schedule-editor" element={<EditSchedule />} />
+                      <Route path="/note-editor/:id" element={<NoteEditorPage />} />
+                      <Route path="/maghrib-checkin" element={<MaghribCheckinPage />} />
+                      <Route path="/about" element={<AboutPage />} />
+                      <Route path="/log-creator" element={<LogCreatorPage />} />
+                      <Route path="/reflection/:id" element={<ReflectionDetailPage />} />
+                      <Route path="/personal-notes" element={<PersonalNotesPage />} />
 
-                    {/* fallback: Kalau alamat URL tidak ditemukan */}
-                    <Route path="*" element={<NotFound />} />
-                  </Routes>
-                </Suspense>
-              </BrowserRouter>
+                      {/* fallback: Kalau alamat URL tidak ditemukan */}
+                      <Route path="*" element={<NotFound />} />
+                    </Routes>
+                  </Suspense>
+                </BrowserRouter>
 
-            </TooltipProvider>
-          </ErrorBoundary>
-        </LanguageProvider>
+              </TooltipProvider>
+            </ErrorBoundary>
+          </LanguageProvider>
+        )}
       </ThemeProvider>
     </QueryClientProvider>
   );

@@ -17,6 +17,16 @@ export const useAppInit = (queryClient: QueryClient) => {
     useEffect(() => {
         // --- 1. INISIALISASI STORAGE & SPLASH SCREEN ---
         const initApp = async () => {
+            // Kita kasih batas waktu maksimal (timeout) biar aplikasi nggak macet di loading screen puluhan detik
+            // Kalau dalam 6 detik belum selesai sync, kita tancap gas aja masuk ke aplikasi pake data lokal.
+            const timeoutId = setTimeout(() => {
+                if (!isReady) {
+                    console.warn("AppInit: Initialization timed out! Proceeding with local data.");
+                    setIsReady(true);
+                    hideSplashScreen();
+                }
+            }, 6000);
+
             try {
                 // Cek URL saat ini untuk token login (penting untuk Web Redirect)
                 // Harus dijalankan sebelum initializeStorage agar provider yang benar terpilih
@@ -35,18 +45,24 @@ export const useAppInit = (queryClient: QueryClient) => {
                 }
 
                 // Tandai aplikasi sudah siap
+                clearTimeout(timeoutId);
                 setIsReady(true);
 
                 // Di HP: Matikan gambar loading (Splash Screen) kalau React-nya sudah siap
-                try {
-                    const { SplashScreen } = await import('@capacitor/splash-screen');
-                    await SplashScreen.hide();
-                } catch (e) {
-                    // Abaikan kalau dibuka di browser biasa
-                }
+                hideSplashScreen();
             } catch (error) {
                 console.error("Gagal memulai aplikasi:", error);
+                clearTimeout(timeoutId);
                 setIsReady(true); // Tetap lanjut biar aplikasi nggak macet di loading terus
+            }
+        };
+
+        const hideSplashScreen = async () => {
+            try {
+                const { SplashScreen } = await import('@capacitor/splash-screen');
+                await SplashScreen.hide();
+            } catch (e) {
+                // Abaikan kalau dibuka di browser biasa
             }
         };
 
