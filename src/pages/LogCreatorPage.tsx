@@ -21,8 +21,11 @@ import {
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { App as CapacitorApp } from '@capacitor/app';
+import { Capacitor } from '@capacitor/core';
 import { useCamera } from '@/hooks/useCamera';
 import { useLanguage } from '@/i18n/LanguageContext';
+import { triggerTimerFinished, requestNotificationPermission, registerNotificationActions, scheduleTimerNotification, cancelTimerNotification, showOngoingNotification, cancelOngoingNotification } from '@/lib/notification-utils';
+import { LocalNotifications } from '@capacitor/local-notifications';
 
 const LogCreatorPage = () => {
     const navigate = useNavigate();
@@ -47,48 +50,181 @@ const LogCreatorPage = () => {
     // Timer Mode State
     const [isTimerMode, setIsTimerMode] = useState(false);
     const [timerStatus, setTimerStatus] = useState<'input' | 'running' | 'finished'>('input');
-    const [timerDuration, setTimerDuration] = useState(10); // minutes
+    const [timerDuration, setTimerDuration] = useState(600); // in seconds (10 minutes default)
     const [timeLeft, setTimeLeft] = useState(0);
     const [reality, setReality] = useState('');
-    const [showCustomTime, setShowCustomTime] = useState(false);
-    const [customMinutes, setCustomMinutes] = useState('');
-    const [customSeconds, setCustomSeconds] = useState('');
+    const [timerStartTime, setTimerStartTime] = useState<Date | null>(null);
+    const [timerTargetTime, setTimerTargetTime] = useState<Date | null>(null); // New: Target completion time
+    const [actualDuration, setActualDuration] = useState(0); // Actual time spent in seconds
 
-    useEffect(() => {
-        let interval: NodeJS.Timeout;
-        if (isTimerMode && timerStatus === 'running' && timeLeft > 0) {
-            interval = setInterval(() => {
-                setTimeLeft((prev) => prev - 1);
-            }, 1000);
-        } else if (timeLeft === 0 && timerStatus === 'running') {
-            setTimerStatus('finished');
-            triggerSuccessHaptic();
-        }
-        return () => clearInterval(interval);
-    }, [isTimerMode, timerStatus, timeLeft]);
+    // Stepper state for custom time
+    const [customMinutes, setCustomMinutes] = useState(10);
+    const [customSeconds, setCustomSeconds] = useState(0);
 
-    const formatTime = (seconds: number) => {
-        const mins = Math.floor(seconds / 60);
-        const secs = seconds % 60;
-        return `${mins}:${secs.toString().padStart(2, '0')}`;
-    };
-
-    const startTimer = () => {
-        if (!caption.trim()) return;
-        setTimeLeft(timerDuration * 60);
-        setTimerStatus('running');
-        triggerHaptic();
-    };
-
-    const stopTimer = () => {
-        setTimerStatus('input');
-        triggerHaptic();
-    };
-
-    // Use the camera hook
+    // Hooks - must be declared before being used in effects
     const camera = useCamera({ initialFacing: 'environment' });
     const { toast } = useToast();
     const { t } = useLanguage();
+
+    // Request notification permission and register actions on mount
+    useEffect(() => {
+        requestNotificationPermission();
+        registerNotificationActions(); // Register inline reply actions for GT5!
+    }, []);
+
+    // Listen for notification action performed (inline reply from GT5!)
+    useEffect(() => {
+        let listenerHandle: any;
+
+        const setupListener = async () => {
+            listenerHandle = await LocalNotifications.addListener(
+                'localNotificationActionPerformed',
+                (notification) => {
+                    const { actionId, inputValue, notification: notif } = notification;
+
+                    // Handle inline reply from notification (GT5 smartwatch!)
+                    if (actionId === 'reply' && inputValue) {
+                        // User typed reality from GT5!
+                        setReality(inputValue);
+                        setIsTimerMode(true);
+                        setTimerStatus('finished');
+                        setCaption(notif.extra?.intention || '');
+
+                        toast({
+                            title: '✅ Realita diterima dari notifikasi!',
+                            description: inputValue
+                        });
+                    }
+                    // Handle "Buka App" button
+                    else if (actionId === 'open') {
+                        setIsTimerMode(true);
+                        setTimerStatus('finished');
+                        setCaption(notif.extra?.intention || '');
+                    }
+                    // Handle "Stop" from ongoing notification
+                    else if (actionId === 'stop_timer') {
+                        cancelOngoingNotification();
+                        cancelTimerNotification();
+                        setTimerStatus('finished');
+                        setIsTimerMode(true);
+                        setCaption(notif.extra?.intention || '');
+                        // Note: unable to calculate exact actualDuration here due to closure, 
+                        // but user can edit report.
+                    }
+                }
+            );
+        };
+
+        setupListener();
+
+        return () => {
+            if (listenerHandle) {
+                listenerHandle.remove();
+            }
+        };
+    }, [toast]);
+
+    // Robust Timer Logic
+    useEffect(() => {
+        let interval: NodeJS.Timeout;
+
+        if (isTimerMode && timerStatus === 'running' && timerTargetTime) {
+            // Update time left every second based on target time
+            interval = setInterval(() => {
+                const now = new Date();
+                const secondsLeft = Math.ceil((timerTargetTime.getTime() - now.getTime()) / 1000);
+
+                if (secondsLeft <= 0) {
+                    setTimeLeft(0);
+                    setTimerStatus('finished');
+                    // No need to trigger notification here mechanically as it was scheduled upfront!
+                    // But we still play sound/haptic for foreground user
+                    triggerSuccessHaptic();
+                    cancelOngoingNotification(); // Clear the "Running" notification
+
+                    // Clear the scheduled notification to avoid double trigger if user is staring at screen? 
+                    // No, let it be. System handles it. But we might want to ensure sound plays.
+                } else {
+                    setTimeLeft(secondsLeft);
+                }
+            }, 1000);
+        }
+
+        return () => clearInterval(interval);
+    }, [isTimerMode, timerStatus, timerTargetTime]);
+
+    const formatTime = (seconds: number) => {
+        const mins = Math.floor(seconds / 60);
+        const secs = Math.max(0, seconds % 60); // Prevent negative seconds
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
+    };
+
+    const startTimer = async () => {
+        if (!caption.trim()) return;
+
+        // Web Permission Validity Check
+        if (!Capacitor.isNativePlatform() && 'Notification' in window) {
+            if (Notification.permission === 'denied') {
+                toast({
+                    title: "Notifikasi Diblokir",
+                    description: "Mohon izinkan notifikasi via ikon Gembok di URL browser agar timer berjalan optimal.",
+                    variant: "destructive"
+                });
+                // We let them continue, but warned them
+            } else if (Notification.permission === 'default') {
+                const result = await Notification.requestPermission();
+                if (result !== 'granted') {
+                    toast({
+                        title: "Notifikasi Tidak Diizinkan",
+                        description: "Timer akan berjalan tanpa notifikasi desktop.",
+                        variant: "destructive"
+                    });
+                }
+            }
+        }
+
+        const now = new Date();
+        const targetDate = new Date(now.getTime() + timerDuration * 1000);
+
+        setTimeLeft(timerDuration);
+        setTimerStartTime(now);
+        setTimerTargetTime(targetDate);
+        setTimerStatus('running');
+        triggerHaptic();
+
+        // Schedule Notification Upfront!
+        // This guarantees it fires even if phone sleeps or app backgrounded
+        await scheduleTimerNotification(caption, targetDate);
+
+        // Show Sticky Notification
+        await showOngoingNotification(caption, targetDate);
+    };
+
+    const stopTimer = () => {
+        // Calculate actual duration when stopped early
+        const actualTimeSpent = timerDuration - timeLeft;
+        setActualDuration(actualTimeSpent);
+        setTimerStatus('finished'); // Go to finished state to input reality
+        triggerHaptic();
+
+        // Cancel the scheduled notification because user stopped it manually!
+        cancelTimerNotification();
+        cancelOngoingNotification();
+    };
+
+    // Format duration untuk display yang bagus
+    const formatDuration = (seconds: number): string => {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+
+        if (mins === 0) {
+            return `${secs} detik`;
+        } else if (secs === 0) {
+            return `${mins} menit`;
+        } else {
+            return `${mins} menit ${secs} detik`;
+        }
+    };
 
     // Keyboard handling for mobile
     const [keyboardHeight, setKeyboardHeight] = useState(0);
@@ -113,7 +249,11 @@ const LogCreatorPage = () => {
     }, [camera.error, toast]);
 
     const handleBack = () => {
-        const isDirty = (caption.trim().length > 0 || imagePreview !== null);
+        const isDirty = (
+            (caption.trim().length > 0 || imagePreview !== null) ||
+            (isTimerMode && (timerStatus === 'running' || timerStatus === 'finished'))
+        );
+
         if (isDirty && !isSubmitting && !showSuccess) {
             setShowExitDialog(true);
         } else {
@@ -140,8 +280,24 @@ const LogCreatorPage = () => {
         return () => {
             if (listener) listener.remove();
         };
-    }, [caption, imagePreview, camera.isActive, showSuccess, showExitDialog]);
+    }, [caption, imagePreview, camera.isActive, showSuccess, showExitDialog, isTimerMode, timerStatus]);
 
+    // Prevent accidental back/reload when timer is active
+    useEffect(() => {
+        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+            const isRunning = isTimerMode && (timerStatus === 'running' || timerStatus === 'finished');
+            const hasContent = caption.trim().length > 0 || imagePreview !== null;
+
+            if (isRunning || (hasContent && !isSubmitting && !showSuccess)) {
+                e.preventDefault();
+                e.returnValue = ''; // Trigger browser confirmation dialog
+                return '';
+            }
+        };
+
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    }, [isTimerMode, timerStatus, caption, imagePreview, isSubmitting, showSuccess]);
     const handleCapturePhoto = async () => {
         setFlashEffect(true);
         setTimeout(() => setFlashEffect(false), 150);
@@ -192,8 +348,30 @@ const LogCreatorPage = () => {
             }
 
             let logContent = caption;
-            if (isTimerMode) {
-                logContent = `Niat: ${caption}\n\nRealita: ${reality}`;
+            if (isTimerMode && timerStartTime) {
+                // Format waktu mulai
+                const startTimeFormatted = timerStartTime.toLocaleTimeString('id-ID', {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+                const dateFormatted = timerStartTime.toLocaleDateString('id-ID', {
+                    weekday: 'long',
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric'
+                });
+
+                // Determine actual duration (could be stopped early or completed)
+                const finalDuration = actualDuration > 0 ? actualDuration : timerDuration;
+                const wasStoppedEarly = actualDuration > 0 && actualDuration < timerDuration;
+
+                logContent = `⏱️ Sesi Fokus${wasStoppedEarly ? ' (Dihentikan Lebih Awal)' : ''}\n` +
+                    `📅 ${dateFormatted}\n` +
+                    `🕐 Mulai: ${startTimeFormatted}\n` +
+                    `🎯 Target: ${formatDuration(timerDuration)}\n` +
+                    `⏰ Realisasi: ${formatDuration(finalDuration)}${wasStoppedEarly ? ' ⚠️' : ' ✅'}\n\n` +
+                    `💭 Niat:\n${caption}\n\n` +
+                    `✍️ Realita:\n${reality}`;
             }
 
             saveLog({
@@ -208,7 +386,7 @@ const LogCreatorPage = () => {
 
             // Wait for animation before closing
             setTimeout(() => {
-                navigate(-1);
+                navigate('/history', { state: { tab: 'logs' }, replace: true });
             }, 1200);
 
         } catch (e) {
@@ -307,9 +485,11 @@ const LogCreatorPage = () => {
                                             setTimerStatus('input');
                                             setCaption('');
                                             setImagePreview(null);
-                                            setShowCustomTime(false);
-                                            setCustomMinutes('');
-                                            setCustomSeconds('');
+                                            setTimerStartTime(null);
+                                            setReality('');
+                                            setActualDuration(0);
+                                            setCustomMinutes(10);
+                                            setCustomSeconds(0);
                                         }}
                                         className={cn(
                                             "rounded-full h-11 w-11 border-2 backdrop-blur-sm transition-all active:scale-95",
@@ -438,116 +618,176 @@ const LogCreatorPage = () => {
                                             />
                                         </div>
 
-                                        {!showCustomTime ? (
-                                            <div className="flex flex-col gap-3 items-center">
-                                                <div className="flex gap-3">
-                                                    {[10, 20, 30].map(mins => (
-                                                        <button
-                                                            key={mins}
-                                                            onClick={() => setTimerDuration(mins)}
-                                                            className={cn(
-                                                                "px-7 py-3 rounded-xl text-lg font-handwriting font-bold transition-all active:scale-95 border-2",
-                                                                timerDuration === mins
-                                                                    ? cn(
-                                                                        "bg-ink text-paper shadow-lg scale-105 border-ink"
-                                                                    )
-                                                                    : cn(
-                                                                        statusColors[colorIndex].text,
-                                                                        "bg-transparent border-current/30 hover:border-current/60 hover:bg-current/5"
-                                                                    )
-                                                            )}
-                                                        >
-                                                            {mins}m
-                                                        </button>
-                                                    ))}
-                                                </div>
-                                                <button
-                                                    onClick={() => {
-                                                        setShowCustomTime(true);
-                                                        triggerHaptic();
-                                                    }}
-                                                    className={cn(
-                                                        "text-sm font-handwriting underline hover:no-underline transition-all opacity-60 hover:opacity-100",
+                                        <div className="flex flex-col gap-4 items-center w-full">
+                                            {/* Quick Presets */}
+                                            <div className="flex flex-wrap gap-2 justify-center">
+                                                {[1, 5, 10, 15, 20, 30].map(mins => (
+                                                    <button
+                                                        key={mins}
+                                                        onClick={() => {
+                                                            setTimerDuration(mins * 60);
+                                                            setCustomMinutes(mins);
+                                                            setCustomSeconds(0);
+                                                            triggerHaptic();
+                                                        }}
+                                                        className={cn(
+                                                            "px-4 py-2 rounded-lg text-sm font-handwriting font-bold transition-all active:scale-95 border-2",
+                                                            timerDuration === mins * 60
+                                                                ? "bg-ink text-paper shadow-md scale-105 border-ink"
+                                                                : cn(
+                                                                    statusColors[colorIndex].text,
+                                                                    "bg-transparent border-current/20 hover:border-current/50 hover:bg-current/5"
+                                                                )
+                                                        )}
+                                                    >
+                                                        {mins}m
+                                                    </button>
+                                                ))}
+                                            </div>
+
+                                            {/* Divider */}
+                                            <div className={cn(
+                                                "w-full flex items-center gap-3 opacity-40",
+                                                statusColors[colorIndex].text
+                                            )}>
+                                                <div className="flex-1 h-px bg-current"></div>
+                                                <span className="text-xs font-handwriting">atau atur manual</span>
+                                                <div className="flex-1 h-px bg-current"></div>
+                                            </div>
+
+                                            {/* Stepper Controls */}
+                                            <div className="flex gap-6 items-center">
+                                                {/* Minutes Stepper */}
+                                                <div className="flex flex-col items-center gap-2">
+                                                    <span className={cn(
+                                                        "text-xs font-handwriting opacity-60",
                                                         statusColors[colorIndex].text
-                                                    )}
-                                                >
-                                                    ⏱️ Atur waktu sendiri
-                                                </button>
-                                            </div>
-                                        ) : (
-                                            <div className="flex flex-col gap-4 items-center">
-                                                <div className="flex gap-2 items-center">
-                                                    <input
-                                                        type="number"
-                                                        value={customMinutes}
-                                                        onChange={(e) => {
-                                                            const val = e.target.value;
-                                                            if (val === '' || (parseInt(val) >= 0 && parseInt(val) <= 99)) {
-                                                                setCustomMinutes(val);
-                                                            }
-                                                        }}
-                                                        placeholder="00"
-                                                        className={cn(
-                                                            "w-20 px-4 py-3 text-center text-3xl font-bold rounded-xl border-2 focus:outline-none focus:ring-2 transition-all",
+                                                    )}>Menit</span>
+                                                    <div className="flex items-center gap-2">
+                                                        <button
+                                                            onClick={() => {
+                                                                if (customMinutes > 0) {
+                                                                    setCustomMinutes(prev => prev - 1);
+                                                                    setTimerDuration((customMinutes - 1) * 60 + customSeconds);
+                                                                    triggerHaptic();
+                                                                }
+                                                            }}
+                                                            className={cn(
+                                                                "w-10 h-10 rounded-lg font-bold text-xl transition-all active:scale-95 border-2",
+                                                                statusColors[colorIndex].text,
+                                                                customMinutes > 0
+                                                                    ? "border-current/30 hover:bg-current/10"
+                                                                    : "opacity-30 cursor-not-allowed border-current/10"
+                                                            )}
+                                                            disabled={customMinutes === 0}
+                                                        >
+                                                            −
+                                                        </button>
+                                                        <div className={cn(
+                                                            "w-16 h-12 flex items-center justify-center text-3xl font-bold rounded-lg border-2",
                                                             statusColors[colorIndex].text,
-                                                            "bg-transparent border-current/30 focus:ring-current/30 placeholder:opacity-40"
-                                                        )}
-                                                        min="0"
-                                                        max="99"
-                                                    />
-                                                    <span className={cn("text-2xl font-bold opacity-50", statusColors[colorIndex].text)}>:</span>
-                                                    <input
-                                                        type="number"
-                                                        value={customSeconds}
-                                                        onChange={(e) => {
-                                                            const val = e.target.value;
-                                                            if (val === '' || (parseInt(val) >= 0 && parseInt(val) <= 59)) {
-                                                                setCustomSeconds(val);
-                                                            }
-                                                        }}
-                                                        placeholder="00"
-                                                        className={cn(
-                                                            "w-20 px-4 py-3 text-center text-3xl font-bold rounded-xl border-2 focus:outline-none focus:ring-2 transition-all",
-                                                            statusColors[colorIndex].text,
-                                                            "bg-transparent border-current/30 focus:ring-current/30 placeholder:opacity-40"
-                                                        )}
-                                                        min="0"
-                                                        max="59"
-                                                    />
+                                                            "border-current/20 bg-transparent"
+                                                        )}>
+                                                            {customMinutes.toString().padStart(2, '0')}
+                                                        </div>
+                                                        <button
+                                                            onClick={() => {
+                                                                if (customMinutes < 99) {
+                                                                    setCustomMinutes(prev => prev + 1);
+                                                                    setTimerDuration((customMinutes + 1) * 60 + customSeconds);
+                                                                    triggerHaptic();
+                                                                }
+                                                            }}
+                                                            className={cn(
+                                                                "w-10 h-10 rounded-lg font-bold text-xl transition-all active:scale-95 border-2",
+                                                                statusColors[colorIndex].text,
+                                                                customMinutes < 99
+                                                                    ? "border-current/30 hover:bg-current/10"
+                                                                    : "opacity-30 cursor-not-allowed border-current/10"
+                                                            )}
+                                                            disabled={customMinutes === 99}
+                                                        >
+                                                            +
+                                                        </button>
+                                                    </div>
                                                 </div>
-                                                <div className="flex gap-2">
-                                                    <button
-                                                        onClick={() => {
-                                                            const mins = parseInt(customMinutes) || 0;
-                                                            const secs = parseInt(customSeconds) || 0;
-                                                            if (mins > 0 || secs > 0) {
-                                                                setTimerDuration(mins + secs / 60);
-                                                                setShowCustomTime(false);
-                                                            }
-                                                            triggerHaptic();
-                                                        }}
-                                                        className="px-5 py-2 bg-ink text-paper rounded-xl text-sm font-handwriting font-bold active:scale-95 transition-all shadow-md"
-                                                    >
-                                                        ✓ Set Timer
-                                                    </button>
-                                                    <button
-                                                        onClick={() => {
-                                                            setShowCustomTime(false);
-                                                            setCustomMinutes('');
-                                                            setCustomSeconds('');
-                                                            triggerHaptic();
-                                                        }}
-                                                        className={cn(
-                                                            "px-5 py-2 rounded-xl text-sm font-handwriting font-bold active:scale-95 transition-all border-2",
+
+                                                {/* Separator */}
+                                                <span className={cn(
+                                                    "text-3xl font-bold opacity-30",
+                                                    statusColors[colorIndex].text
+                                                )}>:</span>
+
+                                                {/* Seconds Stepper */}
+                                                <div className="flex flex-col items-center gap-2">
+                                                    <span className={cn(
+                                                        "text-xs font-handwriting opacity-60",
+                                                        statusColors[colorIndex].text
+                                                    )}>Detik</span>
+                                                    <div className="flex items-center gap-2">
+                                                        <button
+                                                            onClick={() => {
+                                                                const newSeconds = customSeconds - 15;
+                                                                if (newSeconds >= 0) {
+                                                                    setCustomSeconds(newSeconds);
+                                                                    setTimerDuration(customMinutes * 60 + newSeconds);
+                                                                    triggerHaptic();
+                                                                }
+                                                            }}
+                                                            className={cn(
+                                                                "w-10 h-10 rounded-lg font-bold text-xl transition-all active:scale-95 border-2",
+                                                                statusColors[colorIndex].text,
+                                                                customSeconds >= 15
+                                                                    ? "border-current/30 hover:bg-current/10"
+                                                                    : "opacity-30 cursor-not-allowed border-current/10"
+                                                            )}
+                                                            disabled={customSeconds < 15}
+                                                        >
+                                                            −
+                                                        </button>
+                                                        <div className={cn(
+                                                            "w-16 h-12 flex items-center justify-center text-3xl font-bold rounded-lg border-2",
                                                             statusColors[colorIndex].text,
-                                                            "bg-transparent border-current/30"
-                                                        )}
-                                                    >
-                                                        ← Kembali
-                                                    </button>
+                                                            "border-current/20 bg-transparent"
+                                                        )}>
+                                                            {customSeconds.toString().padStart(2, '0')}
+                                                        </div>
+                                                        <button
+                                                            onClick={() => {
+                                                                const newSeconds = customSeconds + 15;
+                                                                if (newSeconds <= 45) {
+                                                                    setCustomSeconds(newSeconds);
+                                                                    setTimerDuration(customMinutes * 60 + newSeconds);
+                                                                    triggerHaptic();
+                                                                }
+                                                            }}
+                                                            className={cn(
+                                                                "w-10 h-10 rounded-lg font-bold text-xl transition-all active:scale-95 border-2",
+                                                                statusColors[colorIndex].text,
+                                                                customSeconds <= 30
+                                                                    ? "border-current/30 hover:bg-current/10"
+                                                                    : "opacity-30 cursor-not-allowed border-current/10"
+                                                            )}
+                                                            disabled={customSeconds > 30}
+                                                        >
+                                                            +
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             </div>
-                                        )}
+
+                                            {/* Total Duration Display */}
+                                            <div className={cn(
+                                                "px-4 py-2 rounded-xl border-2 border-dashed",
+                                                statusColors[colorIndex].text,
+                                                "border-current/30 bg-current/5"
+                                            )}>
+                                                <span className="font-handwriting text-sm opacity-70">Total: </span>
+                                                <span className="font-handwriting font-bold">
+                                                    {formatDuration(timerDuration)}
+                                                </span>
+                                            </div>
+                                        </div>
                                     </div>
                                 )}
 
@@ -576,10 +816,12 @@ const LogCreatorPage = () => {
                                                     strokeWidth="3"
                                                     strokeLinecap="round"
                                                     strokeDasharray={`${2 * Math.PI * 42}`}
-                                                    strokeDashoffset={`${2 * Math.PI * 42 * (1 - timeLeft / (timerDuration * 60))}`}
+                                                    strokeDashoffset={`${2 * Math.PI * 42 * (1 - timeLeft / timerDuration)}`}
                                                     className={cn(
-                                                        "transition-all duration-1000 ease-linear drop-shadow-lg",
-                                                        statusColors[colorIndex].text
+                                                        "transition-all duration-1000 ease-linear",
+                                                        timeLeft <= 5 && timeLeft > 0
+                                                            ? "text-red-500 animate-pulse drop-shadow-[0_0_8px_rgba(239,68,68,0.8)]"
+                                                            : cn(statusColors[colorIndex].text, "drop-shadow-lg")
                                                     )}
                                                 />
                                             </svg>
@@ -587,8 +829,8 @@ const LogCreatorPage = () => {
                                             {/* Timer text in center */}
                                             <div className="absolute inset-0 flex flex-col items-center justify-center">
                                                 <h1 className={cn(
-                                                    "text-7xl font-black tracking-tight tabular-nums drop-shadow-xl",
-                                                    statusColors[colorIndex].text
+                                                    "text-7xl font-black tracking-tight tabular-nums drop-shadow-xl transition-all duration-300",
+                                                    timeLeft <= 5 && timeLeft > 0 ? "scale-125 text-red-500 animate-pulse" : statusColors[colorIndex].text
                                                 )}>
                                                     {formatTime(timeLeft)}
                                                 </h1>
@@ -707,10 +949,10 @@ const LogCreatorPage = () => {
                                 {timerStatus === 'input' && (
                                     <button
                                         onClick={startTimer}
-                                        disabled={!caption.trim()}
+                                        disabled={!caption.trim() || timerDuration <= 0}
                                         className={cn(
                                             "w-24 h-24 rounded-2xl flex items-center justify-center shadow-xl transition-all font-handwriting border-2",
-                                            caption.trim()
+                                            (caption.trim() && timerDuration > 0)
                                                 ? "bg-doodle-green text-white shadow-doodle-green/30 active:scale-95 hover:scale-105 border-doodle-green"
                                                 : cn(
                                                     "opacity-40 cursor-not-allowed border-current/20",
@@ -770,7 +1012,11 @@ const LogCreatorPage = () => {
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                     <AlertDialogCancel>{t.common.cancel}</AlertDialogCancel>
-                    <AlertDialogAction onClick={() => navigate(-1)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                    <AlertDialogAction onClick={() => {
+                        cancelTimerNotification();
+                        cancelOngoingNotification();
+                        navigate(-1);
+                    }} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
                         {t.log_creator.discard_confirm}
                     </AlertDialogAction>
                 </AlertDialogFooter>

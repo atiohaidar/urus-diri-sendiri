@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Clock, Plus, BookOpen, FileText } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/i18n/LanguageContext';
 import { cn } from '@/lib/utils';
@@ -22,14 +22,20 @@ import {
 const ITEMS_PER_PAGE = 10;
 
 const HistoryScreen = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [reflections, setReflections] = useState<Reflection[]>([]);
-  const [activeTab, setActiveTab] = useState<'reflections' | 'logs'>('reflections');
+
+  // Initialize tab from navigation state if available, default to 'reflections'
+  const [activeTab, setActiveTab] = useState<'reflections' | 'logs'>(
+    (location.state as any)?.tab === 'logs' ? 'logs' : 'reflections'
+  );
+
   const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
   const [logs, setLogs] = useState<ActivityLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteLogId, setDeleteLogId] = useState<string | null>(null);
   const { t } = useLanguage();
-  const navigate = useNavigate();
 
   useEffect(() => {
     let isMounted = true;
