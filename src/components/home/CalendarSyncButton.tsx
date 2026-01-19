@@ -19,8 +19,15 @@ import {
     AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
-import { isNativePlatform, smartSyncTodayToCalendar, clearTodayCalendarEvents } from '@/lib/calendar-sync';
+import {
+    isNativePlatform,
+    smartSyncTodayToCalendar,
+    clearTodayCalendarEvents,
+    getSelectedCalendar,
+    selectCalendarManually
+} from '@/lib/calendar-sync';
 import { cn } from '@/lib/utils';
+import { Settings } from 'lucide-react';
 
 interface CalendarSyncButtonProps {
     variant?: 'icon' | 'full';
@@ -30,6 +37,11 @@ interface CalendarSyncButtonProps {
 export const CalendarSyncButton = ({ variant = 'icon', className }: CalendarSyncButtonProps) => {
     const [isSyncing, setIsSyncing] = useState(false);
     const [showDialog, setShowDialog] = useState(false);
+    const [calendarInfo, setCalendarInfo] = useState(getSelectedCalendar());
+
+    const refreshCalendarInfo = () => {
+        setCalendarInfo(getSelectedCalendar());
+    };
 
     // Don't render on web
     if (!isNativePlatform()) {
@@ -97,6 +109,14 @@ export const CalendarSyncButton = ({ variant = 'icon', className }: CalendarSync
         }
     };
 
+    const handleChangeCalendar = async () => {
+        const success = await selectCalendarManually();
+        if (success) {
+            refreshCalendarInfo();
+            toast.success('Kalender berhasil diganti');
+        }
+    };
+
     if (variant === 'icon') {
         return (
             <AlertDialog open={showDialog} onOpenChange={setShowDialog}>
@@ -123,10 +143,29 @@ export const CalendarSyncButton = ({ variant = 'icon', className }: CalendarSync
                             <CalendarSync className="w-5 h-5" />
                             Sync ke Calendar
                         </AlertDialogTitle>
-                        <AlertDialogDescription className="font-handwriting text-pencil space-y-2">
+                        <AlertDialogDescription className="font-handwriting text-pencil space-y-4">
                             <p>
                                 Sinkronisasi rutinitas dan prioritas hari ini ke calendar HP.
                             </p>
+
+                            <div className="bg-paper-lines/10 p-3 rounded-sm border border-paper-lines/30 flex items-center justify-between">
+                                <div className="space-y-0.5">
+                                    <p className="text-[10px] uppercase tracking-wider opacity-60">Kalender Aktif:</p>
+                                    <p className="text-ink font-bold text-sm">
+                                        {calendarInfo.name || (isSyncing ? 'Mencari...' : 'Belum dipilih')}
+                                    </p>
+                                </div>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={handleChangeCalendar}
+                                    className="h-8 px-2 text-xs gap-1 hover:bg-paper-lines/20"
+                                >
+                                    <Settings className="w-3 h-3" />
+                                    Ganti
+                                </Button>
+                            </div>
+
                             <div className="bg-sticky-yellow/30 p-3 rounded-sm text-xs space-y-1">
                                 <p>✨ <strong>Smart Sync:</strong></p>
                                 <ul className="list-disc list-inside space-y-0.5 ml-2">
@@ -190,10 +229,29 @@ export const CalendarSyncButton = ({ variant = 'icon', className }: CalendarSync
                         <CalendarSync className="w-5 h-5" />
                         Sync ke Calendar
                     </AlertDialogTitle>
-                    <AlertDialogDescription className="font-handwriting text-pencil space-y-2">
+                    <AlertDialogDescription className="font-handwriting text-pencil space-y-4">
                         <p>
                             Sinkronisasi rutinitas dan prioritas hari ini ke calendar HP.
                         </p>
+
+                        <div className="bg-paper-lines/10 p-3 rounded-sm border border-paper-lines/30 flex items-center justify-between">
+                            <div className="space-y-0.5">
+                                <p className="text-[10px] uppercase tracking-wider opacity-60">Kalender Aktif:</p>
+                                <p className="text-ink font-bold text-sm">
+                                    {calendarInfo.name || (isSyncing ? 'Mencari...' : 'Belum dipilih')}
+                                </p>
+                            </div>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={handleChangeCalendar}
+                                className="h-8 px-2 text-xs gap-1 hover:bg-paper-lines/20"
+                            >
+                                <Settings className="w-3 h-3" />
+                                Ganti
+                            </Button>
+                        </div>
+
                         <div className="bg-sticky-yellow/30 p-3 rounded-sm text-xs space-y-1">
                             <p>✨ <strong>Smart Sync:</strong></p>
                             <ul className="list-disc list-inside space-y-0.5 ml-2">

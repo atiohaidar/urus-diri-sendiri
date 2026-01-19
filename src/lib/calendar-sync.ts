@@ -23,7 +23,9 @@ export const requestCalendarPermission = async (): Promise<boolean> => {
     }
 
     try {
+        console.log('Requesting full calendar access...');
         const result = await CapacitorCalendar.requestFullCalendarAccess();
+        console.log('Permission request result:', JSON.stringify(result));
         return result.result === 'granted';
     } catch (error) {
         console.error('Failed to request calendar permission:', error);
@@ -39,7 +41,15 @@ export const checkCalendarPermission = async (): Promise<boolean> => {
 
     try {
         const result = await CapacitorCalendar.checkAllPermissions();
-        return result.result[CalendarPermissionScope.WRITE_CALENDAR] === 'granted';
+        console.log('Current permissions:', JSON.stringify(result));
+
+        // Some versions might use different keys, but usually it's keyed by the scope
+        const writeStatus = result.result[CalendarPermissionScope.WRITE_CALENDAR];
+        const readStatus = result.result[CalendarPermissionScope.READ_CALENDAR];
+
+        console.log(`Write permission: ${writeStatus}, Read permission: ${readStatus}`);
+
+        return writeStatus === 'granted';
     } catch (error) {
         console.error('Failed to check calendar permission:', error);
         return false;
@@ -92,6 +102,8 @@ interface SyncHashStore {
     routines: Record<string, string>; // id -> hash
     priorities: Record<string, string>;
     lastSyncDate: string;
+    selectedCalendarId?: string;
+    selectedCalendarName?: string;
 }
 
 const getSyncHashes = (): SyncHashStore => {
@@ -110,6 +122,47 @@ const saveSyncHashes = (store: SyncHashStore) => {
     } catch (e) {
         console.error('Failed to save sync hashes:', e);
     }
+};
+
+/**
+ * Get the currently selected calendar name
+ */
+export const getSelectedCalendar = (): { id?: string; name?: string } => {
+    const store = getSyncHashes();
+    return {
+        id: store.selectedCalendarId,
+        name: store.selectedCalendarName
+    };
+};
+
+/**
+ * Manually trigger calendar selection prompt
+ */
+export const selectCalendarManually = async (): Promise<boolean> => {
+    if (!isNativePlatform()) return false;
+
+    let hasPermission = await checkCalendarPermission();
+    if (!hasPermission) {
+        hasPermission = await requestCalendarPermission();
+        if (!hasPermission) return false;
+    }
+
+    try {
+        const calendars = await CapacitorCalendar.selectCalendarsWithPrompt({
+            displayStyle: CalendarChooserDisplayStyle.ALL_CALENDARS
+        });
+
+        if (calendars.result && calendars.result.length > 0) {
+            const store = getSyncHashes();
+            store.selectedCalendarId = calendars.result[0].id;
+            store.selectedCalendarName = calendars.result[0].title;
+            saveSyncHashes(store);
+            return true;
+        }
+    } catch (e) {
+        console.error('Manual calendar selection failed:', e);
+    }
+    return false;
 };
 
 /**
@@ -139,18 +192,58 @@ export const smartSyncTodayToCalendar = async (): Promise<SyncResult> => {
         }
     }
 
-    try {
-        // Let user choose calendar first
-        const calendars = await CapacitorCalendar.selectCalendarsWithPrompt({
-            displayStyle: CalendarChooserDisplayStyle.ALL_CALENDARS
-        });
+    // Get stored sync data
+    const syncStore = getSyncHashes();
 
-        if (!calendars.result || calendars.result.length === 0) {
-            result.errors.push('Tidak ada calendar yang dipilih');
-            return result;
+    try {
+        let selectedCalendarId = syncStore.selectedCalendarId;
+
+        if (!selectedCalendarId) {
+            console.log('No stored calendar ID, searching for calendars...');
+            try {
+                const calendarsList = await CapacitorCalendar.listCalendars();
+                console.log('Available calendars:', JSON.stringify(calendarsList));
+
+                if (calendarsList.result && calendarsList.result.length > 0) {
+                    // Try to find a good default:
+                    // 1. Not a birthday or holiday calendar
+                    // 2. Contains "Calendar" or has an email-like title
+                    const bestCalendar = calendarsList.result.find(c =>
+                        !c.title.toLowerCase().includes('birthday') &&
+                        !c.title.toLowerCase().includes('holiday') &&
+                        (c.title.toLowerCase().includes('calendar') || c.title.includes('@'))
+                    ) || calendarsList.result[0];
+
+                    selectedCalendarId = bestCalendar.id;
+                    syncStore.selectedCalendarName = bestCalendar.title;
+                    console.log('Auto-selected calendar:', bestCalendar.title, selectedCalendarId);
+                }
+            } catch (listErr) {
+                console.warn('Failed to list calendars silently:', listErr);
+            }
         }
 
-        const selectedCalendarId = calendars.result[0].id;
+        // If still no calendar, or if we want to confirm, use prompt
+        if (!selectedCalendarId) {
+            console.log('Starting calendar selection prompt...');
+            const calendars = await CapacitorCalendar.selectCalendarsWithPrompt({
+                displayStyle: CalendarChooserDisplayStyle.ALL_CALENDARS
+            });
+
+            console.log('Calendar selection result:', JSON.stringify(calendars));
+
+            if (!calendars.result || calendars.result.length === 0) {
+                result.errors.push('Tidak ada calendar yang dipilih atau dibatalkan');
+                return result;
+            }
+
+            selectedCalendarId = calendars.result[0].id;
+            syncStore.selectedCalendarName = calendars.result[0].title;
+        }
+
+        // Save selected calendar for future use
+        syncStore.selectedCalendarId = selectedCalendarId;
+        console.log('Syncing with calendar ID:', selectedCalendarId);
 
         // Get data
         const routines = getRoutines();
@@ -163,8 +256,6 @@ export const smartSyncTodayToCalendar = async (): Promise<SyncResult> => {
             return p.scheduledFor === todayStr;
         });
 
-        // Get stored sync data
-        const syncStore = getSyncHashes();
         const isNewDay = syncStore.lastSyncDate !== todayStr;
 
         // If new day, clear old calendar event IDs (they're from yesterday)
@@ -334,11 +425,13 @@ export const smartSyncTodayToCalendar = async (): Promise<SyncResult> => {
         saveSyncHashes(syncStore);
 
         result.success = result.errors.length === 0;
+        console.log('Sync completed. Success:', result.success, 'Created:', result.created, 'Errors:', result.errors.length);
         return result;
 
     } catch (error) {
-        console.error('Smart sync failed:', error);
-        result.errors.push('Sinkronisasi gagal');
+        console.error('Smart sync failed with exception:', error);
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        result.errors.push(`Sinkronisasi gagal: ${errorMessage}`);
         return result;
     }
 };
