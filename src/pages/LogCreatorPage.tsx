@@ -61,6 +61,35 @@ const LogCreatorPage = () => {
     const [customMinutes, setCustomMinutes] = useState(10);
     const [customSeconds, setCustomSeconds] = useState(0);
 
+    // Zen Mode State (Auto-hide UI)
+    const [isControlsVisible, setIsControlsVisible] = useState(true);
+
+    useEffect(() => {
+        if (timerStatus !== 'running') {
+            setIsControlsVisible(true);
+            return;
+        }
+
+        let timeout: NodeJS.Timeout;
+        const resetTimer = () => {
+            setIsControlsVisible(true);
+            clearTimeout(timeout);
+            timeout = setTimeout(() => {
+                setIsControlsVisible(false);
+            }, 3000); // Hide after 3 seconds of inactivity
+        };
+
+        const events = ['mousemove', 'click', 'touchstart', 'keydown'];
+        events.forEach(event => window.addEventListener(event, resetTimer));
+
+        resetTimer();
+
+        return () => {
+            clearTimeout(timeout);
+            events.forEach(event => window.removeEventListener(event, resetTimer));
+        };
+    }, [timerStatus]);
+
     // Hooks - must be declared before being used in effects
     const camera = useCamera({ initialFacing: 'environment' });
     const { toast } = useToast();
@@ -196,9 +225,49 @@ const LogCreatorPage = () => {
         // This guarantees it fires even if phone sleeps or app backgrounded
         await scheduleTimerNotification(caption, targetDate);
 
-        // Show Sticky Notification
-        await showOngoingNotification(caption, targetDate);
+        // NOTE: We don't show sticky notification immediately anymore (Smart Notification)
+        // It will be triggered by appStateChange if user goes to background
     };
+
+    // Smart Notification: Only show "Focusing" notification when app is in background
+    useEffect(() => {
+        let listener: any;
+
+        const setupListener = async () => {
+            listener = await CapacitorApp.addListener('appStateChange', async ({ isActive }) => {
+                if (timerStatus === 'running' && timerTargetTime) {
+                    if (!isActive) {
+                        // App goes background -> Show Notification
+                        await showOngoingNotification(caption, timerTargetTime);
+                    } else {
+                        // App comes foreground -> Hide Notification for cleaner UI
+                        await cancelOngoingNotification();
+                    }
+                }
+            });
+        };
+
+        setupListener();
+
+        // Also handle Web visibility change (tab switch)
+        const handleVisibilityChange = () => {
+            if (timerStatus === 'running' && timerTargetTime) {
+                if (document.hidden) {
+                    showOngoingNotification(caption, timerTargetTime);
+                } else {
+                    cancelOngoingNotification();
+                }
+            }
+        };
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
+        return () => {
+            if (listener) listener.remove();
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            cancelOngoingNotification(); // Cleanup when component unmounts
+        };
+    }, [timerStatus, timerTargetTime, caption]);
+
 
     const stopTimer = () => {
         // Calculate actual duration when stopped early
@@ -456,7 +525,10 @@ const LogCreatorPage = () => {
 
                 {/* Header Controls - Notebook Style */}
                 {!camera.isActive && (
-                    <div className="relative z-30 px-6 py-4 flex items-center justify-between safe-top">
+                    <div className={cn(
+                        "relative z-30 px-6 py-4 flex items-center justify-between safe-top transition-opacity duration-500",
+                        !isControlsVisible && timerStatus === 'running' ? "opacity-0 pointer-events-none" : "opacity-100"
+                    )}>
                         <Button
                             variant="ghost"
                             size="icon"
@@ -890,7 +962,10 @@ const LogCreatorPage = () => {
 
                 {/* Bottom Action Buttons - Notebook Style */}
                 {!camera.isActive && (
-                    <div className="relative z-30 p-6 pb-8 flex items-end justify-between safe-bottom w-full max-w-lg mx-auto">
+                    <div className={cn(
+                        "relative z-30 p-6 pb-8 flex items-end justify-between safe-bottom w-full max-w-lg mx-auto transition-opacity duration-500",
+                        !isControlsVisible && timerStatus === 'running' ? "opacity-0 pointer-events-none" : "opacity-100"
+                    )}>
                         {!isTimerMode ? (
                             <>
                                 <div className="flex gap-3">
