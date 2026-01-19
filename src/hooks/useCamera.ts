@@ -7,7 +7,7 @@ interface UseCameraOptions {
     videoConstraints?: MediaTrackConstraints;
 }
 
-interface UseCameraReturn {
+export interface UseCameraReturn {
     /** Ref to attach to video element */
     videoRef: React.RefObject<HTMLVideoElement>;
     /** Whether camera is currently active */
