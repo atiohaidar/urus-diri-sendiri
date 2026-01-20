@@ -6,6 +6,7 @@ import { PreferencesSection } from '@/components/settings/PreferencesSection';
 import { CloudLegacySection } from '@/components/settings/CloudLegacySection';
 import { DataBackupSection } from '@/components/settings/DataBackupSection';
 import { PersonalNotesSection } from '@/components/settings/PersonalNotesSection';
+import { CalendarSection } from '@/components/settings/CalendarSection';
 import { Button } from '@/components/ui/button';
 import packageJson from '../../../package.json';
 import { cn } from '@/lib/utils';
@@ -51,6 +52,9 @@ const SettingsScreen = () => {
 
                 {/* Theme & Language */}
                 <PreferencesSection />
+
+                {/* Calendar Integration (Native Only) */}
+                <CalendarSection />
 
                 {/* Legacy Cloud Sync (Google Sheets) */}
                 <CloudLegacySection />

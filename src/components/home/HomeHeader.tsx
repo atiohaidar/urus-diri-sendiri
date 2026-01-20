@@ -5,7 +5,7 @@ import { isCheckinCompletedToday } from '@/lib/checkin-helper';
 import { getCompletionStats } from '@/lib/storage';
 import { RoutineItem, PriorityTask } from '@/lib/storage';
 import { Button } from '@/components/ui/button';
-import { CalendarSyncButton } from '@/components/home/CalendarSyncButton';
+
 
 interface HomeHeaderProps {
     currentDate: Date;
@@ -98,8 +98,7 @@ export const HomeHeader = ({
                             <RotateCcw className="w-4 h-4 text-pencil" />
                         </button>
 
-                        {/* Calendar Sync Button (Native only) */}
-                        <CalendarSyncButton variant="icon" />
+
 
                         {/* Settings Button */}
                         <Button
