@@ -73,7 +73,7 @@ const ReflectionCard = memo(({ reflection, index }: { reflection: Reflection, in
                         )}
                     </div>
                     <p className="font-handwriting text-lg text-ink line-clamp-1">
-                        {reflection.winOfDay || t.history.evening_reflection}
+                        {reflection.winOfDay || t.history.no_reflections_title}
                     </p>
                 </div>
                 <div className="ml-2">

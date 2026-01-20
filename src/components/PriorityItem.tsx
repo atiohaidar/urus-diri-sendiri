@@ -177,21 +177,12 @@ const PriorityItem = ({ priority, index, onToggle, onDelete, onUpdate, onUpdateS
           )}
         </button>
 
-        {/* Priority number badge - Doodle circle */}
-        <span className={cn(
-          "w-7 h-7 rounded-full flex items-center justify-center text-sm font-handwriting font-semibold shrink-0",
-          "border-2 border-dashed",
-          priority.completed
-            ? "border-paper-lines text-pencil"
-            : "border-doodle-primary text-doodle-primary"
-        )}>
-          {index + 1}
-        </span>
+
 
         {/* Priority text */}
-        <div className="flex-1 min-w-0" onClick={() => setIsEditing(true)}>
+        <div className="flex-1 min-w-0 overflow-hidden" onClick={() => setIsEditing(true)}>
           <span className={cn(
-            "font-handwriting text-lg cursor-text truncate block",
+            "font-handwriting text-lg cursor-text block whitespace-nowrap overflow-x-auto scrollbar-hide pb-1",
             priority.completed
               ? "line-through text-pencil decoration-2 decoration-doodle-red/50"
               : "text-ink"
@@ -215,12 +206,11 @@ const PriorityItem = ({ priority, index, onToggle, onDelete, onUpdate, onUpdateS
               {priority.scheduledFor ? (
                 <>
                   <CalendarDays className="w-3 h-3" />
-                  {formatDateDisplay(priority.scheduledFor)}
+                  {formatDateDisplay(priority.scheduledFor) === 'Hari ini' ? null : formatDateDisplay(priority.scheduledFor)}
                 </>
               ) : (
                 <>
                   <RefreshCw className="w-3 h-3" />
-                  Harian
                 </>
               )}
             </button>

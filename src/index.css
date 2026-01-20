@@ -201,6 +201,18 @@ textarea,
 }
 
 @layer utilities {
+  /* === SCROLLBAR UTILITIES === */
+  .scrollbar-hide {
+    /* IE and Edge */
+    -ms-overflow-style: none;
+    /* Firefox */
+    scrollbar-width: none;
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
   /* === NOTEBOOK UTILITIES === */
 
   /* Notebook Background with Lines */

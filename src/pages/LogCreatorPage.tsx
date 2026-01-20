@@ -378,13 +378,12 @@ const LogCreatorPage = () => {
                 const finalDuration = actualDuration > 0 ? actualDuration : timerDuration;
                 const wasStoppedEarly = actualDuration > 0 && actualDuration < timerDuration;
 
-                logContent = `⏱️ Sesi Fokus${wasStoppedEarly ? ' (Dihentikan Lebih Awal)' : ''}\n` +
-                    `📅 ${dateFormatted}\n` +
-                    `🕐 Mulai: ${startTimeFormatted}\n` +
-                    `🎯 Target: ${formatDuration(timerDuration)}\n` +
-                    `⏰ Realisasi: ${formatDuration(finalDuration)}${wasStoppedEarly ? ' ⚠️' : ' ✅'}\n\n` +
-                    `💭 Niat:\n${caption}\n\n` +
-                    `✍️ Realita:\n${reality}`;
+                logContent = `⏱️ Fokus${wasStoppedEarly ? ' (Dihentikan Lebih Awal)' : ''}\n` +
+                    `🕐: ${startTimeFormatted}\n` +
+                    `🎯: ${formatDuration(timerDuration)}\n` +
+                    `⏰: ${formatDuration(finalDuration)}${wasStoppedEarly ? ' ⚠️' : ' ✅'}\n\n` +
+                    `💭: ${caption}\n\n` +
+                    `✍️: ${reality}`;
             }
 
             saveLog({
