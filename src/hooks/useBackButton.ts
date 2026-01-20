@@ -31,6 +31,15 @@ export const useBackButton = () => {
              */
             backButtonListener = await CapacitorApp.addListener("backButton", ({ canGoBack }) => {
 
+                // --- PRIORITAS 0: Handle Inline Editing ---
+                // Kalau ada input/textarea yang lagi fokus (misal: edit priority, edit text inline),
+                // blur dulu supaya perubahan tersimpan via onBlur handler, jangan langsung navigasi.
+                const activeElement = document.activeElement;
+                if (activeElement?.tagName === 'INPUT' || activeElement?.tagName === 'TEXTAREA') {
+                    (activeElement as HTMLElement).blur();
+                    return; // Stop, tunggu user tekan back lagi untuk navigasi
+                }
+
                 // --- PRIORITAS 1: Tutup Modal/Pop-up ---
                 // Cara kerjanya: Kode ini 'ngintip' ke layar, ada nggak kotak modal yang lagi 'open'
                 const openModal = document.querySelector('[data-state="open"][role="dialog"], [data-state="open"][role="alertdialog"]');

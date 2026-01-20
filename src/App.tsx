@@ -31,6 +31,7 @@ const LogCreatorPage = lazy(() => import("./pages/LogCreatorPage"));
 const ReflectionDetailPage = lazy(() => import("./pages/ReflectionDetailPage"));
 const PersonalNotesPage = lazy(() => import("./pages/PersonalNotesPage"));
 const NoteHistoryPage = lazy(() => import("./pages/NoteHistoryPage"));
+const HabitDetailPage = lazy(() => import("./pages/HabitDetailPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 /**
@@ -139,6 +140,7 @@ const App = () => {
                       <Route path="/log-creator" element={<LogCreatorPage />} />
                       <Route path="/reflection/:id" element={<ReflectionDetailPage />} />
                       <Route path="/personal-notes" element={<PersonalNotesPage />} />
+                      <Route path="/habit/:habitId" element={<HabitDetailPage />} />
 
                       {/* fallback: Kalau alamat URL tidak ditemukan */}
                       <Route path="*" element={<NotFound />} />

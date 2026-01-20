@@ -9,6 +9,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { getFrequencyText, type Habit } from '@/lib/storage';
 import { useLanguage } from '@/i18n/LanguageContext';
+import { useNavigate } from 'react-router-dom';
+import { triggerHaptic } from '@/lib/haptics';
 
 interface HabitCardProps {
     habit: Habit & {
@@ -36,9 +38,15 @@ const rotations = ['rotate-[-1deg]', 'rotate-[1deg]', 'rotate-[-2deg]', 'rotate-
 
 const HabitCard = ({ habit, onToggle, onEdit, onDelete, onViewStats, index = 0 }: HabitCardProps) => {
     const { t } = useLanguage();
+    const navigate = useNavigate();
     const colorIndex = index % stickyColors.length;
     const rotation = rotations[index % rotations.length];
     const { bg, shadow } = stickyColors[colorIndex];
+
+    const handleViewDetail = () => {
+        triggerHaptic();
+        navigate(`/habit/${habit.id}`);
+    };
 
     return (
         <div
@@ -80,10 +88,12 @@ const HabitCard = ({ habit, onToggle, onEdit, onDelete, onViewStats, index = 0 }
                 {/* Content */}
                 <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                        <h3 className={cn(
-                            "font-handwriting text-lg text-ink font-semibold truncate",
-                            habit.isCompletedToday && "line-through decoration-2 decoration-doodle-red/60"
-                        )}>
+                        <h3
+                            onClick={handleViewDetail}
+                            className={cn(
+                                "font-handwriting text-lg text-ink font-semibold truncate cursor-pointer hover:text-doodle-primary transition-colors",
+                                habit.isCompletedToday && "line-through decoration-2 decoration-doodle-red/60"
+                            )}>
                             {habit.name}
                         </h3>
 
@@ -119,21 +129,19 @@ const HabitCard = ({ habit, onToggle, onEdit, onDelete, onViewStats, index = 0 }
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="font-handwriting">
+                        <DropdownMenuItem onClick={handleViewDetail} className="gap-2">
+                            <TrendingUp className="w-4 h-4" />
+                            Lihat Statistik
+                        </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => onEdit(habit)} className="gap-2">
                             <Calendar className="w-4 h-4" />
                             Edit
                         </DropdownMenuItem>
-                        {onViewStats && (
-                            <DropdownMenuItem onClick={() => onViewStats(habit)} className="gap-2">
-                                <TrendingUp className="w-4 h-4" />
-                                View Stats
-                            </DropdownMenuItem>
-                        )}
                         <DropdownMenuItem
                             onClick={() => onDelete(habit.id)}
                             className="gap-2 text-doodle-red focus:text-doodle-red"
                         >
-                            Delete
+                            Hapus
                         </DropdownMenuItem>
                     </DropdownMenuContent>
                 </DropdownMenu>

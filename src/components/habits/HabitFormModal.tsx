@@ -51,6 +51,8 @@ const HabitFormModal = ({ open, onOpenChange, habit, onSave }: HabitFormModalPro
     const [interval, setInterval] = useState(2);
     const [specificDays, setSpecificDays] = useState<number[]>([1, 3, 5]);
     const [allowedDayOff, setAllowedDayOff] = useState(1);
+    const [hasTarget, setHasTarget] = useState(false);
+    const [targetCount, setTargetCount] = useState(30);
 
     useEffect(() => {
         if (open && habit) {
@@ -61,6 +63,8 @@ const HabitFormModal = ({ open, onOpenChange, habit, onSave }: HabitFormModalPro
             setInterval(habit.interval || 2);
             setSpecificDays(habit.specificDays || [1, 3, 5]);
             setAllowedDayOff(habit.allowedDayOff ?? 1);
+            setHasTarget(!!habit.targetCount);
+            setTargetCount(habit.targetCount || 30);
         } else if (open && !habit) {
             setName('');
             setDescription('');
@@ -69,6 +73,8 @@ const HabitFormModal = ({ open, onOpenChange, habit, onSave }: HabitFormModalPro
             setInterval(2);
             setSpecificDays([1, 3, 5]);
             setAllowedDayOff(1);
+            setHasTarget(false);
+            setTargetCount(30);
         }
     }, [open, habit]);
 
@@ -91,6 +97,7 @@ const HabitFormModal = ({ open, onOpenChange, habit, onSave }: HabitFormModalPro
             interval: frequency === 'every_n_days' ? interval : undefined,
             specificDays: frequency === 'specific_days' ? specificDays : undefined,
             allowedDayOff,
+            targetCount: hasTarget ? targetCount : null,
         };
 
         onSave(habitData);
@@ -241,6 +248,52 @@ const HabitFormModal = ({ open, onOpenChange, habit, onSave }: HabitFormModalPro
                             max={3}
                             step={1}
                         />
+                    </div>
+
+                    {/* Target Goal */}
+                    <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                            <Label className="font-handwriting text-pencil">Target Penyelesaian</Label>
+                            <button
+                                type="button"
+                                onClick={() => setHasTarget(!hasTarget)}
+                                className={cn(
+                                    "w-12 h-6 rounded-full transition-all relative",
+                                    hasTarget
+                                        ? "bg-doodle-green"
+                                        : "bg-paper-lines/30 border-2 border-dashed border-paper-lines"
+                                )}
+                            >
+                                <div className={cn(
+                                    "absolute top-0.5 w-5 h-5 rounded-full bg-white shadow-sm transition-all",
+                                    hasTarget ? "left-6" : "left-0.5"
+                                )} />
+                            </button>
+                        </div>
+
+                        {hasTarget ? (
+                            <div className="p-4 bg-sticky-green/20 rounded-sm border-2 border-dashed border-sticky-green/50 space-y-3">
+                                <p className="font-handwriting text-xs text-pencil">
+                                    🎯 Setelah mencapai target, habit akan selesai
+                                </p>
+                                <div className="flex items-center gap-3">
+                                    <Input
+                                        type="number"
+                                        value={targetCount}
+                                        onChange={(e) => setTargetCount(Math.max(1, parseInt(e.target.value) || 1))}
+                                        min={1}
+                                        max={365}
+                                        variant="notebook"
+                                        className="w-24 text-center font-handwriting text-lg"
+                                    />
+                                    <span className="font-handwriting text-ink">kali penyelesaian</span>
+                                </div>
+                            </div>
+                        ) : (
+                            <p className="font-handwriting text-xs text-pencil italic">
+                                ♾️ Tanpa target (infinity) - habit terus berjalan selamanya
+                            </p>
+                        )}
                     </div>
                 </div>
 

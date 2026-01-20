@@ -100,6 +100,9 @@ export interface Habit {
     // Streak Settings
     allowedDayOff?: number;   // How many days can skip without breaking streak (default: 1)
 
+    // Target/Goal (optional - null means infinity)
+    targetCount?: number | null; // Target completion count (e.g., 30 = complete 30 times then done)
+
     // Tracking
     createdAt: string;
     updatedAt?: string;

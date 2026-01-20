@@ -21,6 +21,7 @@ export const fetchHabits = async (userId: string, since?: string) => {
         specificDays: r.specific_days,
         allowedDayOff: r.allowed_day_off,
         isArchived: r.is_archived,
+        targetCount: r.target_count,
         createdAt: r.created_at,
         updatedAt: r.updated_at,
         deletedAt: r.deleted_at
@@ -39,6 +40,7 @@ export const syncHabits = async (userId: string, habits: Habit[]) => {
         specific_days: h.specificDays || null,
         allowed_day_off: h.allowedDayOff ?? 1,
         is_archived: h.isArchived || false,
+        target_count: h.targetCount || null,
         created_at: h.createdAt,
         updated_at: h.updatedAt,
         deleted_at: h.deletedAt || null,
