@@ -136,33 +136,36 @@ export const getSelectedCalendar = (): { id?: string; name?: string } => {
 };
 
 /**
- * Manually trigger calendar selection prompt
+ * Get list of available calendars for custom UI
  */
-export const selectCalendarManually = async (): Promise<boolean> => {
-    if (!isNativePlatform()) return false;
+export const getAvailableCalendars = async (): Promise<{ id: string; title: string }[]> => {
+    if (!isNativePlatform()) return [];
 
     let hasPermission = await checkCalendarPermission();
     if (!hasPermission) {
         hasPermission = await requestCalendarPermission();
-        if (!hasPermission) return false;
+        if (!hasPermission) return [];
     }
 
     try {
-        const calendars = await CapacitorCalendar.selectCalendarsWithPrompt({
-            displayStyle: CalendarChooserDisplayStyle.ALL_CALENDARS
-        });
-
-        if (calendars.result && calendars.result.length > 0) {
-            const store = getSyncHashes();
-            store.selectedCalendarId = calendars.result[0].id;
-            store.selectedCalendarName = calendars.result[0].title;
-            saveSyncHashes(store);
-            return true;
+        const calendarsList = await CapacitorCalendar.listCalendars();
+        if (calendarsList.result) {
+            return calendarsList.result;
         }
     } catch (e) {
-        console.error('Manual calendar selection failed:', e);
+        console.error('Failed to list calendars:', e);
     }
-    return false;
+    return [];
+};
+
+/**
+ * Manually set the selected calendar ID
+ */
+export const manualSetCalendar = (id: string, name: string) => {
+    const store = getSyncHashes();
+    store.selectedCalendarId = id;
+    store.selectedCalendarName = name;
+    saveSyncHashes(store);
 };
 
 /**

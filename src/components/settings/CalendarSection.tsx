@@ -1,15 +1,23 @@
 import { useState, useEffect } from 'react';
-import { CalendarSync, Calendar, Settings, Loader2, Trash2, CheckCircle2 } from 'lucide-react';
+import { CalendarSync, Calendar, Settings, Loader2, Trash2, CheckCircle2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/i18n/LanguageContext';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription
+} from "@/components/ui/dialog";
+import {
     isNativePlatform,
     smartSyncTodayToCalendar,
     clearTodayCalendarEvents,
     getSelectedCalendar,
-    selectCalendarManually,
+    getAvailableCalendars,
+    manualSetCalendar,
     checkCalendarPermission,
     requestCalendarPermission
 } from '@/lib/calendar-sync';
@@ -20,6 +28,9 @@ export const CalendarSection = () => {
     const [calendarInfo, setCalendarInfo] = useState<{ id?: string; name?: string }>({});
     const [isSyncing, setIsSyncing] = useState(false);
     const [hasPermission, setHasPermission] = useState(false);
+    const [calendarList, setCalendarList] = useState<{ id: string; title: string }[]>([]);
+    const [showSelectDialog, setShowSelectDialog] = useState(false);
+    const [isLoadingCalendars, setIsLoadingCalendars] = useState(false);
 
     useEffect(() => {
         setIsNative(isNativePlatform());
@@ -101,12 +112,30 @@ export const CalendarSection = () => {
         }
     };
 
-    const handleChangeCalendar = async () => {
-        const success = await selectCalendarManually();
-        if (success) {
-            setCalendarInfo(getSelectedCalendar());
-            toast.success('Kalender berhasil dipilih');
+    const handleOpenCalendarSelect = async () => {
+        setIsLoadingCalendars(true);
+        try {
+            const calendars = await getAvailableCalendars();
+            if (calendars.length === 0) {
+                toast.error('Tidak ada kalender ditemukan di HP ini.', {
+                    description: 'Pastikan aplikasi memiliki izin akses kalender.'
+                });
+                return;
+            }
+            setCalendarList(calendars);
+            setShowSelectDialog(true);
+        } catch (error) {
+            toast.error('Gagal memuat daftar kalender');
+        } finally {
+            setIsLoadingCalendars(false);
         }
+    };
+
+    const handleSelectCalendar = (id: string, name: string) => {
+        manualSetCalendar(id, name);
+        setCalendarInfo(getSelectedCalendar());
+        setShowSelectDialog(false);
+        toast.success(`Kalender "${name}" dipilih`);
     };
 
     if (!isNative) return null;
@@ -154,10 +183,11 @@ export const CalendarSection = () => {
                             <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={handleChangeCalendar}
+                                onClick={handleOpenCalendarSelect}
+                                disabled={isLoadingCalendars}
                                 className="h-8 px-3 text-xs gap-1 hover:bg-paper-lines/20 font-handwriting border border-dashed border-pencil/30"
                             >
-                                <Settings className="w-3 h-3" />
+                                {isLoadingCalendars ? <Loader2 className="w-3 h-3 animate-spin" /> : <Settings className="w-3 h-3" />}
                                 {calendarInfo.name ? 'Ganti' : 'Pilih'}
                             </Button>
                         </div>
@@ -197,6 +227,51 @@ export const CalendarSection = () => {
                     </div>
                 )}
             </div>
+
+            {/* Custom Calendar Selection Dialog */}
+            <Dialog open={showSelectDialog} onOpenChange={setShowSelectDialog}>
+                <DialogContent className="max-w-xs md:max-w-md bg-paper border-2 border-paper-lines font-handwriting">
+                    <DialogHeader>
+                        <DialogTitle className="text-ink flex items-center gap-2">
+                            <Calendar className="w-5 h-5" />
+                            Pilih Kalender
+                        </DialogTitle>
+                        <DialogDescription className="text-pencil">
+                            Pilih kalender tujuan sinkronisasi
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="max-h-[60vh] overflow-y-auto space-y-2 pr-2 scrollbar-hide py-2">
+                        {calendarList.map((cal) => (
+                            <button
+                                key={cal.id}
+                                onClick={() => handleSelectCalendar(cal.id, cal.title)}
+                                className={cn(
+                                    "w-full text-left p-3 rounded-sm border-2 border-dashed transition-all",
+                                    cal.id === calendarInfo.id
+                                        ? "bg-doodle-primary/10 border-doodle-primary text-doodle-primary font-bold"
+                                        : "border-paper-lines/50 hover:bg-paper-lines/20 text-ink"
+                                )}
+                            >
+                                <div className="flex items-center justify-between">
+                                    <span>{cal.title}</span>
+                                    {cal.id === calendarInfo.id && <CheckCircle2 className="w-4 h-4 text-doodle-primary" />}
+                                </div>
+                            </button>
+                        ))}
+                    </div>
+
+                    <div className="flex justify-end pt-2">
+                        <Button
+                            variant="ghost"
+                            onClick={() => setShowSelectDialog(false)}
+                            className="font-handwriting text-pencil hover:text-ink"
+                        >
+                            Batal
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </section>
     );
 };
