@@ -351,25 +351,27 @@ const NoteEditorPage = () => {
                     existingNote.category !== category ||
                     existingNote.isEncrypted !== isEncrypted; // Check encryption status change
 
-                // For encrypted notes, we generally always save if triggered manually, 
-                // but for partial updates (auto-save), we might want to be careful.
-                // Simplified: Just update. Efficient enough.
+                // Only update if there are actual changes
+                if (hasChanges) {
+                    // NOTE: We need to pass the encryption metadata to updateNote
+                    updateNote(existingNote.id, {
+                        title: finalTitle,
+                        content: saveContent,
+                        category,
+                        ...saveMetadata
+                    });
 
-                // NOTE: We need to pass the encryption metadata to updateNote
-                updateNote(existingNote.id, {
-                    title: finalTitle,
-                    content: saveContent,
-                    category,
-                    ...saveMetadata
-                });
+                    // Update initial timestamp to prevent conflict on next immediate save
+                    initialNoteTimestamp.current = new Date().toISOString();
 
-                // Update initial timestamp to prevent conflict on next immediate save
-                initialNoteTimestamp.current = new Date().toISOString();
-
-                clearDraft(noteId);
-                if (!silent) {
-                    toast({ title: t.note_editor.toast_updated });
-                    triggerHaptic();
+                    clearDraft(noteId);
+                    if (!silent) {
+                        toast({ title: t.note_editor.toast_updated });
+                        triggerHaptic();
+                    }
+                } else {
+                    // No changes, just clear draft silently
+                    clearDraft(noteId);
                 }
             }
         } catch (error) {
