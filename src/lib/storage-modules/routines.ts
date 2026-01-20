@@ -11,6 +11,10 @@ const sortByStartTime = (routines: RoutineItem[]): RoutineItem[] => {
     );
 };
 
+const getAllRoutines = (): RoutineItem[] => {
+    return cache.routines || [];
+};
+
 export const getRoutines = (): RoutineItem[] => {
     const today = new Date().toDateString();
     const lastOpen = localStorage.getItem(STORAGE_KEYS.LAST_OPEN_DATE);
@@ -43,6 +47,19 @@ export const saveRoutines = (routines: RoutineItem[]) => {
     provider.saveRoutines(routines).catch((error) => {
         handleSaveError(error, 'Menyimpan rutinitas', () => saveRoutines(routines));
     });
+};
+
+export const deleteRoutine = (id: string) => {
+    const routines = getAllRoutines();
+    const updated = routines.filter(r => r.id !== id);
+    cache.routines = updated;
+
+    provider.deleteRoutine(id).catch((error) => {
+        handleSaveError(error, 'Menghapus rutinitas', () => deleteRoutine(id));
+    });
+
+    notifyListeners();
+    return updated;
 };
 
 export const toggleRoutineCompletion = (id: string, routines: RoutineItem[], note?: string) => {

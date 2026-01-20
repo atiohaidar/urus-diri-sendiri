@@ -6,6 +6,14 @@ import { getTodayDateString } from '../time-utils';
 let isResettingPriorities = false;
 
 /**
+ * Helper to get ALL priorities (including hidden/future ones)
+ * strictly for internal state manipulation.
+ */
+const getAllPriorities = (): PriorityTask[] => {
+    return cache.priorities || [];
+};
+
+/**
  * Resets completed priorities from previous days.
  * Should be called once during app initialization or day change.
  */
@@ -14,7 +22,7 @@ export const resetOldCompletions = async (): Promise<void> => {
     isResettingPriorities = true;
 
     try {
-        const priorities = cache.priorities || [];
+        const priorities = getAllPriorities();
         const todayISO = getTodayDateString();
 
         let hasChanges = false;
@@ -56,7 +64,7 @@ export const resetOldCompletions = async (): Promise<void> => {
 };
 
 export const getPriorities = (): PriorityTask[] => {
-    const priorities = cache.priorities || [];
+    const priorities = getAllPriorities();
     const todayISO = getTodayDateString();
 
     return priorities
@@ -107,7 +115,7 @@ export const savePriorities = (priorities: PriorityTask[]) => {
 };
 
 export const updatePriorityCompletion = (id: string, completed: boolean, note?: string) => {
-    const priorities = getPriorities();
+    const priorities = getAllPriorities();
     const now = new Date().toISOString();
     const updated = priorities.map(p =>
         p.id === id ? {
@@ -123,7 +131,7 @@ export const updatePriorityCompletion = (id: string, completed: boolean, note?: 
 };
 
 export const addPriority = (text: string, scheduledFor?: string) => {
-    const priorities = getPriorities();
+    const priorities = getAllPriorities();
     const newPriority: PriorityTask = {
         id: generateId('priority'),
         text,
@@ -138,15 +146,20 @@ export const addPriority = (text: string, scheduledFor?: string) => {
 };
 
 export const deletePriority = (id: string) => {
-    const priorities = getPriorities();
+    const priorities = getAllPriorities();
     const updated = priorities.filter(p => p.id !== id);
-    savePriorities(updated);
+    cache.priorities = updated;
+
+    provider.deletePriority(id).catch((error) => {
+        handleSaveError(error, 'Menghapus prioritas', () => deletePriority(id));
+    });
+
     notifyListeners();
     return updated;
 };
 
 export const updatePriorityText = (id: string, text: string) => {
-    const priorities = getPriorities();
+    const priorities = getAllPriorities();
     const updated = priorities.map(p =>
         p.id === id ? { ...p, text, updatedAt: new Date().toISOString() } : p
     );
@@ -161,7 +174,7 @@ export const updatePriorityText = (id: string, text: string) => {
  * @param scheduledFor - Date string "YYYY-MM-DD" or undefined for recurring/daily
  */
 export const updatePrioritySchedule = (id: string, scheduledFor: string | undefined) => {
-    const priorities = getPriorities();
+    const priorities = getAllPriorities();
     const updated = priorities.map(p =>
         p.id === id ? {
             ...p,

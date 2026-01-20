@@ -5,10 +5,10 @@ import { LocalStorageProvider } from './local-storage-provider';
 import { offlineQueue, QueueItem } from './offline-queue';
 
 // Handlers
-import { fetchPriorities, syncPriorities } from './supabase-handlers/priorities';
+import { fetchPriorities, syncPriorities, deleteRemotePriority } from './supabase-handlers/priorities';
 import { fetchReflections, syncReflection } from './supabase-handlers/reflections';
 import { fetchNotes, syncNotes, deleteRemoteNote } from './supabase-handlers/notes';
-import { fetchRoutines, syncRoutines } from './supabase-handlers/routines';
+import { fetchRoutines, syncRoutines, deleteRemoteRoutine } from './supabase-handlers/routines';
 import { fetchLogs, syncLog, deleteRemoteLog } from './supabase-handlers/logs';
 import { fetchHabits, syncHabits } from './supabase-handlers/habits';
 import { fetchHabitLogs, syncHabitLogs } from './supabase-handlers/habit-logs';
@@ -26,10 +26,12 @@ export class SupabaseProvider implements IStorageProvider {
             // Pass userId to handlers
             switch (item.type) {
                 case 'priorities': await syncPriorities(userId, item.data); break;
+                case 'delete_priority': await deleteRemotePriority(userId, item.data); break;
                 case 'reflection': await syncReflection(userId, item.data); break;
                 case 'notes': await syncNotes(userId, item.data); break;
                 case 'delete_note': await deleteRemoteNote(userId, item.data); break;
                 case 'routines': await syncRoutines(userId, item.data); break;
+                case 'delete_routine': await deleteRemoteRoutine(userId, item.data); break;
                 case 'log': await syncLog(userId, item.data); break;
                 case 'delete_log': await deleteRemoteLog(userId, item.data); break;
                 case 'habits': await syncHabits(userId, item.data); break;
@@ -124,11 +126,25 @@ export class SupabaseProvider implements IStorageProvider {
 
     async savePriorities(priorities: PriorityTask[]): Promise<void> {
         await this.localProvider.savePriorities(priorities);
+        // We still upsert the whole list to ensure consistency, 
+        // but because we removed the "delete if not in" logic in the handler, 
+        // this is now safe and won't delete future/hidden tasks.
         await this.executeOrQueue(
             { type: 'priorities', data: priorities },
             async () => {
                 const userId = await this.getUserId();
                 await syncPriorities(userId, priorities);
+            }
+        );
+    }
+
+    async deletePriority(id: string): Promise<void> {
+        await this.localProvider.deletePriority(id);
+        await this.executeOrQueue(
+            { type: 'delete_priority', data: id },
+            async () => {
+                const userId = await this.getUserId();
+                await deleteRemotePriority(userId, id);
             }
         );
     }
@@ -249,6 +265,17 @@ export class SupabaseProvider implements IStorageProvider {
             async () => {
                 const userId = await this.getUserId();
                 await syncRoutines(userId, routines);
+            }
+        );
+    }
+
+    async deleteRoutine(id: string): Promise<void> {
+        await this.localProvider.deleteRoutine(id);
+        await this.executeOrQueue(
+            { type: 'delete_routine', data: id },
+            async () => {
+                const userId = await this.getUserId();
+                await deleteRemoteRoutine(userId, id);
             }
         );
     }

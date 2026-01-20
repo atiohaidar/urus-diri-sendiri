@@ -4,6 +4,7 @@ export interface IStorageProvider {
     // Priorities
     getPriorities(since?: string): Promise<PriorityTask[]>;
     savePriorities(priorities: PriorityTask[]): Promise<void>;
+    deletePriority(id: string): Promise<void>;
 
     // Reflections
     getReflections(since?: string): Promise<Reflection[]>;
@@ -18,6 +19,7 @@ export interface IStorageProvider {
     // Routines
     getRoutines(since?: string): Promise<RoutineItem[]>;
     saveRoutines(routines: RoutineItem[]): Promise<void>;
+    deleteRoutine(id: string): Promise<void>;
 
     // Logs
     getLogs(since?: string): Promise<ActivityLog[]>;

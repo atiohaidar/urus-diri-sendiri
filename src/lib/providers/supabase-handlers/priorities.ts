@@ -25,11 +25,12 @@ export const fetchPriorities = async (userId: string, since?: string) => {
     })) as PriorityTask[];
 };
 
-export const syncPriorities = async (userId: string, priorities: PriorityTask[]) => {
-    const activeIds = priorities.map(p => p.id);
+export const syncPriorities = async (userId: string, priorities: PriorityTask | PriorityTask[]) => {
+    const items = Array.isArray(priorities) ? priorities : [priorities];
 
-    // 1. Upsert Active Items
-    const rows = priorities.map(p => ({
+    if (items.length === 0) return;
+
+    const rows = items.map(p => ({
         id: p.id,
         text: p.text,
         completed: p.completed,
@@ -40,27 +41,16 @@ export const syncPriorities = async (userId: string, priorities: PriorityTask[])
         user_id: userId
     }));
 
-    if (rows.length > 0) {
-        const { error } = await supabase.from('priorities').upsert(rows);
-        if (error) throw error;
-    }
+    const { error } = await supabase.from('priorities').upsert(rows);
+    if (error) throw error;
+};
 
-    // 2. Soft Delete Missing Items
-    if (activeIds.length > 0) {
-        const { error: delError } = await supabase
-            .from('priorities')
-            .update({ deleted_at: new Date().toISOString() })
-            .not('id', 'in', `(${activeIds.join(',')})`)
-            .is('deleted_at', null); // Only mark if not already deleted
+export const deleteRemotePriority = async (userId: string, id: string) => {
+    const { error } = await supabase
+        .from('priorities')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', id)
+        .eq('user_id', userId);
 
-        if (delError) console.error("Error soft-syncing priorities:", delError);
-    } else {
-        // If local list empty, soft delete ALL
-        const { error: delError } = await supabase
-            .from('priorities')
-            .update({ deleted_at: new Date().toISOString() })
-            .is('deleted_at', null);
-
-        if (delError) console.error("Error soft-clearing priorities:", delError);
-    }
+    if (error) throw error;
 };

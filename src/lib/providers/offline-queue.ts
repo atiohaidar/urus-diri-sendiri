@@ -4,14 +4,16 @@ import { IDB_STORES, getAllItems, putItem, openDB } from '../idb';
 /**
  * Queue item types for offline sync
  */
-export type QueueItemType = 'priorities' | 'reflection' | 'notes' | 'delete_note' | 'routines' | 'log' | 'delete_log' | 'habits' | 'habitLogs' | 'personal_notes';
+export type QueueItemType = 'priorities' | 'delete_priority' | 'reflection' | 'notes' | 'delete_note' | 'routines' | 'delete_routine' | 'log' | 'delete_log' | 'habits' | 'habitLogs' | 'personal_notes';
 
 export type QueueItem =
     | { type: 'priorities'; data: any[] }
+    | { type: 'delete_priority'; data: string }
     | { type: 'reflection'; data: any }
     | { type: 'notes'; data: any[] | any }
     | { type: 'delete_note'; data: string }
     | { type: 'routines'; data: any[] }
+    | { type: 'delete_routine'; data: string }
     | { type: 'log'; data: any }
     | { type: 'delete_log'; data: string }
     | { type: 'habits'; data: any[] }

@@ -26,6 +26,10 @@ export class LocalStorageProvider implements IStorageProvider {
         await putItems(IDB_STORES.PRIORITIES, priorities);
     }
 
+    async deletePriority(id: string): Promise<void> {
+        await deleteItem(IDB_STORES.PRIORITIES, id);
+    }
+
     // --- Reflections ---
     async getReflections(since?: string): Promise<Reflection[]> {
         const reflections = await getAllItems<Reflection>(IDB_STORES.REFLECTIONS);
@@ -61,6 +65,10 @@ export class LocalStorageProvider implements IStorageProvider {
 
     async saveRoutines(routines: RoutineItem[]): Promise<void> {
         await putItems(IDB_STORES.ROUTINES, routines);
+    }
+
+    async deleteRoutine(id: string): Promise<void> {
+        await deleteItem(IDB_STORES.ROUTINES, id);
     }
 
     // --- Logs ---

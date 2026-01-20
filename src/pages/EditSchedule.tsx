@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { TimePicker } from '@/components/ui/time-picker';
 import { ScheduleCard } from '@/components/routine/ScheduleCard';
 import { ScheduleForm } from '@/components/routine/ScheduleForm';
-import { getRoutines, saveRoutines, checkOverlap, parseTimeToMinutes, initializeStorage, type RoutineItem } from '@/lib/storage';
+import { getRoutines, saveRoutines, deleteRoutine, checkOverlap, parseTimeToMinutes, initializeStorage, type RoutineItem } from '@/lib/storage';
 import { toast } from 'sonner';
 import BulkAddDialog from '@/components/routine/BulkAddDialog';
 import MainLayout from '@/components/layout/MainLayout';
@@ -125,9 +125,8 @@ const EditSchedule = () => {
 
     const deleteItem = (e: React.MouseEvent, id: string) => {
         e.stopPropagation();
-        const newItems = items.filter(i => i.id !== id);
-        setItems(newItems);
-        saveRoutines(newItems);
+        deleteRoutine(id);
+        setItems(prev => prev.filter(i => i.id !== id));
         if (editingId === id) setEditingId(null);
         toast.success('Deleted');
     };

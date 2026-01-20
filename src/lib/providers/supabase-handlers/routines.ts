@@ -25,10 +25,11 @@ export const fetchRoutines = async (userId: string, since?: string) => {
     })) as RoutineItem[];
 };
 
-export const syncRoutines = async (userId: string, routines: RoutineItem[]) => {
-    const activeIds = routines.map(r => r.id);
+export const syncRoutines = async (userId: string, routines: RoutineItem | RoutineItem[]) => {
+    const items = Array.isArray(routines) ? routines : [routines];
+    if (items.length === 0) return;
 
-    const rows = routines.map(r => ({
+    const rows = items.map(r => ({
         id: r.id,
         start_time: r.startTime,
         end_time: r.endTime,
@@ -42,24 +43,16 @@ export const syncRoutines = async (userId: string, routines: RoutineItem[]) => {
         user_id: userId
     }));
 
-    if (rows.length > 0) {
-        const { error } = await supabase.from('routines').upsert(rows);
-        if (error) throw error;
-    }
+    const { error } = await supabase.from('routines').upsert(rows);
+    if (error) throw error;
+};
 
-    // Soft Delete Missing Items
-    if (activeIds.length > 0) {
-        const { error: delError } = await supabase
-            .from('routines')
-            .update({ deleted_at: new Date().toISOString() })
-            .not('id', 'in', `(${activeIds.join(',')})`)
-            .is('deleted_at', null);
-        if (delError) console.error("Error soft-syncing routines:", delError);
-    } else {
-        const { error: delError } = await supabase
-            .from('routines')
-            .update({ deleted_at: new Date().toISOString() })
-            .is('deleted_at', null);
-        if (delError) console.error("Error soft-clearing routines:", delError);
-    }
+export const deleteRemoteRoutine = async (userId: string, id: string) => {
+    const { error } = await supabase
+        .from('routines')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', id)
+        .eq('user_id', userId);
+
+    if (error) throw error;
 };
