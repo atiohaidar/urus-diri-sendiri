@@ -107,57 +107,8 @@ const LogCreatorPage = () => {
         registerNotificationActions(); // Register inline reply actions for GT5!
     }, []);
 
-    // Listen for notification action performed (inline reply from GT5!)
-    useEffect(() => {
-        let listenerHandle: any;
-
-        const setupListener = async () => {
-            listenerHandle = await LocalNotifications.addListener(
-                'localNotificationActionPerformed',
-                (notification) => {
-                    const { actionId, inputValue, notification: notif } = notification;
-
-                    // Handle inline reply from notification (GT5 smartwatch!)
-                    if (actionId === 'reply' && inputValue) {
-                        // User typed reality from GT5!
-                        setReality(inputValue);
-                        setIsTimerMode(true);
-                        setTimerStatus('finished');
-                        setCaption(notif.extra?.intention || '');
-
-                        toast({
-                            title: '✅ Realita diterima dari notifikasi!',
-                            description: inputValue
-                        });
-                    }
-                    // Handle "Buka App" button
-                    else if (actionId === 'open') {
-                        setIsTimerMode(true);
-                        setTimerStatus('finished');
-                        setCaption(notif.extra?.intention || '');
-                    }
-                    // Handle "Stop" from ongoing notification
-                    else if (actionId === 'stop_timer') {
-                        cancelOngoingNotification();
-                        cancelTimerNotification();
-                        setTimerStatus('finished');
-                        setIsTimerMode(true);
-                        setCaption(notif.extra?.intention || '');
-                        // Note: unable to calculate exact actualDuration here due to closure, 
-                        // but user can edit report.
-                    }
-                }
-            );
-        };
-
-        setupListener();
-
-        return () => {
-            if (listenerHandle) {
-                listenerHandle.remove();
-            }
-        };
-    }, [toast]);
+    // Note: Notification listener moved to Global AppNotificationListener
+    // to support auto-reply from anywhere in the app!
 
     // Robust Timer Logic
     useEffect(() => {
@@ -229,7 +180,7 @@ const LogCreatorPage = () => {
 
         // Schedule Notification Upfront!
         // This guarantees it fires even if phone sleeps or app backgrounded
-        await scheduleTimerNotification(caption, targetDate);
+        await scheduleTimerNotification(caption, targetDate, timerDuration);
 
         // NOTE: We don't show sticky notification immediately anymore (Smart Notification)
         // It will be triggered by appStateChange if user goes to background

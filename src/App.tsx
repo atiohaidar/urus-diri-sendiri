@@ -54,6 +54,9 @@ const PageLoader = () => (
   </div>
 );
 
+// Komponen Listener Notifikasi Global (Auto-Save Reply)
+import { AppNotificationListener } from "./components/AppNotificationListener";
+
 const App = () => {
   // Jalankan persiapan aplikasi (Capacitor, Storage, Auth)
   const { isReady, forceEntry } = useAppInit(queryClient);
@@ -112,6 +115,7 @@ const App = () => {
                 {/* Lapis 6: Sistem Navigasi - Mengatur perpindahan halaman tanpa refresh browser */}
                 <BrowserRouter>
                   <BackButtonHandler />
+                  <AppNotificationListener />
 
                   {/* Lapis 7: Layar Tunggu - Menampilkan loading ikon saat halaman sedang di-download */}
                   <Suspense fallback={<PageLoader />}>

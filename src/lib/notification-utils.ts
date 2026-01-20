@@ -67,7 +67,7 @@ export async function requestNotificationPermission(): Promise<boolean> {
 /**
  * Show notification when timer finishes
  */
-export async function showTimerFinishedNotification(intention: string, notificationId: number) {
+export async function showTimerFinishedNotification(intention: string, notificationId: number, durationInSeconds: number = 0) {
     const hasPermission = await requestNotificationPermission();
 
     if (!hasPermission) {
@@ -103,6 +103,8 @@ export async function showTimerFinishedNotification(intention: string, notificat
                     extra: {
                         type: 'timer_finished',
                         intention: intention,
+                        startTime: Date.now() - (durationInSeconds * 1000),
+                        duration: durationInSeconds,
                         timestamp: notificationId,
                         action: 'open_reality_input'
                     }
@@ -148,11 +150,11 @@ export function playAlarmSound() {
 /**
  * Combined function: notification + sound + vibration
  */
-export async function triggerTimerFinished(intention: string) {
+export async function triggerTimerFinished(intention: string, durationInSeconds: number = 0) {
     const notificationId = Date.now();
 
     // Show notification with inline reply support
-    await showTimerFinishedNotification(intention, notificationId);
+    await showTimerFinishedNotification(intention, notificationId, durationInSeconds);
 
     // Play alarm sound
     playAlarmSound();
@@ -170,7 +172,7 @@ let webTimerId: ReturnType<typeof setTimeout> | null = null;
  * Schedule a notification for a future time
  * This ensures notification fires even if app is in background/screen off
  */
-export async function scheduleTimerNotification(intention: string, targetDate: Date) {
+export async function scheduleTimerNotification(intention: string, targetDate: Date, durationInSeconds: number) {
     const notificationId = 12345; // Fixed ID for timer notification so we can cancel it easily
 
     if (webTimerId) {
@@ -202,19 +204,22 @@ export async function scheduleTimerNotification(intention: string, targetDate: D
         }
     } else {
         // Native Schedule
+        const now = Date.now();
         await LocalNotifications.schedule({
             notifications: [
                 {
                     title: '⏰ Timer Selesai!',
                     body: `Waktunya habis! Niat: ${intention}`,
                     id: notificationId,
-                    schedule: { at: targetDate, allowWhileIdle: true }, // allowWhileIdle helps on Android Doze mode
+                    schedule: { at: targetDate, allowWhileIdle: true },
                     sound: 'default',
                     smallIcon: 'ic_stat_icon_config_sample',
                     actionTypeId: 'TIMER_FINISHED',
                     extra: {
                         type: 'timer_finished',
                         intention: intention,
+                        startTime: now - (durationInSeconds * 1000), // Approximate start time
+                        duration: durationInSeconds,
                         action: 'open_reality_input'
                     }
                 },

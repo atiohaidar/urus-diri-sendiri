@@ -46,14 +46,14 @@ const SettingsScreen = () => {
                 {/* Auth & Account */}
                 <AuthSection />
 
+                {/* Personal Notes (Secure Storage) */}
+                <PersonalNotesSection />
+
                 {/* Theme & Language */}
                 <PreferencesSection />
 
                 {/* Legacy Cloud Sync (Google Sheets) */}
                 <CloudLegacySection />
-
-                {/* Personal Notes (Secure Storage) */}
-                <PersonalNotesSection />
 
                 {/* Local Data Backup */}
                 <DataBackupSection />

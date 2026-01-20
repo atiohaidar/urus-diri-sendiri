@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Clock, Plus, BookOpen, FileText } from 'lucide-react';
+import { Clock, Plus, BookOpen, FileText, Moon } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/i18n/LanguageContext';
@@ -166,22 +166,24 @@ const HistoryScreen = () => {
         </main>
 
         {/* FAB - Pencil button style */}
-        <div className="fixed bottom-[calc(6rem+env(safe-area-inset-bottom))] right-4 md:bottom-8 md:right-8 z-50">
-          <Button
-            onClick={() => navigate('/maghrib-checkin')}
-            className={cn(
-              "h-14 w-14 rounded-full",
-              "bg-doodle-primary text-white",
-              "shadow-[3px_3px_0_0_rgba(0,0,0,0.15)]",
-              "border-2 border-ink/20",
-              "hover:scale-105 active:scale-95 transition-transform duration-150",
-              "will-change-transform"
-            )}
-          >
-            <Plus className="w-7 h-7" strokeWidth={2.5} />
-            <span className="sr-only">New Check-in</span>
-          </Button>
-        </div>
+        {activeTab !== 'logs' && (
+          <div className="fixed bottom-[calc(6rem+env(safe-area-inset-bottom))] right-4 md:bottom-8 md:right-8 z-50">
+            <Button
+              onClick={() => navigate('/maghrib-checkin')}
+              className={cn(
+                "h-14 w-14 rounded-full",
+                "bg-doodle-primary text-white",
+                "shadow-[3px_3px_0_0_rgba(0,0,0,0.15)]",
+                "border-2 border-ink/20",
+                "hover:scale-105 active:scale-95 transition-transform duration-150",
+                "will-change-transform"
+              )}
+            >
+              <Moon className="w-7 h-7" strokeWidth={2.5} />
+              <span className="sr-only">Maghrib Check-in</span>
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Delete Confirmation Dialog */}
