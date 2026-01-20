@@ -1,13 +1,15 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { X, Trash2, Save, ArrowLeft, PenLine, Tag, ChevronDown, Plus, PanelRightOpen, PanelRightClose } from 'lucide-react';
+import { X, Trash2, Save, ArrowLeft, PenLine, Tag, ChevronDown, Plus, PanelRightOpen, PanelRightClose, Clock } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { useNotes } from '@/hooks/useNotes';
+import { useNoteHistories } from '@/hooks/useNoteHistories';
 import { useToast } from '@/hooks/use-toast';
 import { triggerHaptic } from '@/lib/haptics';
 import { useLanguage } from '@/i18n/LanguageContext';
+import { saveNoteHistory } from '@/lib/storage';
 import { lazy, Suspense } from 'react';
 import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -82,12 +84,16 @@ const NoteEditorPage = () => {
     const [encryptionIv, setEncryptionIv] = useState<string | undefined>(undefined);
     const [passwordHash, setPasswordHash] = useState<string | undefined>(undefined);
 
+
     // Save guard state
     const [isSaving, setIsSaving] = useState(false);
 
     // Split view state
     const [showSplitView, setShowSplitView] = useState(false);
     const [referenceNoteId, setReferenceNoteId] = useState<string | null>(CURRENT_NOTE_VALUE);
+
+    // History dialog state - REMOVED
+    const { histories } = useNoteHistories(isNew ? undefined : id);
 
     // Get unique categories
     const categories = useMemo(() => getUniqueCategories(), [getUniqueCategories]);
@@ -360,6 +366,9 @@ const NoteEditorPage = () => {
                         category,
                         ...saveMetadata
                     });
+
+                    // Save version history (use plaintext content for history, not encrypted)
+                    saveNoteHistory(existingNote.id, finalTitle, content);
 
                     // Update initial timestamp to prevent conflict on next immediate save
                     initialNoteTimestamp.current = new Date().toISOString();
@@ -787,6 +796,29 @@ const NoteEditorPage = () => {
                     )}
                 </div>
                 <div className="flex items-center gap-2">
+                    {/* History Button - Only show for existing notes */}
+                    {!isNew && (
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                                navigate(`/note-history/${id}`);
+                                triggerHaptic();
+                            }}
+                            className="gap-1.5 font-handwriting text-sm rounded-sm text-pencil hover:text-ink"
+                        >
+                            <Clock className="w-4 h-4" />
+                            <span className="hidden lg:inline">
+                                Riwayat
+                            </span>
+                            {histories.length > 0 && (
+                                <span className="text-xs bg-doodle-primary text-white rounded-full px-1.5 py-0.5 min-w-[1.25rem] text-center">
+                                    {histories.length}
+                                </span>
+                            )}
+                        </Button>
+                    )}
+
                     {/* Lock/Unlock Button */}
                     <Button
                         variant="ghost"
@@ -1217,9 +1249,7 @@ const NoteEditorPage = () => {
                             "font-handwriting text-xs font-bold transition-all duration-300 transform opacity-100 scale-100 translate-y-0",
                             combo >= 90 ? "text-doodle-red animate-bounce" : "text-pencil"
                         )}>
-                            {getComboLabel(combo)}
                         </div>
-
                     </div>
                 </div>
             )}

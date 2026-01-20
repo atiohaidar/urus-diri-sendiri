@@ -45,6 +45,17 @@ export interface Note {
     passwordHash?: string;
 }
 
+export interface NoteHistory {
+    id: string;
+    noteId: string;
+    title: string;
+    content: string; // Snapshot of content at this version
+    savedAt: string; // ISO timestamp when this version was saved
+    createdAt: string;
+    updatedAt?: string;
+    deletedAt?: string | null;
+}
+
 export interface RoutineItem {
     id: string;
     startTime: string; // "HH:mm" 24h format

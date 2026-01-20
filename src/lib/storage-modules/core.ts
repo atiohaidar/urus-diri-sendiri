@@ -1,4 +1,4 @@
-import { PriorityTask, Reflection, Note, RoutineItem, ActivityLog, Habit, HabitLog } from '../types';
+import { PriorityTask, Reflection, Note, NoteHistory, RoutineItem, ActivityLog, Habit, HabitLog } from '../types';
 import { IStorageProvider } from '../storage-interface';
 import { LocalStorageProvider } from '../providers/local-storage-provider';
 import { SupabaseProvider } from '../providers/supabase-provider';
@@ -41,6 +41,7 @@ export const cache: {
     priorities: PriorityTask[] | null;
     reflections: Reflection[] | null;
     notes: Note[] | null;
+    noteHistories: NoteHistory[] | null;
     routines: RoutineItem[] | null;
     logs: ActivityLog[] | null;
     habits: Habit[] | null;
@@ -49,6 +50,7 @@ export const cache: {
     priorities: null,
     reflections: null,
     notes: null,
+    noteHistories: null,
     routines: null,
     logs: null,
     habits: null,
@@ -61,6 +63,7 @@ export const pendingHydrations: Record<string, Promise<any> | null> = {
     priorities: null,
     reflections: null,
     notes: null,
+    noteHistories: null,
     routines: null,
     logs: null,
     habits: null,
@@ -238,6 +241,7 @@ export const hydrateCache = async (force = false) => {
                 hydrateTable('priorities', force),
                 hydrateTable('reflections', force),
                 hydrateTable('notes', force),
+                hydrateTable('noteHistories', force),
                 hydrateTable('routines', force),
                 hydrateTable('logs', force),
                 hydrateTable('habits', force),
@@ -322,6 +326,7 @@ export async function hydrateTable(table: keyof typeof cache, force = false): Pr
                 case 'priorities': incoming = await provider.getPriorities(lastSync); break;
                 case 'reflections': incoming = await provider.getReflections(lastSync); break;
                 case 'notes': incoming = await provider.getNotes(lastSync); break;
+                case 'noteHistories': incoming = await provider.getNoteHistories?.(lastSync) ?? []; break;
                 case 'routines': incoming = await provider.getRoutines(lastSync); break;
                 case 'logs': incoming = await provider.getLogs(lastSync); break;
                 case 'habits': incoming = await provider.getHabits?.(lastSync) ?? []; break;

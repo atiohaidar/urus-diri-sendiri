@@ -1,5 +1,5 @@
 import { IStorageProvider } from '../storage-interface';
-import { PriorityTask, Reflection, Note, RoutineItem, ActivityLog, Habit, HabitLog } from '../types';
+import { PriorityTask, Reflection, Note, NoteHistory, RoutineItem, ActivityLog, Habit, HabitLog } from '../types';
 import { supabase } from '../supabase';
 import { LocalStorageProvider } from './local-storage-provider';
 import { offlineQueue, QueueItem } from './offline-queue';
@@ -8,6 +8,7 @@ import { offlineQueue, QueueItem } from './offline-queue';
 import { fetchPriorities, syncPriorities, deleteRemotePriority } from './supabase-handlers/priorities';
 import { fetchReflections, syncReflection } from './supabase-handlers/reflections';
 import { fetchNotes, syncNotes, deleteRemoteNote } from './supabase-handlers/notes';
+import { fetchNoteHistories, syncNoteHistory } from './supabase-handlers/note-histories';
 import { fetchRoutines, syncRoutines, deleteRemoteRoutine } from './supabase-handlers/routines';
 import { fetchLogs, syncLog, deleteRemoteLog } from './supabase-handlers/logs';
 import { fetchHabits, syncHabits } from './supabase-handlers/habits';
@@ -30,6 +31,7 @@ export class SupabaseProvider implements IStorageProvider {
                 case 'reflection': await syncReflection(userId, item.data); break;
                 case 'notes': await syncNotes(userId, item.data); break;
                 case 'delete_note': await deleteRemoteNote(userId, item.data); break;
+                case 'note_history': await syncNoteHistory(userId, item.data); break;
                 case 'routines': await syncRoutines(userId, item.data); break;
                 case 'delete_routine': await deleteRemoteRoutine(userId, item.data); break;
                 case 'log': await syncLog(userId, item.data); break;
@@ -231,6 +233,43 @@ export class SupabaseProvider implements IStorageProvider {
             async () => {
                 const userId = await this.getUserId();
                 await deleteRemoteNote(userId, id);
+            }
+        );
+    }
+
+    // --- Note Histories ---
+    async getNoteHistories(since?: string): Promise<NoteHistory[]> {
+        if (!this.isOnline()) return this.localProvider.getNoteHistories?.(since) ?? [];
+        try {
+            const userId = await this.getUserId();
+            const histories = await fetchNoteHistories(userId, since);
+
+            if (!since) {
+                // Full sync - save all to local
+                for (const h of histories) {
+                    await this.localProvider.saveNoteHistory?.(h);
+                }
+            } else if (histories.length > 0) {
+                // Incremental sync - merge with local
+                for (const h of histories) {
+                    await this.localProvider.saveNoteHistory?.(h);
+                }
+            }
+            return histories;
+        } catch (error) {
+            if (await this.handleAuthError(error)) return [];
+            console.error('Error fetching note histories:', error);
+            return this.localProvider.getNoteHistories?.(since) ?? [];
+        }
+    }
+
+    async saveNoteHistory(history: NoteHistory): Promise<void> {
+        await this.localProvider.saveNoteHistory?.(history);
+        await this.executeOrQueue(
+            { type: 'note_history', data: history },
+            async () => {
+                const userId = await this.getUserId();
+                await syncNoteHistory(userId, history);
             }
         );
     }

@@ -1,5 +1,5 @@
 import { IStorageProvider } from '../storage-interface';
-import { PriorityTask, Reflection, Note, RoutineItem, ActivityLog, Habit, HabitLog } from '../types';
+import { PriorityTask, Reflection, Note, NoteHistory, RoutineItem, ActivityLog, Habit, HabitLog } from '../types';
 import { STORAGE_KEYS } from '../constants';
 import { getAllItems, putItem, putItems, deleteItem, IDB_STORES, getImage } from '../idb';
 
@@ -56,6 +56,17 @@ export class LocalStorageProvider implements IStorageProvider {
 
     async deleteNote(id: string): Promise<void> {
         await deleteItem(IDB_STORES.NOTES, id);
+    }
+
+    // --- Note Histories ---
+    async getNoteHistories(since?: string): Promise<NoteHistory[]> {
+        const histories = await getAllItems<NoteHistory>(IDB_STORES.NOTE_HISTORIES);
+        histories.sort((a, b) => new Date(b.savedAt).getTime() - new Date(a.savedAt).getTime());
+        return histories;
+    }
+
+    async saveNoteHistory(history: NoteHistory): Promise<void> {
+        await putItem(IDB_STORES.NOTE_HISTORIES, history);
     }
 
     // --- Routines ---

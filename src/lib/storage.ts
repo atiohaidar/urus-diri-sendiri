@@ -25,6 +25,7 @@ export * from './storage-modules/core';
 export * from './storage-modules/priorities';
 export * from './storage-modules/reflections';
 export * from './storage-modules/notes';
+export * from './storage-modules/note-histories';
 export * from './storage-modules/routines'; // Contains stateful toggleRoutineCompletion
 export * from './storage-modules/logs';
 export * from './storage-modules/cloud';

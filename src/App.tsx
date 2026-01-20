@@ -30,6 +30,7 @@ const AboutPage = lazy(() => import("./pages/AboutPage"));
 const LogCreatorPage = lazy(() => import("./pages/LogCreatorPage"));
 const ReflectionDetailPage = lazy(() => import("./pages/ReflectionDetailPage"));
 const PersonalNotesPage = lazy(() => import("./pages/PersonalNotesPage"));
+const NoteHistoryPage = lazy(() => import("./pages/NoteHistoryPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 /**
@@ -132,6 +133,7 @@ const App = () => {
                       <Route path="/settings" element={<SettingsScreen />} />
                       <Route path="/schedule-editor" element={<EditSchedule />} />
                       <Route path="/note-editor/:id" element={<NoteEditorPage />} />
+                      <Route path="/note-history/:noteId" element={<NoteHistoryPage />} />
                       <Route path="/maghrib-checkin" element={<MaghribCheckinPage />} />
                       <Route path="/about" element={<AboutPage />} />
                       <Route path="/log-creator" element={<LogCreatorPage />} />

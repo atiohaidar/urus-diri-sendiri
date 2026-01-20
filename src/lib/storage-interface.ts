@@ -1,4 +1,4 @@
-import { PriorityTask, Reflection, Note, RoutineItem, ActivityLog, Habit, HabitLog } from './types';
+import { PriorityTask, Reflection, Note, NoteHistory, RoutineItem, ActivityLog, Habit, HabitLog } from './types';
 
 export interface IStorageProvider {
     // Priorities
@@ -15,6 +15,10 @@ export interface IStorageProvider {
     saveNote(note: Note): Promise<void>;
     saveNotes(notes: Note[]): Promise<void>; // Keeps for batch operations
     deleteNote(id: string): Promise<void>;
+
+    // Note Histories
+    getNoteHistories?(since?: string): Promise<NoteHistory[]>;
+    saveNoteHistory?(history: NoteHistory): Promise<void>;
 
     // Routines
     getRoutines(since?: string): Promise<RoutineItem[]>;

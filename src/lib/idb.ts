@@ -10,13 +10,14 @@ const STORES = {
     LOGS: 'logs',
     PRIORITIES: 'priorities',
     NOTES: 'notes',
+    NOTE_HISTORIES: 'note_histories',
     ROUTINES: 'routines',
     HABITS: 'habits',
     HABIT_LOGS: 'habit_logs',
     PERSONAL_NOTES: 'personal_notes',
     OFFLINE_QUEUE: 'offline_queue'
 };
-const DB_VERSION = 4;
+const DB_VERSION = 5;
 
 // Singleton instance
 let dbInstance: IDBDatabase | null = null;
@@ -68,6 +69,9 @@ export const openDB = (): Promise<IDBDatabase> => {
             }
             if (!db.objectStoreNames.contains(STORES.NOTES)) {
                 db.createObjectStore(STORES.NOTES, { keyPath: 'id' });
+            }
+            if (!db.objectStoreNames.contains(STORES.NOTE_HISTORIES)) {
+                db.createObjectStore(STORES.NOTE_HISTORIES, { keyPath: 'id' });
             }
             if (!db.objectStoreNames.contains(STORES.ROUTINES)) {
                 db.createObjectStore(STORES.ROUTINES, { keyPath: 'id' });
