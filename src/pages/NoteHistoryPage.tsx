@@ -6,15 +6,25 @@ import { NoteHistory } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { formatDistanceToNow, format } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
-import { Clock, FileText, ArrowLeft, Loader2, Calendar } from 'lucide-react';
+import { Clock, FileText, ArrowLeft, Loader2, Calendar, Trash2 } from 'lucide-react';
 import { triggerHaptic } from '@/lib/haptics';
 import 'react-quill/dist/quill.snow.css';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function NoteHistoryPage() {
     const { noteId } = useParams<{ noteId: string }>();
     const navigate = useNavigate();
 
-    const { histories, isLoading: historyLoading } = useNoteHistories(noteId);
+    const { histories, isLoading: historyLoading, clearHistories } = useNoteHistories(noteId);
     const { notes } = useNotes();
 
     const currentNote = useMemo(() =>
@@ -23,6 +33,7 @@ export default function NoteHistoryPage() {
 
     const [selectedHistory, setSelectedHistory] = useState<NoteHistory | null>(null);
     const [isViewingVersion, setIsViewingVersion] = useState(false);
+    const [showClearDialog, setShowClearDialog] = useState(false);
 
     const handleBack = () => {
         triggerHaptic();
@@ -62,7 +73,7 @@ export default function NoteHistoryPage() {
                     >
                         <ArrowLeft className="w-5 h-5 text-ink" />
                     </Button>
-                    <div>
+                    <div className="flex-1">
                         <h1 className="font-handwriting text-xl font-bold text-ink flex items-center gap-2">
                             <Clock className="w-5 h-5 text-doodle-primary" />
                             {isViewingVersion ? 'Detail Versi Riwayat' : 'Riwayat Perubahan'}
@@ -74,6 +85,18 @@ export default function NoteHistoryPage() {
                             }
                         </p>
                     </div>
+
+                    {!isViewingVersion && histories.length > 0 && (
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setShowClearDialog(true)}
+                            className="rounded-full text-destructive hover:bg-destructive/10"
+                            title="Hapus Semua Riwayat"
+                        >
+                            <Trash2 className="w-5 h-5" />
+                        </Button>
+                    )}
                 </div>
             </div>
 
@@ -223,6 +246,30 @@ export default function NoteHistoryPage() {
                     )}
                 </div>
             </div>
+            <AlertDialog open={showClearDialog} onOpenChange={setShowClearDialog}>
+                <AlertDialogContent className="rounded-2xl max-w-[90vw] sm:max-w-lg">
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Hapus Riwayat Catatan?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Tindakan ini akan menghapus <strong>semua versi riwayat</strong> untuk catatan ini.
+                            Catatan saat ini tidak akan terhapus. Tindakan ini tidak dapat dibatalkan.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Batal</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={() => {
+                                triggerHaptic();
+                                clearHistories();
+                                setShowClearDialog(false);
+                            }}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                            Hapus Riwayat
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }

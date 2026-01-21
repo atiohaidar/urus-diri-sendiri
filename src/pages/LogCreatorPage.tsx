@@ -23,7 +23,6 @@ import { Capacitor } from '@capacitor/core';
 import { useCamera } from '@/hooks/useCamera';
 import { useLanguage } from '@/i18n/LanguageContext';
 import { triggerTimerFinished, requestNotificationPermission, registerNotificationActions, scheduleTimerNotification, cancelTimerNotification, showOngoingNotification, cancelOngoingNotification } from '@/lib/notification-utils';
-import { LocalNotifications } from '@capacitor/local-notifications';
 import { LogSuccess } from '@/components/log-creator/LogSuccess';
 import { LogCameraView } from '@/components/log-creator/LogCameraView';
 import { LogHeader } from '@/components/log-creator/LogHeader';
@@ -35,6 +34,10 @@ import { LogActionControls } from '@/components/log-creator/LogActionControls';
 
 const LogCreatorPage = () => {
     const navigate = useNavigate();
+    const { t, language } = useLanguage();
+    const { toast } = useToast();
+    const camera = useCamera({ initialFacing: 'environment' });
+
     const [caption, setCaption] = useState('');
     const [imagePreview, setImagePreview] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -44,12 +47,12 @@ const LogCreatorPage = () => {
 
     // Notebook-themed status colors using app design tokens
     const statusColors = [
-        { bg: 'bg-sticky-yellow', text: 'text-ink', name: 'Kuning' },
-        { bg: 'bg-sticky-pink', text: 'text-ink', name: 'Pink' },
-        { bg: 'bg-sticky-blue', text: 'text-ink', name: 'Biru' },
-        { bg: 'bg-sticky-green', text: 'text-ink', name: 'Hijau' },
-        { bg: 'bg-[hsl(var(--paper))]', text: 'text-ink', name: 'Putih' },
-        { bg: 'bg-[hsl(30_70%_85%)]', text: 'text-ink', name: 'Krem' }
+        { bg: 'bg-sticky-yellow', text: 'text-ink', name: t?.log_creator?.color_yellow || 'Kuning' },
+        { bg: 'bg-sticky-pink', text: 'text-ink', name: t?.log_creator?.color_pink || 'Pink' },
+        { bg: 'bg-sticky-blue', text: 'text-ink', name: t?.log_creator?.color_blue || 'Biru' },
+        { bg: 'bg-sticky-green', text: 'text-ink', name: t?.log_creator?.color_green || 'Hijau' },
+        { bg: 'bg-[hsl(var(--paper))]', text: 'text-ink', name: t?.log_creator?.color_white || 'Putih' },
+        { bg: 'bg-[hsl(30_70%_85%)]', text: 'text-ink', name: t?.log_creator?.color_cream || 'Krem' }
     ];
     const [colorIndex, setColorIndex] = useState(0);
 
@@ -96,19 +99,11 @@ const LogCreatorPage = () => {
         };
     }, [timerStatus]);
 
-    // Hooks - must be declared before being used in effects
-    const camera = useCamera({ initialFacing: 'environment' });
-    const { toast } = useToast();
-    const { t } = useLanguage();
-
     // Request notification permission and register actions on mount
     useEffect(() => {
         requestNotificationPermission();
         registerNotificationActions(); // Register inline reply actions for GT5!
     }, []);
-
-    // Note: Notification listener moved to Global AppNotificationListener
-    // to support auto-reply from anywhere in the app!
 
     // Robust Timer Logic
     useEffect(() => {
@@ -152,8 +147,8 @@ const LogCreatorPage = () => {
         if (!Capacitor.isNativePlatform() && 'Notification' in window) {
             if (Notification.permission === 'denied') {
                 toast({
-                    title: "Notifikasi Diblokir",
-                    description: "Mohon izinkan notifikasi via ikon Gembok di URL browser agar timer berjalan optimal.",
+                    title: t.log_creator.notification_blocked,
+                    description: t.log_creator.notification_blocked_desc,
                     variant: "destructive"
                 });
                 // We let them continue, but warned them
@@ -161,8 +156,8 @@ const LogCreatorPage = () => {
                 const result = await Notification.requestPermission();
                 if (result !== 'granted') {
                     toast({
-                        title: "Notifikasi Tidak Diizinkan",
-                        description: "Timer akan berjalan tanpa notifikasi desktop.",
+                        title: t.log_creator.notification_denied,
+                        description: t.log_creator.notification_denied_desc,
                         variant: "destructive"
                     });
                 }
@@ -181,9 +176,6 @@ const LogCreatorPage = () => {
         // Schedule Notification Upfront!
         // This guarantees it fires even if phone sleeps or app backgrounded
         await scheduleTimerNotification(caption, targetDate, timerDuration);
-
-        // NOTE: We don't show sticky notification immediately anymore (Smart Notification)
-        // It will be triggered by appStateChange if user goes to background
     };
 
     // Smart Notification: Only show "Focusing" notification when app is in background
@@ -244,15 +236,13 @@ const LogCreatorPage = () => {
         const secs = seconds % 60;
 
         if (mins === 0) {
-            return `${secs} detik`;
+            return `${secs} ${t.log_creator.unit_second}`;
         } else if (secs === 0) {
-            return `${mins} menit`;
+            return `${mins} ${t.log_creator.unit_minute}`;
         } else {
-            return `${mins} menit ${secs} detik`;
+            return `${mins} ${t.log_creator.unit_minute} ${secs} ${t.log_creator.unit_second}`;
         }
     };
-
-
 
     // Show error if camera access failed
     useEffect(() => {
@@ -311,6 +301,7 @@ const LogCreatorPage = () => {
         window.addEventListener('beforeunload', handleBeforeUnload);
         return () => window.removeEventListener('beforeunload', handleBeforeUnload);
     }, [isTimerMode, timerStatus, caption, imagePreview, isSubmitting, showSuccess]);
+
     const handleCapturePhoto = async () => {
         setFlashEffect(true);
         setTimeout(() => setFlashEffect(false), 150);
@@ -363,22 +354,16 @@ const LogCreatorPage = () => {
             let logContent = caption;
             if (isTimerMode && timerStartTime) {
                 // Format waktu mulai
-                const startTimeFormatted = timerStartTime.toLocaleTimeString('id-ID', {
+                const startTimeFormatted = timerStartTime.toLocaleTimeString(language === 'id' ? 'id-ID' : 'en-US', {
                     hour: '2-digit',
                     minute: '2-digit'
-                });
-                const dateFormatted = timerStartTime.toLocaleDateString('id-ID', {
-                    weekday: 'long',
-                    day: 'numeric',
-                    month: 'long',
-                    year: 'numeric'
                 });
 
                 // Determine actual duration (could be stopped early or completed)
                 const finalDuration = actualDuration > 0 ? actualDuration : timerDuration;
                 const wasStoppedEarly = actualDuration > 0 && actualDuration < timerDuration;
 
-                logContent = `⏱️ Fokus${wasStoppedEarly ? ' (Dihentikan Lebih Awal)' : ''}\n` +
+                logContent = `⏱️ ${t.log_creator.focus_log_prefix}${wasStoppedEarly ? ` ${t.log_creator.stopped_early_suffix}` : ''}\n` +
                     `🕐: ${startTimeFormatted}\n` +
                     `🎯: ${formatDuration(timerDuration)}\n` +
                     `⏰: ${formatDuration(finalDuration)}${wasStoppedEarly ? ' ⚠️' : ' ✅'}\n\n` +

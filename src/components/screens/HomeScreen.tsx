@@ -13,6 +13,7 @@ import HabitCompletionModal from '@/components/habits/HabitCompletionModal';
 import { useState } from 'react';
 import { Habit } from '@/lib/types';
 import { triggerHaptic } from '@/lib/haptics';
+import { useLanguage } from '@/i18n/LanguageContext';
 
 /**
  * HOME SCREEN: Halaman utama yang kamu lihat pertama kali.
@@ -20,6 +21,7 @@ import { triggerHaptic } from '@/lib/haptics';
  */
 const HomeScreen = () => {
   const navigate = useNavigate();
+  const { t } = useLanguage();
 
   // --- 1. AMBIL DATA DARI MESIN (HOOKS) ---
   // Kita panggil si 'Asisten' (useRoutines & useHabits) buat lapor data terbaru
@@ -101,11 +103,11 @@ const HomeScreen = () => {
               <div className="flex items-center justify-between">
                 <h2 className="font-handwriting text-xl text-ink flex items-center gap-2">
                   <Flame className="w-5 h-5 text-orange-500" />
-                  <span className="underline-squiggle">Today's Habits</span>
+                  <span className="underline-squiggle">{t.home.todays_habits}</span>
                   <Star className="w-4 h-4 text-sticky-yellow fill-sticky-yellow" />
                 </h2>
                 <Button variant="ghost" size="sm" onClick={handleRedirectToHabits} className="gap-1 text-xs text-pencil font-handwriting">
-                  View All <ArrowRight className="w-3 h-3" />
+                  {t.home.view_all} <ArrowRight className="w-3 h-3" />
                 </Button>
               </div>
 

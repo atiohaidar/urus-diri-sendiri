@@ -28,6 +28,19 @@ export interface Translation {
         add_images: string;
         image_limit: string;
         add_priority: string;
+        review_section_title: string;
+        routines_completed: string;
+        priorities_achieved: string;
+        camera: string;
+        url: string;
+        paste_link_placeholder: string;
+        ok: string;
+        // Chips
+        chip_malas: string;
+        chip_lelah: string;
+        chip_sakit: string;
+        chip_sibuk: string;
+        chip_distraksi: string;
     };
     navigation: {
         home: string;
@@ -95,6 +108,11 @@ export interface Translation {
         enter_code_desc: string;
         verify_login: string;
         check_email_for_code: string;
+        // Sync Status Tooltip
+        sync_tooltip_syncing: string;
+        sync_tooltip_offline: string;
+        sync_tooltip_error: string;
+        sync_tooltip_connected: string;
     };
     about: {
         title: string;
@@ -136,6 +154,18 @@ export interface Translation {
         no_routines_title: string;
         no_routines_desc: string;
         create_first_routine: string;
+        // Schedule Editor
+        edit_title: string;
+        add_button: string;
+        import_button: string;
+        import_dialog_title: string;
+        import_success_toast: string;
+        empty_state_title: string;
+        empty_state_desc: string;
+        activity_required: string;
+        end_time_error: string;
+        todays_habits: string;
+        view_all: string;
     };
     ideas: {
         title: string;
@@ -187,6 +217,46 @@ export interface Translation {
         encrypted_badge: string;
         unlock: string;
         cancel: string;
+        // Draft & Conflict
+        unsaved_draft_title: string;
+        unsaved_draft_desc: string;
+        discard_draft: string;
+        recover_draft: string;
+        show_diff: string;
+        conflict_title: string;
+        conflict_desc: string;
+        conflict_remote_changes: string;
+        modified_at: string;
+        overwrite: string;
+        cancel_save: string;
+        saving: string;
+        saved: string;
+        manual_saved_toast: string;
+        manual_saved_desc: string;
+        failed_save_title: string;
+        failed_save_desc: string;
+        encryption_failed: string;
+        unlock_success: string;
+        category_label: string;
+        no_category: string;
+        new_category_placeholder: string;
+        // Combo & Labels
+        combo_tier_1: string;
+        combo_tier_2: string;
+        combo_tier_3: string;
+        combo_tier_4: string;
+        combo_tier_5: string;
+        combo_start: string;
+        to_save_changes: string;
+        label_title: string;
+        label_content: string;
+        diff_note: string;
+        history_button: string;
+        untitled: string;
+        no_content_placeholder: string;
+        word_singular: string;
+        word_plural: string;
+        tap_to_edit_hint: string;
     };
     log_creator: {
         placeholder_text: string;
@@ -197,6 +267,21 @@ export interface Translation {
         discard_desc: string;
         discard_confirm: string;
         saved: string;
+        // Log Creator & Timer
+        notification_blocked: string;
+        notification_blocked_desc: string;
+        notification_denied: string;
+        notification_denied_desc: string;
+        focus_log_prefix: string;
+        stopped_early_suffix: string;
+        color_yellow: string;
+        color_pink: string;
+        color_blue: string;
+        color_green: string;
+        color_white: string;
+        color_cream: string;
+        unit_second: string;
+        unit_minute: string;
     };
     habits: {
         title: string;
@@ -223,6 +308,26 @@ export interface Translation {
         other_section: string;
         progress_today: string;
         completed_suffix: string;
+        // Habit Detail
+        loading: string;
+        current_streak: string;
+        longest_streak: string;
+        days_streak_suffix: string;
+        days_max_suffix: string;
+        last_7_days: string;
+        last_30_days: string;
+        rate_suffix: string;
+        target_progress: string;
+        calendar_title: string;
+        legend_completed: string;
+        legend_missed: string;
+        legend_today: string;
+        history_title: string;
+        no_history: string;
+        no_history_desc: string;
+        latest_badge: string;
+        total_summary: string;
+        times_completed_suffix: string;
     };
     updates: {
         title: string;

@@ -7,6 +7,7 @@ import { ArrowLeft, Flame, Calendar, TrendingUp, Target, CheckCircle2, ChevronLe
 import { cn } from '@/lib/utils';
 import { triggerHaptic } from '@/lib/haptics';
 import { useState, useEffect, useCallback } from 'react';
+import { useLanguage } from '@/i18n/LanguageContext';
 import {
     getHabitById,
     getHabitLogsByHabitId,
@@ -22,6 +23,7 @@ import type { Habit, HabitLog } from '@/lib/types';
 export default function HabitDetailPage() {
     const { habitId } = useParams<{ habitId: string }>();
     const navigate = useNavigate();
+    const { t, language } = useLanguage();
 
     const [habit, setHabit] = useState<Habit | null>(null);
     const [logs, setLogs] = useState<HabitLog[]>([]);
@@ -110,7 +112,7 @@ export default function HabitDetailPage() {
         return (
             <div className="flex flex-col items-center justify-center min-h-screen bg-notebook p-4">
                 <Flame className="w-12 h-12 animate-pulse text-doodle-primary mb-4" />
-                <p className="font-handwriting text-pencil text-lg">Memuat data...</p>
+                <p className="font-handwriting text-pencil text-lg">{t.habits.loading}</p>
             </div>
         );
     }
@@ -151,9 +153,9 @@ export default function HabitDetailPage() {
                                 <Flame className="w-12 h-12 text-orange-600/50" />
                             </div>
                             <div className="relative z-10">
-                                <p className="text-xs font-handwriting text-ink/70 font-bold mb-1">🔥 Streak Saat Ini</p>
+                                <p className="text-xs font-handwriting text-ink/70 font-bold mb-1">🔥 {t.habits.current_streak}</p>
                                 <p className="text-3xl font-bold text-ink">{stats?.currentStreak || 0}</p>
-                                <p className="text-xs text-ink/60">hari berturut-turut</p>
+                                <p className="text-xs text-ink/60">{t.habits.days_streak_suffix}</p>
                             </div>
                         </div>
 
@@ -163,18 +165,18 @@ export default function HabitDetailPage() {
                                 <TrendingUp className="w-12 h-12 text-pink-600/50" />
                             </div>
                             <div className="relative z-10">
-                                <p className="text-xs font-handwriting text-ink/70 font-bold mb-1">🏆 Rekor Terbaik</p>
+                                <p className="text-xs font-handwriting text-ink/70 font-bold mb-1">🏆 {t.habits.longest_streak}</p>
                                 <p className="text-3xl font-bold text-ink">{stats?.longestStreak || 0}</p>
-                                <p className="text-xs text-ink/60">hari maksimal</p>
+                                <p className="text-xs text-ink/60">{t.habits.days_max_suffix}</p>
                             </div>
                         </div>
 
                         {/* Week Completion */}
                         <div className="bg-card border-2 border-dashed border-paper-lines rounded-sm p-4 shadow-notebook">
-                            <p className="text-xs font-handwriting text-pencil mb-1">📅 7 Hari Terakhir</p>
+                            <p className="text-xs font-handwriting text-pencil mb-1">📅 {t.habits.last_7_days}</p>
                             <p className="text-2xl font-bold text-ink">{stats?.weekStats.rate || 0}%</p>
                             <p className="text-xs text-pencil">
-                                {stats?.weekStats.completed}/{stats?.weekStats.total} selesai
+                                {stats?.weekStats.completed}/{stats?.weekStats.total} {t.habits.rate_suffix}
                             </p>
                         </div>
 
@@ -186,7 +188,7 @@ export default function HabitDetailPage() {
                                         TARGET
                                     </span>
                                 </div>
-                                <p className="text-xs font-handwriting text-pencil mb-1">🎯 Progress Target</p>
+                                <p className="text-xs font-handwriting text-pencil mb-1">🎯 {t.habits.target_progress}</p>
                                 <div className="flex items-end gap-1 mb-2">
                                     <span className="text-2xl font-bold text-doodle-green">{stats?.totalCompleted || 0}</span>
                                     <span className="text-sm text-pencil mb-1">/ {habit.targetCount}</span>
@@ -201,10 +203,10 @@ export default function HabitDetailPage() {
                         ) : (
                             /* Month Completion (fallback if no target) */
                             <div className="bg-card border-2 border-dashed border-paper-lines rounded-sm p-4 shadow-notebook">
-                                <p className="text-xs font-handwriting text-pencil mb-1">📆 30 Hari Terakhir</p>
+                                <p className="text-xs font-handwriting text-pencil mb-1">📆 {t.habits.last_30_days}</p>
                                 <p className="text-2xl font-bold text-ink">{stats?.monthStats.rate || 0}%</p>
                                 <p className="text-xs text-pencil">
-                                    {stats?.monthStats.completed}/{stats?.monthStats.total} selesai
+                                    {stats?.monthStats.completed}/{stats?.monthStats.total} {t.habits.rate_suffix}
                                 </p>
                             </div>
                         )}
@@ -215,14 +217,14 @@ export default function HabitDetailPage() {
                         <div className="flex items-center justify-between mb-4">
                             <h2 className="font-handwriting text-lg text-ink flex items-center gap-2">
                                 <Calendar className="w-5 h-5 text-doodle-primary" />
-                                Kalender Aktivitas
+                                {t.habits.calendar_title}
                             </h2>
                             <div className="flex items-center gap-2">
                                 <Button variant="ghost" size="icon" onClick={handlePrevMonth} className="h-8 w-8">
                                     <ChevronLeft className="w-4 h-4" />
                                 </Button>
                                 <span className="font-handwriting text-sm text-ink min-w-[100px] text-center">
-                                    {format(currentMonth, 'MMMM yyyy', { locale: localeId })}
+                                    {format(currentMonth, 'MMMM yyyy', { locale: language === 'id' ? localeId : undefined })}
                                 </span>
                                 <Button variant="ghost" size="icon" onClick={handleNextMonth} className="h-8 w-8">
                                     <ChevronRight className="w-4 h-4" />
@@ -276,15 +278,15 @@ export default function HabitDetailPage() {
                         <div className="flex items-center justify-center gap-4 mt-4 text-xs font-handwriting text-pencil">
                             <div className="flex items-center gap-1.5">
                                 <div className="w-4 h-4 rounded bg-doodle-green" />
-                                <span>Selesai</span>
+                                <span>{t.habits.legend_completed}</span>
                             </div>
                             <div className="flex items-center gap-1.5">
                                 <div className="w-4 h-4 rounded bg-paper-lines/20" />
-                                <span>Belum</span>
+                                <span>{t.habits.legend_missed}</span>
                             </div>
                             <div className="flex items-center gap-1.5">
                                 <div className="w-4 h-4 rounded bg-paper-lines/20 ring-2 ring-doodle-primary ring-offset-1" />
-                                <span>Hari Ini</span>
+                                <span>{t.habits.legend_today}</span>
                             </div>
                         </div>
                     </div>
@@ -293,14 +295,14 @@ export default function HabitDetailPage() {
                     <div className="bg-card border-2 border-paper-lines rounded-sm p-5 shadow-notebook">
                         <h2 className="font-handwriting text-lg text-ink flex items-center gap-2 mb-4">
                             <FileText className="w-5 h-5 text-doodle-primary" />
-                            Riwayat Penyelesaian
+                            {t.habits.history_title}
                         </h2>
 
                         {recentLogs.length === 0 ? (
                             <div className="text-center py-8 text-pencil font-handwriting">
                                 <Target className="w-12 h-12 mx-auto mb-2 opacity-20" />
-                                <p>Belum ada riwayat</p>
-                                <p className="text-xs opacity-60">Selesaikan habit untuk mulai tracking!</p>
+                                <p>{t.habits.no_history}</p>
+                                <p className="text-xs opacity-60">{t.habits.no_history_desc}</p>
                             </div>
                         ) : (
                             <div className="space-y-2 max-h-80 overflow-y-auto">
@@ -339,7 +341,7 @@ export default function HabitDetailPage() {
                                         </div>
                                         {index === 0 && (
                                             <span className="text-[10px] font-bold text-doodle-green bg-doodle-green/10 px-2 py-0.5 rounded-full uppercase">
-                                                Terbaru
+                                                {t.habits.latest_badge}
                                             </span>
                                         )}
                                     </div>
@@ -350,11 +352,11 @@ export default function HabitDetailPage() {
 
                     {/* Total Summary */}
                     <div className="bg-sticky-yellow/20 border-2 border-dashed border-sticky-yellow/50 rounded-sm p-5 text-center">
-                        <p className="font-handwriting text-pencil text-sm mb-1">Total Keseluruhan</p>
+                        <p className="font-handwriting text-pencil text-sm mb-1">{t.habits.total_summary}</p>
                         <p className="font-handwriting text-4xl font-bold text-ink">
                             {stats?.totalCompleted || 0}
                         </p>
-                        <p className="font-handwriting text-pencil text-sm">kali diselesaikan 🎉</p>
+                        <p className="font-handwriting text-pencil text-sm">{t.habits.times_completed_suffix} 🎉</p>
                     </div>
 
                 </div>

@@ -47,11 +47,12 @@ const NoteEditorPage = () => {
     const navigate = useNavigate();
     const { notes, saveNote, updateNote, deleteNote, getUniqueCategories, isLoading } = useNotes();
     const { toast } = useToast();
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
 
     const isNew = id === 'new';
     const existingNote = notes.find(n => n.id === id);
 
+    const [isEditing, setIsEditing] = useState(isNew);
     const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
     const [category, setCategory] = useState<string | null>(null);
@@ -241,12 +242,12 @@ const NoteEditorPage = () => {
     }, [lastTyped]);
 
     const getComboLabel = (val: number) => {
-        if (val >= 95) return "🔥 WADiDAW!";
-        if (val >= 80) return "🚀 MANTAP!";
-        if (val >= 60) return "✨ HEBAT!";
-        if (val >= 40) return "✍️ LANJUT!";
-        if (val >= 20) return "💪 SEMANGAT!";
-        return "✍️ Ayo tulis!";
+        if (val >= 95) return t.note_editor.combo_tier_1;
+        if (val >= 80) return t.note_editor.combo_tier_2;
+        if (val >= 60) return t.note_editor.combo_tier_3;
+        if (val >= 40) return t.note_editor.combo_tier_4;
+        if (val >= 20) return t.note_editor.combo_tier_5;
+        return t.note_editor.combo_start;
     };
 
     const getComboColor = (val: number) => {
@@ -268,7 +269,7 @@ const NoteEditorPage = () => {
         }
 
         if (isLocked && !isNew) {
-            if (!silent) toast({ title: "❌ Unlock note to save changes", variant: "destructive" });
+            if (!silent) toast({ title: `❌ ${t.note_editor.unlock_note} ${t.note_editor.to_save_changes}`, variant: "destructive" });
             return;
         }
 
@@ -323,7 +324,7 @@ const NoteEditorPage = () => {
                     };
                 } catch (error) {
                     console.error("Encryption failed during save:", error);
-                    toast({ title: "❌ Failed to encrypt note", variant: "destructive" });
+                    toast({ title: `❌ ${t.note_editor.encryption_failed}`, variant: "destructive" });
                     setIsSaving(false); // Reset flag on error
                     return;
                 }
@@ -387,8 +388,8 @@ const NoteEditorPage = () => {
             console.error("Save failed:", error);
             if (!silent) {
                 toast({
-                    title: "❌ Failed to save note",
-                    description: "Please try again",
+                    title: `❌ ${t.note_editor.failed_save_title}`,
+                    description: t.note_editor.failed_save_desc,
                     variant: "destructive"
                 });
             }
@@ -398,11 +399,13 @@ const NoteEditorPage = () => {
         }
     }, [title, content, category, id, isNew, existingNote, saveNote, updateNote, t.note_editor, toast, isEncrypted, encryptionPassword, isSaving, notes]);
 
-    const handleBack = useCallback(() => {
-        handleSave(true);
+    const handleBack = useCallback(async () => {
+        if (isEditing) {
+            await handleSave(true);
+        }
         triggerHaptic();
         navigate(-1);
-    }, [handleSave, navigate]);
+    }, [handleSave, navigate, isEditing]);
 
     // Ctrl+S Keyboard Shortcut
     useEffect(() => {
@@ -411,8 +414,8 @@ const NoteEditorPage = () => {
                 e.preventDefault();
                 handleSave();
                 toast({
-                    title: "Saved",
-                    description: "Your note has been saved manually.",
+                    title: t.note_editor.manual_saved_toast,
+                    description: t.note_editor.manual_saved_desc,
                     duration: 2000,
                 });
             } else if (e.key === 'Escape') {
@@ -527,8 +530,9 @@ const NoteEditorPage = () => {
         if (draftData) {
             setTitle(draftData.title);
             setContent(draftData.content);
+            setContent(draftData.content);
             setShowDraftRecovery(false);
-            toast({ title: "📝 Draft recovered!" });
+            toast({ title: `📝 ${t.note_editor.toast_saved}` }); // Reusing saved toast or creating specific one
         }
     };
 
@@ -552,6 +556,20 @@ const NoteEditorPage = () => {
             triggerHaptic();
         }
     };
+
+    const handleReadOnlyClick = useCallback(() => {
+        // If user is selecting text, don't show the toast
+        const selection = window.getSelection();
+        if (selection && selection.toString().length > 0) {
+            return;
+        }
+
+        toast({
+            description: t.note_editor.tap_to_edit_hint,
+            duration: 2500,
+        });
+        triggerHaptic();
+    }, [t.note_editor.tap_to_edit_hint, toast]);
 
     return (
         <div className={cn(
@@ -578,10 +596,10 @@ const NoteEditorPage = () => {
                 <AlertDialogContent className="max-w-3xl">
                     <AlertDialogHeader>
                         <AlertDialogTitle className="font-handwriting text-xl text-ink">
-                            📝 Unsaved Draft Found
+                            📝 {t.note_editor.unsaved_draft_title}
                         </AlertDialogTitle>
                         <AlertDialogDescription className="font-handwriting text-pencil">
-                            We found an unsaved draft that's newer than the saved version. Would you like to recover it?
+                            {t.note_editor.unsaved_draft_desc}
                         </AlertDialogDescription>
                     </AlertDialogHeader>
 
@@ -594,7 +612,7 @@ const NoteEditorPage = () => {
                                 onClick={() => setShowDiff(true)}
                                 className="font-handwriting gap-2"
                             >
-                                <span>🔍</span> Show Differences
+                                <span>🔍</span> {t.note_editor.show_diff}
                             </Button>
                         </div>
                     )}
@@ -616,13 +634,13 @@ const NoteEditorPage = () => {
                             onClick={handleDiscardDraft}
                             className="font-handwriting rounded-sm"
                         >
-                            Discard Draft
+                            {t.note_editor.discard_draft}
                         </AlertDialogCancel>
                         <AlertDialogAction
                             onClick={handleRecoverDraft}
                             className="bg-doodle-primary text-white hover:bg-doodle-primary/90 font-handwriting rounded-sm"
                         >
-                            Recover Draft
+                            {t.note_editor.recover_draft}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
@@ -636,21 +654,20 @@ const NoteEditorPage = () => {
                 <AlertDialogContent className="max-w-3xl">
                     <AlertDialogHeader>
                         <AlertDialogTitle className="font-handwriting text-xl text-ink flex items-center gap-2">
-                            <span>⚠️</span> Conflict Detected
+                            <span>⚠️</span> {t.note_editor.conflict_title}
                         </AlertDialogTitle>
                         <AlertDialogDescription className="font-handwriting text-pencil">
-                            This note has been modified on another device since you started editing.
-                            Saving now will overwrite those changes.
+                            {t.note_editor.conflict_desc}
                         </AlertDialogDescription>
                     </AlertDialogHeader>
 
                     {!showConflictDiff && conflictData && (
                         <div className="bg-notebook border-2 border-dashed border-doodle-red/30 rounded-sm p-4 text-sm font-handwriting">
-                            <p className="font-bold text-doodle-red mb-2">Changes from other device:</p>
+                            <p className="font-bold text-doodle-red mb-2">{t.note_editor.conflict_remote_changes}</p>
                             <div className="space-y-2 opacity-80">
-                                <div>Title: {conflictData?.title}</div>
-                                <div className="line-clamp-3 italic">Content: {conflictData?.content.replace(/<[^>]*>/g, ' ').substring(0, 100)}...</div>
-                                <div className="text-xs mt-2 text-pencil">Modified: {new Date(conflictData.updatedAt).toLocaleString()}</div>
+                                <div>{t.note_editor.label_title} {conflictData?.title}</div>
+                                <div className="line-clamp-3 italic">{t.note_editor.label_content} {conflictData?.content.replace(/<[^>]*>/g, ' ').substring(0, 100)}...</div>
+                                <div className="text-xs mt-2 text-pencil">{t.note_editor.modified_at} {new Date(conflictData.updatedAt).toLocaleString()}</div>
                             </div>
                             <div className="mt-4 flex justify-center">
                                 <Button
@@ -659,7 +676,7 @@ const NoteEditorPage = () => {
                                     onClick={() => setShowConflictDiff(true)}
                                     className="font-handwriting gap-2"
                                 >
-                                    <span>🔍</span> Show Differences
+                                    <span>🔍</span> {t.note_editor.show_diff}
                                 </Button>
                             </div>
                         </div>
@@ -674,14 +691,14 @@ const NoteEditorPage = () => {
                                 newContent={conflictData.content} // Remote content
                             />
                             <p className="text-xs text-pencil mt-2 text-center italic">
-                                Note: "Newer" side shows the changes from other device.
+                                {t.note_editor.diff_note}
                             </p>
                         </div>
                     )}
 
                     <AlertDialogFooter className="mt-4">
                         <AlertDialogCancel className="font-handwriting rounded-sm">
-                            Batal Simpan
+                            {t.note_editor.cancel_save}
                         </AlertDialogCancel>
                         <AlertDialogAction
                             onClick={() => {
@@ -692,7 +709,7 @@ const NoteEditorPage = () => {
                             }}
                             className="bg-doodle-red text-white hover:bg-doodle-red/90 font-handwriting rounded-sm"
                         >
-                            Timpa Paksa (Overwrite)
+                            {t.note_editor.overwrite}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
@@ -726,7 +743,7 @@ const NoteEditorPage = () => {
                         toast({ title: t.note_editor.toast_saved }); // Use saved toast or custom
 
                     } catch (e) {
-                        toast({ title: "Encryption failed", variant: "destructive" });
+                        toast({ title: t.note_editor.encryption_failed, variant: "destructive" });
                     }
                 }}
                 isChanging={isEncrypted}
@@ -761,7 +778,7 @@ const NoteEditorPage = () => {
                         setEncryptionPassword(password);
                         setIsLocked(false);
 
-                        toast({ title: "Unlocked!" });
+                        toast({ title: t.note_editor.unlock_success });
                         return true;
                     } catch (error) {
                         console.error("Unlock failed", error);
@@ -779,7 +796,7 @@ const NoteEditorPage = () => {
                     onClick={handleBack}
                     className="-ml-2 rounded-sm bg-sticky-yellow shadow-tape -rotate-3"
                 >
-                    <X className="w-6 h-6 text-ink" />
+                    <ArrowLeft className="w-6 h-6 text-ink" />
                 </Button>
                 <div className="flex items-center gap-2">
                     <h1 className="font-handwriting text-xl text-ink">
@@ -791,12 +808,27 @@ const NoteEditorPage = () => {
                             "text-xs font-handwriting transition-opacity duration-200 hidden sm:inline",
                             (saveStatus === 'saving' || isSaving) ? "text-pencil/60" : "text-doodle-green"
                         )}>
-                            {(saveStatus === 'saving' || isSaving) ? '💾 Saving...' : '✓ Saved'}
+                            {(saveStatus === 'saving' || isSaving) ? `💾 ${t.note_editor.saving}` : `✓ ${t.note_editor.saved}`}
                         </span>
                     )}
                 </div>
                 <div className="flex items-center gap-2">
-                    {/* History Button - Only show for existing notes */}
+                    {isEditing && (
+                        <Button
+                            onClick={async () => {
+                                await handleSave();
+                                setIsEditing(false);
+                                triggerHaptic();
+                            }}
+                            variant="ghost"
+                            size="sm"
+                            className="font-handwriting rounded-sm gap-2 text-doodle-green hover:bg-doodle-green/10"
+                        >
+                            <Save className="w-4 h-4" />
+                            <span>{t.note_editor.done || 'Selesai'}</span>
+                        </Button>
+                    )}
+
                     {!isNew && (
                         <Button
                             variant="ghost"
@@ -809,7 +841,7 @@ const NoteEditorPage = () => {
                         >
                             <Clock className="w-4 h-4" />
                             <span className="hidden lg:inline">
-                                Riwayat
+                                {t.note_editor.history_button}
                             </span>
                             {histories.length > 0 && (
                                 <span className="text-xs bg-doodle-primary text-white rounded-full px-1.5 py-0.5 min-w-[1.25rem] text-center">
@@ -906,47 +938,44 @@ const NoteEditorPage = () => {
                             </AlertDialogContent>
                         </AlertDialog>
                     )}
-                    {/* Done Button */}
-                    <Button
-                        onClick={handleBack}
-                        variant="ghost"
-                        size="sm"
-                        className="font-handwriting text-doodle-primary hover:text-doodle-primary hover:bg-doodle-primary/10 rounded-sm"
-                    >
-                        {t.note_editor.done} ✓
-                    </Button>
+                    {/* DONE Button moved to conditional Edit/Done toggle above */}
 
 
                 </div>
             </div>
 
-            {/* Content - Wrapped in ResizablePanelGroup when split view is active */}
             {showSplitView ? (
                 <ResizablePanelGroup direction="horizontal" className="flex-1 min-h-0">
                     <ResizablePanel defaultSize={55} minSize={35} className="overflow-hidden">
                         <div className="h-full overflow-y-auto">
                             <div className="container max-w-2xl mx-auto p-4 pb-8 space-y-4">
-                                <Input
-                                    autoFocus={isNew}
-                                    value={title}
-                                    onChange={(e) => setTitle(e.target.value)}
-                                    placeholder={t.note_editor.placeholder_title}
-                                    className={cn(
-                                        "text-2xl font-handwriting text-ink border-0 border-b-2 border-dashed border-paper-lines",
-                                        "focus-visible:border-doodle-primary rounded-none px-0 bg-transparent h-auto py-2",
-                                        "focus-visible:ring-0 placeholder:text-pencil/50"
-                                    )}
-                                />
+                                {isEditing ? (
+                                    <Input
+                                        autoFocus={isNew}
+                                        value={title}
+                                        onChange={(e) => setTitle(e.target.value)}
+                                        placeholder={t.note_editor.placeholder_title}
+                                        className={cn(
+                                            "text-2xl font-handwriting text-ink border-0 border-b-2 border-dashed border-paper-lines",
+                                            "focus-visible:border-doodle-primary rounded-none px-0 bg-transparent h-auto py-2",
+                                            "focus-visible:ring-0 placeholder:text-pencil/50"
+                                        )}
+                                    />
+                                ) : (
+                                    <h1 className="text-3xl font-handwriting text-ink py-2 border-b-2 border-dashed border-paper-lines min-h-[3rem]">
+                                        {title || t.note_editor.untitled}
+                                    </h1>
+                                )}
 
                                 {/* Timestamp Metadata */}
                                 <div className="font-handwriting text-xs text-pencil flex items-center gap-2">
                                     {isNew ? (
-                                        <span>📅 {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}</span>
+                                        <span>📅 {new Date().toLocaleDateString(language === 'id' ? 'id-ID' : 'en-US', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}</span>
                                     ) : (
                                         <span>
                                             {existingNote?.updatedAt
-                                                ? `✏️ ${t.note_editor.edited_prefix} ${new Date(existingNote.updatedAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}`
-                                                : `📅 ${t.note_editor.created_prefix} ${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long' })}`
+                                                ? `✏️ ${t.note_editor.edited_prefix} ${new Date(existingNote.updatedAt).toLocaleDateString(language === 'id' ? 'id-ID' : 'en-US', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}`
+                                                : `📅 ${t.note_editor.created_prefix} ${new Date().toLocaleDateString(language === 'id' ? 'id-ID' : 'en-US', { day: 'numeric', month: 'long' })}`
                                             }
                                         </span>
                                     )}
@@ -981,7 +1010,7 @@ const NoteEditorPage = () => {
                                                     {t.note_editor.unlock}
                                                 </Button>
                                             </div>
-                                        ) : (
+                                        ) : isEditing ? (
                                             <LazyEditor
                                                 ref={editorRef}
                                                 theme="snow"
@@ -999,6 +1028,12 @@ const NoteEditorPage = () => {
                                                 placeholder={t.note_editor.placeholder_content}
                                                 className="h-full flex flex-col font-handwriting ql-typewriter"
                                             />
+                                        ) : (
+                                            <div
+                                                onClick={handleReadOnlyClick}
+                                                className="ql-editor font-handwriting text-ink leading-relaxed prose prose-pencil max-w-none select-text cursor-text"
+                                                dangerouslySetInnerHTML={{ __html: content || `<p class="text-pencil/40 italic">${t.note_editor.no_content_placeholder}</p>` }}
+                                            />
                                         )}
                                     </Suspense>
                                 </div>
@@ -1007,7 +1042,7 @@ const NoteEditorPage = () => {
                                 <div className="flex flex-row items-center gap-1.5 px-1 py-2">
                                     <div className="flex-1 flex items-center gap-3 bg-card/50 backdrop-blur-sm px-4 py-2 rounded-xl border-2 border-paper-lines/30 shadow-sm">
                                         <span className="font-handwriting text-xs text-pencil/80 border-r-2 border-paper-lines/20 pr-3 leading-none whitespace-nowrap">
-                                            {wordCount} {wordCount === 1 ? 'word' : 'words'}
+                                            {wordCount} {wordCount === 1 ? t.note_editor.word_singular : t.note_editor.word_plural}
                                         </span>
                                         <div className="flex-1 h-2 bg-paper-lines/20 rounded-full overflow-hidden relative">
                                             <div
@@ -1048,22 +1083,28 @@ const NoteEditorPage = () => {
             ) : (
                 /* Original Content without split view */
                 <div className="flex-1 container max-w-2xl mx-auto p-4 pb-8 space-y-4">
-                    <Input
-                        autoFocus={isNew}
-                        value={title}
-                        onChange={(e) => setTitle(e.target.value)}
-                        placeholder={t.note_editor.placeholder_title}
-                        className={cn(
-                            "text-2xl font-handwriting text-ink border-0 border-b-2 border-dashed border-paper-lines",
-                            "focus-visible:border-doodle-primary rounded-none px-0 bg-transparent h-auto py-2",
-                            "focus-visible:ring-0 placeholder:text-pencil/50"
-                        )}
-                    />
+                    {isEditing ? (
+                        <Input
+                            autoFocus={isNew}
+                            value={title}
+                            onChange={(e) => setTitle(e.target.value)}
+                            placeholder={t.note_editor.placeholder_title}
+                            className={cn(
+                                "text-2xl font-handwriting text-ink border-0 border-b-2 border-dashed border-paper-lines",
+                                "focus-visible:border-doodle-primary rounded-none px-0 bg-transparent h-auto py-2",
+                                "focus-visible:ring-0 placeholder:text-pencil/50"
+                            )}
+                        />
+                    ) : (
+                        <h1 className="text-3xl font-handwriting text-ink py-2 border-b-2 border-dashed border-paper-lines min-h-[3rem]">
+                            {title || (language === 'id' ? 'Tanpa Judul' : 'Untitled')}
+                        </h1>
+                    )}
 
                     {/* Category Selector */}
                     <div className="flex items-center gap-2 flex-wrap">
                         <Tag className="w-4 h-4 text-pencil flex-shrink-0" />
-                        <span className="font-handwriting text-sm text-pencil">Kategori:</span>
+                        <span className="font-handwriting text-sm text-pencil">{t.note_editor.category_label}</span>
 
                         <Popover open={showCategoryPopover} onOpenChange={setShowCategoryPopover}>
                             <PopoverTrigger asChild>
@@ -1076,7 +1117,7 @@ const NoteEditorPage = () => {
                                             : "bg-paper text-pencil border-paper-lines hover:border-doodle-primary/50"
                                     )}
                                 >
-                                    {category || "Tanpa Kategori"}
+                                    {category || t.note_editor.no_category}
                                     <ChevronDown className="w-3 h-3" />
                                 </button>
                             </PopoverTrigger>
@@ -1092,7 +1133,7 @@ const NoteEditorPage = () => {
                                                 : "hover:bg-paper-lines/20 text-pencil"
                                         )}
                                     >
-                                        Tanpa Kategori
+                                        {t.note_editor.no_category}
                                     </button>
 
                                     {/* Existing categories */}
@@ -1201,7 +1242,7 @@ const NoteEditorPage = () => {
                                         {t.note_editor.unlock}
                                     </Button>
                                 </div>
-                            ) : (
+                            ) : isEditing ? (
                                 <LazyEditor
                                     ref={editorRef}
                                     theme="snow"
@@ -1218,6 +1259,12 @@ const NoteEditorPage = () => {
                                     }}
                                     placeholder={t.note_editor.placeholder_content}
                                     className="h-full flex flex-col font-handwriting ql-typewriter"
+                                />
+                            ) : (
+                                <div
+                                    onClick={handleReadOnlyClick}
+                                    className="ql-editor font-handwriting text-ink leading-relaxed prose prose-pencil max-w-none select-text cursor-text"
+                                    dangerouslySetInnerHTML={{ __html: content || `<p class="text-pencil/40 italic">${language === 'id' ? 'Tidak ada isi...' : 'No content...'}</p>` }}
                                 />
                             )}
                         </Suspense>
@@ -1249,11 +1296,30 @@ const NoteEditorPage = () => {
                             "font-handwriting text-xs font-bold transition-all duration-300 transform opacity-100 scale-100 translate-y-0",
                             combo >= 90 ? "text-doodle-red animate-bounce" : "text-pencil"
                         )}>
+                            {getComboLabel(combo)}
                         </div>
                     </div>
                 </div>
             )}
-        </div>
+
+            {/* Floating Action Button (FAB) for Edit */}
+            {!isEditing && !isLocked && (
+                <div className="fixed bottom-8 right-6 z-50 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                    <Button
+                        onClick={() => {
+                            setIsEditing(true);
+                            triggerHaptic();
+                        }}
+                        className={cn(
+                            "w-14 h-14 rounded-full shadow-notebook bg-doodle-primary hover:bg-doodle-primary/90 text-white",
+                            "flex items-center justify-center p-0"
+                        )}
+                    >
+                        <PenLine className="w-6 h-6" />
+                    </Button>
+                </div>
+            )}
+        </div >
     );
 };
 

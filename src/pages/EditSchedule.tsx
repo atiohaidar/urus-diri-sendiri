@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import { useLanguage } from '@/i18n/LanguageContext';
 import { ArrowLeft, Plus, Clock, Trash2, Save, GripVertical, AlertTriangle, ArrowRight, PenLine } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,6 +16,7 @@ import MainLayout from '@/components/layout/MainLayout';
 
 const EditSchedule = () => {
     const navigate = useNavigate();
+    const { t } = useLanguage();
     const [items, setItems] = useState<RoutineItem[]>([]);
     const [showBulkAdd, setShowBulkAdd] = useState(false);
 
@@ -88,12 +90,12 @@ const EditSchedule = () => {
 
     const saveItem = () => {
         if (!editForm.activity.trim()) {
-            toast.error('Activity name is required');
+            toast.error(t.home.activity_required);
             return;
         }
 
         if (editForm.endTime <= editForm.startTime) {
-            toast.error('End time must be after start time');
+            toast.error(t.home.end_time_error);
             return;
         }
 
@@ -120,7 +122,7 @@ const EditSchedule = () => {
         setItems(updatedItems);
         saveRoutines(updatedItems);
         setEditingId(null);
-        toast.success('Saved');
+        toast.success(t.common.save);
     };
 
     const deleteItem = (e: React.MouseEvent, id: string) => {
@@ -128,7 +130,7 @@ const EditSchedule = () => {
         deleteRoutine(id);
         setItems(prev => prev.filter(i => i.id !== id));
         if (editingId === id) setEditingId(null);
-        toast.success('Deleted');
+        toast.success(t.common.delete);
     };
 
     const handleBulkSave = (newItems: RoutineItem[]) => {
@@ -140,8 +142,9 @@ const EditSchedule = () => {
         });
         setItems(updated);
         saveRoutines(updated);
-        toast.success(`Added ${newItems.length} items!`);
+        toast.success(t.home.import_success_toast.replace('Items', `${newItems.length} items`));
     };
+
 
     return (
         <MainLayout showMobileHeader={false} className="pt-0 md:pt-4 md:px-8 max-w-7xl bg-notebook">
@@ -157,7 +160,7 @@ const EditSchedule = () => {
                         >
                             <ArrowLeft className="w-5 h-5 text-ink" />
                         </Button>
-                        <h1 className="font-handwriting text-xl md:text-2xl text-ink">Edit Jadwal 📝</h1>
+                        <h1 className="font-handwriting text-xl md:text-2xl text-ink">{t.home.edit_title} 📝</h1>
                     </div>
                     <div className="flex gap-2">
                         <Button
@@ -167,7 +170,7 @@ const EditSchedule = () => {
                             className="gap-1 rounded-sm font-handwriting border-2 border-dashed border-pencil/40"
                         >
                             <GripVertical className="w-4 h-4" />
-                            <span className="hidden sm:inline">Import</span>
+                            <span className="hidden sm:inline">{t.home.import_button}</span>
                         </Button>
                         <Button
                             onClick={startAdd}
@@ -175,7 +178,7 @@ const EditSchedule = () => {
                             className="gap-1 rounded-sm font-handwriting bg-doodle-primary hover:bg-doodle-primary/90 shadow-notebook"
                         >
                             <Plus className="w-4 h-4" />
-                            Tambah
+                            {t.home.add_button}
                         </Button>
                     </div>
                 </div>
@@ -186,8 +189,8 @@ const EditSchedule = () => {
                     <div className="w-16 h-16 bg-sticky-yellow shadow-sticky rounded-sm flex items-center justify-center mx-auto mb-4 rotate-3">
                         <PenLine className="w-8 h-8 text-ink" />
                     </div>
-                    <p className="font-handwriting text-lg text-ink mb-1">Belum ada rutinitas 📋</p>
-                    <p className="font-handwriting text-sm text-pencil">Mulai dengan menambahkan satu!</p>
+                    <p className="font-handwriting text-lg text-ink mb-1">{t.home.empty_state_title} 📋</p>
+                    <p className="font-handwriting text-sm text-pencil">{t.home.empty_state_desc}</p>
                 </div>
             )}
 

@@ -93,7 +93,7 @@ export const ImageUploadSection = ({ images, setImages }: ImageUploadSectionProp
                     <div className="flex gap-3">
                         <label className="w-20 h-20 rounded-sm border-2 border-dashed border-sticky-pink/50 bg-sticky-pink/10 flex flex-col items-center justify-center gap-1 cursor-pointer hover:bg-sticky-pink/20 transition-colors group">
                             <Camera className="w-5 h-5 text-ink/60 group-hover:text-ink" />
-                            <span className="text-[10px] font-handwriting text-ink/60 group-hover:text-ink">Kamera</span>
+                            <span className="text-[10px] font-handwriting text-ink/60 group-hover:text-ink">{t.checkin.camera}</span>
                             <input
                                 type="file"
                                 accept="image/*"
@@ -108,7 +108,7 @@ export const ImageUploadSection = ({ images, setImages }: ImageUploadSectionProp
                             className="w-20 h-20 rounded-sm border-2 border-dashed border-sticky-blue/50 bg-sticky-blue/10 flex flex-col items-center justify-center gap-1 hover:bg-sticky-blue/20 transition-colors group"
                         >
                             <ExternalLink className="w-5 h-5 text-ink/60 group-hover:text-ink" />
-                            <span className="text-[10px] font-handwriting text-ink/60 group-hover:text-ink">URL</span>
+                            <span className="text-[10px] font-handwriting text-ink/60 group-hover:text-ink">{t.checkin.url}</span>
                         </button>
                     </div>
                 )}
@@ -119,7 +119,7 @@ export const ImageUploadSection = ({ images, setImages }: ImageUploadSectionProp
                     <Input
                         value={linkInput}
                         onChange={(e) => setLinkInput(e.target.value)}
-                        placeholder="Paste Google Drive link..."
+                        placeholder={t.checkin.paste_link_placeholder}
                         variant="notebook"
                         className="font-handwriting"
                     />
@@ -127,7 +127,7 @@ export const ImageUploadSection = ({ images, setImages }: ImageUploadSectionProp
                         onClick={addLinkImage}
                         className="rounded-sm font-handwriting"
                     >
-                        OK
+                        {t.checkin.ok}
                     </Button>
                 </div>
             )}

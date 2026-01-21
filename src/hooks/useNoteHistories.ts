@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getNoteHistories, registerListener, type NoteHistory } from '@/lib/storage';
+import { getNoteHistories, deleteNoteHistoriesByNoteId, registerListener, type NoteHistory } from '@/lib/storage';
 
 export const useNoteHistories = (noteId?: string) => {
     const [histories, setHistories] = useState<NoteHistory[]>([]);
@@ -18,6 +18,13 @@ export const useNoteHistories = (noteId?: string) => {
         }
     }, [noteId]);
 
+    const clearHistories = useCallback(() => {
+        if (noteId) {
+            deleteNoteHistoriesByNoteId(noteId);
+            loadHistories();
+        }
+    }, [noteId, loadHistories]);
+
     useEffect(() => {
         loadHistories();
         const unsubscribe = registerListener(loadHistories);
@@ -30,5 +37,6 @@ export const useNoteHistories = (noteId?: string) => {
         histories,
         isLoading,
         refresh: loadHistories,
+        clearHistories
     };
 };

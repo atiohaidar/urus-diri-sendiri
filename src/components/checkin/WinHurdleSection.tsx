@@ -21,7 +21,13 @@ export const WinHurdleSection = ({
         setHurdle(hurdle ? `${hurdle}, ${chip}` : chip);
     };
 
-    const chips = ['Malas', 'Lelah', 'Sakit', 'Sibuk', 'Distraksi'];
+    const chips = [
+        { label: t.checkin.chip_malas, value: t.checkin.chip_malas },
+        { label: t.checkin.chip_lelah, value: t.checkin.chip_lelah },
+        { label: t.checkin.chip_sakit, value: t.checkin.chip_sakit },
+        { label: t.checkin.chip_sibuk, value: t.checkin.chip_sibuk },
+        { label: t.checkin.chip_distraksi, value: t.checkin.chip_distraksi }
+    ];
 
     return (
         <div className="space-y-6">
@@ -56,12 +62,12 @@ export const WinHurdleSection = ({
                 <div className="flex flex-wrap gap-2">
                     {chips.map((chip) => (
                         <button
-                            key={chip}
+                            key={chip.value}
                             type="button"
-                            onClick={() => handleAddChip(chip)}
+                            onClick={() => handleAddChip(chip.value)}
                             className="px-3 py-1 bg-sticky-pink/50 hover:bg-sticky-pink text-ink text-xs rounded-sm font-handwriting transition-colors shadow-tape"
                         >
-                            + {chip}
+                            + {chip.label}
                         </button>
                     ))}
                 </div>

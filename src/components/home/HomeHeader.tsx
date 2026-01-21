@@ -1,10 +1,12 @@
-import { RotateCcw, Settings } from 'lucide-react';
+import { RotateCcw, Settings, Cloud, CloudOff, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '@/i18n/LanguageContext';
 import { isCheckinCompletedToday } from '@/lib/checkin-helper';
 import { getCompletionStats } from '@/lib/storage';
 import { RoutineItem, PriorityTask } from '@/lib/storage';
 import { Button } from '@/components/ui/button';
+import { useAuthSync } from '@/hooks/useAuthSync';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 
 interface HomeHeaderProps {
@@ -24,6 +26,7 @@ export const HomeHeader = ({
 }: HomeHeaderProps) => {
     const { t, language } = useLanguage();
     const navigate = useNavigate();
+    const { isAuthenticated, state, user } = useAuthSync();
 
     const greeting = () => {
         const hour = currentDate.getHours();
@@ -99,6 +102,37 @@ export const HomeHeader = ({
                         </button>
 
 
+
+                        {/* Cloud Sync Status Indicator */}
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <button
+                                    onClick={() => navigate('/settings')}
+                                    className="p-1.5 rounded-sm hover:bg-paper-lines/30 transition-colors duration-150 group"
+                                >
+                                    {state === 'syncing' ? (
+                                        <Loader2 className="w-4 h-4 text-amber-500 animate-spin" />
+                                    ) : !isAuthenticated ? (
+                                        <CloudOff className="w-4 h-4 text-pencil/40" />
+                                    ) : state === 'error' ? (
+                                        <Cloud className="w-4 h-4 text-doodle-red" />
+                                    ) : (
+                                        <Cloud className="w-4 h-4 text-doodle-green" />
+                                    )}
+                                </button>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom" className="font-handwriting border-2 border-paper-lines shadow-notebook bg-paper text-ink">
+                                <p>
+                                    {state === 'syncing'
+                                        ? t.settings.sync_tooltip_syncing
+                                        : !isAuthenticated
+                                            ? t.settings.sync_tooltip_offline
+                                            : state === 'error'
+                                                ? t.settings.sync_tooltip_error
+                                                : t.settings.sync_tooltip_connected.replace('{email}', user?.email || '')}
+                                </p>
+                            </TooltipContent>
+                        </Tooltip>
 
                         {/* Settings Button */}
                         <Button
