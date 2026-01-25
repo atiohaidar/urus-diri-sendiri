@@ -8,6 +8,7 @@ export interface Translation {
         delete: string;
         edit: string;
         back: string;
+        error: string;
     };
     checkin: {
         title: string;

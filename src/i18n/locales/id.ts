@@ -8,6 +8,7 @@ export const id: Translation = {
         delete: "Hapus",
         edit: "Ubah",
         back: "Kembali",
+        error: "Gagal",
     },
     checkin: {
         title: "Check-in Maghrib",

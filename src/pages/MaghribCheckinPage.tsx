@@ -27,6 +27,7 @@ const MaghribCheckinPage = () => {
     const [smallChange, setSmallChange] = useState('');
     const [images, setImages] = useState<string[]>([]);
     const [loading, setLoading] = useState(true);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => {
         const loadTodayData = async () => {
@@ -67,50 +68,63 @@ const MaghribCheckinPage = () => {
     }, []);
 
     const handleSave = async () => {
-        const todayRoutines = getRoutines();
-        const todayPriorities = getPriorities();
+        if (isSubmitting) return;
 
-        const reflections = await getReflectionsAsync();
-        const todayStr = new Date().toDateString();
-        const existingToday = reflections.find(r => new Date(r.date).toDateString() === todayStr);
+        setIsSubmitting(true);
+        try {
+            const todayRoutines = getRoutines();
+            const todayPriorities = getPriorities();
 
-        // Clean up old images if updating
-        if (existingToday?.imageIds) {
-            for (const id of existingToday.imageIds) {
-                await deleteImage(id);
+            const reflections = await getReflectionsAsync();
+            const todayStr = new Date().toDateString();
+            const existingToday = reflections.find(r => new Date(r.date).toDateString() === todayStr);
+
+            // Clean up old images if updating
+            if (existingToday?.imageIds) {
+                for (const id of existingToday.imageIds) {
+                    await deleteImage(id);
+                }
             }
-        }
 
-        const imageIds: string[] = [];
-        const cloudUrls: string[] = [];
+            const imageIds: string[] = [];
+            const cloudUrls: string[] = [];
 
-        for (let i = 0; i < images.length; i++) {
-            if (images[i].startsWith('http')) {
-                cloudUrls.push(images[i]);
-            } else {
-                const id = await saveImage(images[i]);
-                imageIds.push(id);
+            for (let i = 0; i < images.length; i++) {
+                if (images[i].startsWith('http')) {
+                    cloudUrls.push(images[i]);
+                } else {
+                    const id = await saveImage(images[i]);
+                    imageIds.push(id);
+                }
             }
+
+            await saveReflection({
+                date: new Date().toISOString(),
+                winOfDay,
+                hurdle,
+                priorities: priorities.filter(p => p.trim()),
+                smallChange,
+                todayRoutines,
+                todayPriorities,
+                images: cloudUrls,
+                imageIds
+            });
+
+            toast({
+                title: t.checkin.save_toast_title,
+                description: t.checkin.save_toast_desc,
+            });
+
+            navigate('/');
+        } catch (error) {
+            console.error('Failed to save reflection:', error);
+            toast({
+                title: t.common.error || "Gagal",
+                description: "Terjadi kesalahan saat menyimpan refleksi.",
+                variant: "destructive"
+            });
+            setIsSubmitting(false);
         }
-
-        await saveReflection({
-            date: new Date().toISOString(),
-            winOfDay,
-            hurdle,
-            priorities: priorities.filter(p => p.trim()),
-            smallChange,
-            todayRoutines,
-            todayPriorities,
-            images: cloudUrls,
-            imageIds
-        });
-
-        toast({
-            title: t.checkin.save_toast_title,
-            description: t.checkin.save_toast_desc,
-        });
-
-        navigate('/');
     };
 
     const todayDisplay = new Date().toLocaleDateString(language === 'id' ? 'id-ID' : 'en-US', {
@@ -197,15 +211,26 @@ const MaghribCheckinPage = () => {
                 <div className="container max-w-4xl mx-auto md:px-4">
                     <Button
                         onClick={handleSave}
+                        disabled={isSubmitting}
                         className={cn(
                             "w-full h-14 rounded-sm font-handwriting text-lg gap-2",
                             "bg-doodle-primary hover:bg-doodle-primary/90 text-white",
                             "shadow-[3px_3px_0_0_rgba(0,0,0,0.15)]",
-                            "md:w-auto md:px-8 md:float-right"
+                            "md:w-auto md:px-8 md:float-right",
+                            isSubmitting && "opacity-80 cursor-not-allowed"
                         )}
                     >
-                        {t.checkin.save} ✓
-                        <ArrowRight className="w-5 h-5" />
+                        {isSubmitting ? (
+                            <>
+                                <PenLine className="w-5 h-5 animate-bounce" />
+                                {t.note_editor.saving || "Menyimpan..."}
+                            </>
+                        ) : (
+                            <>
+                                {t.checkin.save} ✓
+                                <ArrowRight className="w-5 h-5" />
+                            </>
+                        )}
                     </Button>
                 </div>
             </div>
