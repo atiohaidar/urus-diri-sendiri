@@ -2,11 +2,18 @@ import { PriorityTask, Reflection, Note, NoteHistory, RoutineItem, ActivityLog, 
 import { IStorageProvider } from '../storage-interface';
 import { LocalStorageProvider } from '../providers/local-storage-provider';
 import { SupabaseProvider } from '../providers/supabase-provider';
-import { supabase } from '../supabase';
+import { CloudflareD1Provider } from '../providers/cloudflare-d1-provider';
+import { supabase, isSupabaseConfigured } from '../supabase';
+import { onAuthStateChange as onCloudflareAuthChange, isCloudflareConfigured, getCurrentUser as getCloudflareUser } from '../cloudflare-auth';
 import { cleanupImages } from '../idb';
 import { STORAGE_KEYS } from '../constants';
 import { toast } from 'sonner';
 import { startAuthSync, completeAuthSync } from '../auth-sync-manager';
+
+// Determine which backend to use based on configuration
+// Priority: Cloudflare > Supabase > Local
+const useCloudflareBackend = isCloudflareConfigured;
+const useSupabaseBackend = !useCloudflareBackend && isSupabaseConfigured;
 
 // --- Error Handling Helper ---
 // Provides user feedback when save operations fail
@@ -84,10 +91,9 @@ export const notifyListeners = () => {
 };
 
 
-// Listen for auth changes to swap providers
-supabase.auth.onAuthStateChange((event, session) => {
-    const newUserId = session?.user?.id || null;
-    const isInitial = event === 'INITIAL_SESSION';
+// Helper function to handle auth state changes
+const handleAuthStateChange = (user: { id: string; email?: string } | null, isInitial: boolean = false) => {
+    const newUserId = user?.id || null;
     const identityChanged = newUserId !== currentUserId;
     const previousProvider = provider;
 
@@ -95,7 +101,7 @@ supabase.auth.onAuthStateChange((event, session) => {
         currentUserId = newUserId;
 
         // Clear offline queue before switching providers (prevent stale data sync)
-        if (previousProvider instanceof SupabaseProvider && !session) {
+        if ((previousProvider instanceof SupabaseProvider || previousProvider instanceof CloudflareD1Provider) && !user) {
             // Switching from cloud to local - clear any pending offline queue
             try {
                 localStorage.removeItem(STORAGE_KEYS.OFFLINE_QUEUE);
@@ -105,13 +111,18 @@ supabase.auth.onAuthStateChange((event, session) => {
             }
         }
 
-        const isCloud = !!session;
-        if (session) {
-            provider = new SupabaseProvider();
-            console.log(`Storage: Cloud Mode (${event}) - User: ${newUserId}`);
+        const isCloud = !!user;
+        if (user) {
+            if (useCloudflareBackend) {
+                provider = new CloudflareD1Provider();
+                console.log(`Storage: Cloudflare D1 Mode - User: ${newUserId}`);
+            } else {
+                provider = new SupabaseProvider();
+                console.log(`Storage: Supabase Mode - User: ${newUserId}`);
+            }
         } else {
             provider = new LocalStorageProvider();
-            console.log(`Storage: Local Mode (${event})`);
+            console.log(`Storage: Local Mode`);
         }
 
         // Clear cache if identity actually changed
@@ -121,17 +132,16 @@ supabase.auth.onAuthStateChange((event, session) => {
             // Also clear sync tokens for previous user to ensure fresh sync
             if (currentUserId) {
                 ['priorities', 'reflections', 'notes', 'routines', 'logs'].forEach(table => {
-                    const oldKey = `sync_token_${previousProvider instanceof SupabaseProvider ? session?.user?.id : 'local'}_${table}`;
+                    const oldKey = `sync_token_${currentUserId}_${table}`;
                     localStorage.removeItem(oldKey);
                 });
             }
         }
 
         // Start auth sync (notifies listeners that sync is in progress)
-        startAuthSync(session?.user || null, isCloud);
+        startAuthSync(user ? { id: user.id, email: user.email } : null, isCloud);
 
         // Hydrate cache and mark sync complete when done
-        // Using IIFE to handle async within sync callback
         (async () => {
             try {
                 await hydrateCache();
@@ -142,14 +152,35 @@ supabase.auth.onAuthStateChange((event, session) => {
             }
         })();
     }
-});
+};
+
+// Listen for auth changes based on backend configuration
+if (useCloudflareBackend) {
+    // Use Cloudflare auth
+    onCloudflareAuthChange((user) => {
+        handleAuthStateChange(user, false);
+    });
+    
+    // Initial check for Cloudflare auth
+    const cfUser = getCloudflareUser();
+    if (cfUser) {
+        handleAuthStateChange(cfUser, true);
+    }
+} else if (useSupabaseBackend) {
+    // Use Supabase auth (original behavior)
+    supabase.auth.onAuthStateChange((event, session) => {
+        const user = session?.user ? { id: session.user.id, email: session.user.email } : null;
+        const isInitial = event === 'INITIAL_SESSION';
+        handleAuthStateChange(user, isInitial);
+    });
+}
 
 export const setStorageProvider = (newProvider: IStorageProvider) => {
     provider = newProvider;
     hydrateCache(true);
 };
 
-export const getIsCloudActive = () => provider instanceof SupabaseProvider;
+export const getIsCloudActive = () => provider instanceof SupabaseProvider || provider instanceof CloudflareD1Provider;
 
 // --- ID Generation ---
 export const generateId = (prefix: string = 'id') => {
@@ -258,8 +289,8 @@ export const hydrateCache = async (force = false) => {
 
 // --- Sync Token Management ---
 const getSyncToken = (table: string): string | undefined => {
-    // Only use sync tokens for SupabaseProvider
-    if (!(provider instanceof SupabaseProvider)) return undefined;
+    // Only use sync tokens for cloud providers
+    if (!(provider instanceof SupabaseProvider) && !(provider instanceof CloudflareD1Provider)) return undefined;
 
     // Per-user sync tokens to avoid data leaks across logouts
     const key = `sync_token_${currentUserId}_${table}`;
@@ -267,7 +298,7 @@ const getSyncToken = (table: string): string | undefined => {
 };
 
 const setSyncToken = (table: string, timestamp: string) => {
-    if (!(provider instanceof SupabaseProvider)) return;
+    if (!(provider instanceof SupabaseProvider) && !(provider instanceof CloudflareD1Provider)) return;
 
     // Subtract 1 second buffer to avoid missing concurrent updates
     // This handles edge case where two items update at exact same millisecond
@@ -350,7 +381,7 @@ export async function hydrateTable(table: keyof typeof cache, force = false): Pr
             // Safest is to use "Now" from before the request started? Or the latest updated_at?
             // If we use Max updated_at, we risk missing items in same second.
             // Using "Now()" is simple.
-            if (provider instanceof SupabaseProvider && incoming.length > 0) {
+            if ((provider instanceof SupabaseProvider || provider instanceof CloudflareD1Provider) && incoming.length > 0) {
                 // Find the latest timestamp in the incoming batch to be safe
                 // But wait, if we got 0 items, token stays same.
                 // Ideally get server time but client time is OK-ish if consistent.

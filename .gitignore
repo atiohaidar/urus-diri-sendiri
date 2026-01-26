@@ -11,6 +11,10 @@ node_modules
 node_modules_linux
 node_modules_windows
 
+# Backend API
+backend-api/node_modules
+backend-api/.wrangler
+backend-api/.dev.vars
 
 dist
 dist-ssr
