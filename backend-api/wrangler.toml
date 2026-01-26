@@ -1,0 +1,21 @@
+name = "urus-diri-sendiri-api"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+
+# Development settings
+[dev]
+port = 8787
+
+# D1 Database binding
+# SETUP REQUIRED: Create database with `wrangler d1 create urus-diri-db`
+# Then update database_id with the ID from the command output
+[[d1_databases]]
+binding = "DB"
+database_name = "urus-diri-db"
+database_id = "placeholder-run-wrangler-d1-create" # Replace after running: wrangler d1 create urus-diri-db
+migrations_dir = "migrations"
+
+[vars]
+ENVIRONMENT = "development"
+# For production, change ENVIRONMENT to "production"
+# JWT_SECRET must be set via: wrangler secret put JWT_SECRET
