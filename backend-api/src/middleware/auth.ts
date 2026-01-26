@@ -10,6 +10,20 @@ declare module 'hono' {
   }
 }
 
+// Helper to get JWT secret with validation
+function getJwtSecret(c: Context<{ Bindings: Env }>): string {
+  const secret = c.env.JWT_SECRET;
+  if (!secret) {
+    // In development, use a dev secret with warning
+    if (c.env.ENVIRONMENT === 'development') {
+      console.warn('JWT_SECRET not set - using development fallback. DO NOT use in production!');
+      return 'dev-secret-change-in-production';
+    }
+    throw new Error('JWT_SECRET environment variable is required in production');
+  }
+  return secret;
+}
+
 export async function authMiddleware(c: Context<{ Bindings: Env }>, next: Next) {
   const authHeader = c.req.header('Authorization');
   
@@ -18,7 +32,14 @@ export async function authMiddleware(c: Context<{ Bindings: Env }>, next: Next) 
   }
   
   const token = authHeader.slice(7);
-  const jwtSecret = c.env.JWT_SECRET || 'dev-secret-change-in-production';
+  
+  let jwtSecret: string;
+  try {
+    jwtSecret = getJwtSecret(c);
+  } catch (error) {
+    console.error('JWT configuration error:', error);
+    return c.json({ success: false, error: 'Server configuration error' }, 500);
+  }
   
   const payload = await verifyToken(token, jwtSecret);
   
@@ -39,7 +60,16 @@ export async function optionalAuthMiddleware(c: Context<{ Bindings: Env }>, next
   
   if (authHeader && authHeader.startsWith('Bearer ')) {
     const token = authHeader.slice(7);
-    const jwtSecret = c.env.JWT_SECRET || 'dev-secret-change-in-production';
+    
+    let jwtSecret: string;
+    try {
+      jwtSecret = getJwtSecret(c);
+    } catch (error) {
+      // In optional auth, just skip if secret is not configured
+      console.warn('JWT_SECRET not configured for optional auth');
+      await next();
+      return;
+    }
     
     const payload = await verifyToken(token, jwtSecret);
     

@@ -4,6 +4,19 @@ import { generateId, createToken, hashPassword, verifyPassword } from '../utils'
 
 const auth = new Hono<{ Bindings: Env }>();
 
+// Helper to get JWT secret with validation
+function getJwtSecret(c: { env: Env }): string {
+  const secret = c.env.JWT_SECRET;
+  if (!secret) {
+    if (c.env.ENVIRONMENT === 'development') {
+      console.warn('JWT_SECRET not set - using development fallback. DO NOT use in production!');
+      return 'dev-secret-change-in-production';
+    }
+    throw new Error('JWT_SECRET environment variable is required in production');
+  }
+  return secret;
+}
+
 // Register new user
 auth.post('/register', async (c) => {
   try {
@@ -32,7 +45,14 @@ auth.post('/register', async (c) => {
     ).bind(userId, email, passwordHash, now, now).run();
     
     // Create token
-    const jwtSecret = c.env.JWT_SECRET || 'dev-secret-change-in-production';
+    let jwtSecret: string;
+    try {
+      jwtSecret = getJwtSecret(c);
+    } catch (error) {
+      console.error('JWT configuration error:', error);
+      return c.json({ success: false, error: 'Server configuration error' }, 500);
+    }
+    
     const token = await createToken({
       userId,
       email,
@@ -85,7 +105,14 @@ auth.post('/login', async (c) => {
     }
     
     // Create token
-    const jwtSecret = c.env.JWT_SECRET || 'dev-secret-change-in-production';
+    let jwtSecret: string;
+    try {
+      jwtSecret = getJwtSecret(c);
+    } catch (error) {
+      console.error('JWT configuration error:', error);
+      return c.json({ success: false, error: 'Server configuration error' }, 500);
+    }
+    
     const token = await createToken({
       userId: user.id,
       email: user.email,

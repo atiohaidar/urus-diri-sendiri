@@ -96,6 +96,7 @@ const handleAuthStateChange = (user: { id: string; email?: string } | null, isIn
     const newUserId = user?.id || null;
     const identityChanged = newUserId !== currentUserId;
     const previousProvider = provider;
+    const previousUserId = currentUserId; // Store previous user ID before changing
 
     if (isInitial || identityChanged) {
         currentUserId = newUserId;
@@ -129,10 +130,10 @@ const handleAuthStateChange = (user: { id: string; email?: string } | null, isIn
         if (identityChanged) {
             Object.keys(cache).forEach(key => (cache[key as keyof typeof cache] = null));
 
-            // Also clear sync tokens for previous user to ensure fresh sync
-            if (currentUserId) {
+            // Clear sync tokens for the previous user to ensure fresh sync on next login
+            if (previousUserId) {
                 ['priorities', 'reflections', 'notes', 'routines', 'logs'].forEach(table => {
-                    const oldKey = `sync_token_${currentUserId}_${table}`;
+                    const oldKey = `sync_token_${previousUserId}_${table}`;
                     localStorage.removeItem(oldKey);
                 });
             }

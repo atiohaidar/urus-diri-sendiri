@@ -1,8 +1,13 @@
 import type { AuthPayload } from './types';
 
-// Generate a unique ID
+// Generate a unique ID using crypto for better security
 export function generateId(prefix: string = 'id'): string {
-  return `${prefix}-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+  const randomBytes = new Uint8Array(8);
+  crypto.getRandomValues(randomBytes);
+  const randomPart = Array.from(randomBytes)
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
+  return `${prefix}-${Date.now()}-${randomPart}`;
 }
 
 // Simple JWT-like token encoding (for Cloudflare Workers)
