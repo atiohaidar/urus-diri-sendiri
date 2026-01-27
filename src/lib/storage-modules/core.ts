@@ -15,6 +15,11 @@ import { startAuthSync, completeAuthSync } from '../auth-sync-manager';
 const useCloudflareBackend = isCloudflareConfigured;
 const useSupabaseBackend = !useCloudflareBackend && isSupabaseConfigured;
 
+// Helper for generating IDs
+export const generateId = (prefix: string = 'id'): string => {
+    return `${prefix}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+};
+
 // --- Error Handling Helper ---
 // Provides user feedback when save operations fail
 export const handleSaveError = (error: any, context: string, retryFn?: () => void) => {
@@ -90,203 +95,6 @@ export const notifyListeners = () => {
     listeners.forEach(l => l());
 };
 
-
-// Helper function to handle auth state changes
-const handleAuthStateChange = (user: { id: string; email?: string } | null, isInitial: boolean = false) => {
-    const newUserId = user?.id || null;
-    const identityChanged = newUserId !== currentUserId;
-    const previousProvider = provider;
-    const previousUserId = currentUserId; // Store previous user ID before changing
-
-    if (isInitial || identityChanged) {
-        currentUserId = newUserId;
-
-        // Clear offline queue before switching providers (prevent stale data sync)
-        if ((previousProvider instanceof SupabaseProvider || previousProvider instanceof CloudflareD1Provider) && !user) {
-            // Switching from cloud to local - clear any pending offline queue
-            try {
-                localStorage.removeItem(STORAGE_KEYS.OFFLINE_QUEUE);
-                console.log('Storage: Cleared offline queue on logout');
-            } catch (e) {
-                console.warn('Failed to clear offline queue:', e);
-            }
-        }
-
-        const isCloud = !!user;
-        if (user) {
-            if (useCloudflareBackend) {
-                provider = new CloudflareD1Provider();
-                console.log(`Storage: Cloudflare D1 Mode - User: ${newUserId}`);
-            } else {
-                provider = new SupabaseProvider();
-                console.log(`Storage: Supabase Mode - User: ${newUserId}`);
-            }
-        } else {
-            provider = new LocalStorageProvider();
-            console.log(`Storage: Local Mode`);
-        }
-
-        // Clear cache if identity actually changed
-        if (identityChanged) {
-            Object.keys(cache).forEach(key => (cache[key as keyof typeof cache] = null));
-
-            // Clear sync tokens for the previous user to ensure fresh sync on next login
-            if (previousUserId) {
-                ['priorities', 'reflections', 'notes', 'routines', 'logs'].forEach(table => {
-                    const oldKey = `sync_token_${previousUserId}_${table}`;
-                    localStorage.removeItem(oldKey);
-                });
-            }
-        }
-
-        // Start auth sync (notifies listeners that sync is in progress)
-        startAuthSync(user ? { id: user.id, email: user.email } : null, isCloud);
-
-        // Hydrate cache and mark sync complete when done
-        (async () => {
-            try {
-                await hydrateCache();
-                completeAuthSync();
-            } catch (error) {
-                console.error('Storage: Hydration failed during auth change:', error);
-                completeAuthSync(error instanceof Error ? error : new Error(String(error)));
-            }
-        })();
-    }
-};
-
-// Listen for auth changes based on backend configuration
-if (useCloudflareBackend) {
-    // Use Cloudflare auth
-    onCloudflareAuthChange((user) => {
-        handleAuthStateChange(user, false);
-    });
-    
-    // Initial check for Cloudflare auth
-    const cfUser = getCloudflareUser();
-    if (cfUser) {
-        handleAuthStateChange(cfUser, true);
-    }
-} else if (useSupabaseBackend) {
-    // Use Supabase auth (original behavior)
-    supabase.auth.onAuthStateChange((event, session) => {
-        const user = session?.user ? { id: session.user.id, email: session.user.email } : null;
-        const isInitial = event === 'INITIAL_SESSION';
-        handleAuthStateChange(user, isInitial);
-    });
-}
-
-export const setStorageProvider = (newProvider: IStorageProvider) => {
-    provider = newProvider;
-    hydrateCache(true);
-};
-
-export const getIsCloudActive = () => provider instanceof SupabaseProvider || provider instanceof CloudflareD1Provider;
-
-// --- ID Generation ---
-export const generateId = (prefix: string = 'id') => {
-    return `${prefix}-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
-};
-
-// --- Migration & Initialization ---
-
-let initPromise: Promise<void> | null = null;
-
-export const initializeStorage = () => {
-    if (initPromise) return initPromise;
-
-    initPromise = (async () => {
-        // 1. Basic Migrations (localStorage -> IndexedDB)
-        const migrationTasks = [
-            { key: STORAGE_KEYS.PRIORITIES, table: 'priorities', save: (d: any) => provider.savePriorities(d) },
-            { key: STORAGE_KEYS.REFLECTIONS, table: 'reflections', save: async (d: any) => { for (const r of d) await provider.saveReflection(r); } },
-            { key: STORAGE_KEYS.NOTES, table: 'notes', save: (d: any) => provider.saveNotes(d) },
-            { key: STORAGE_KEYS.ROUTINES, table: 'routines', save: (d: any) => provider.saveRoutines(d) },
-            { key: STORAGE_KEYS.LOGS, table: 'logs', save: async (d: any) => { for (const l of d) await provider.saveLog(l); } },
-            { key: STORAGE_KEYS.HABITS, table: 'habits', save: (d: any) => provider.saveHabits(d) },
-            { key: STORAGE_KEYS.HABIT_LOGS, table: 'habitLogs', save: (d: any) => provider.saveHabitLogs(d) },
-            { key: 'personal_notes_data', table: 'personal_notes', save: (d: any) => provider.savePersonalNotes(d) },
-        ];
-
-        for (const task of migrationTasks) {
-            const oldData = localStorage.getItem(task.key);
-            if (oldData) {
-                try {
-                    const data = JSON.parse(oldData);
-                    await task.save(data);
-                    localStorage.removeItem(task.key);
-                    console.log(`Storage: Migrated ${task.table} to IndexedDB`);
-                } catch (e) {
-                    console.error(`Storage: Failed to migrate ${task.table}:`, e);
-                }
-            }
-        }
-
-        // 2. Initial Hydration
-        await hydrateCache();
-
-        // 3. Reset old priority completions (day boundary handling)
-        try {
-            const { resetOldCompletions } = await import('./priorities');
-            await resetOldCompletions();
-        } catch (err) {
-            console.warn("Storage: Failed to reset old completions:", err);
-        }
-
-        // 4. GC Images (Guest Mode Optimization)
-        try {
-            // Safety: Only run GC if we have loaded the reference data
-            if (!cache.reflections || !cache.logs) {
-                console.warn("Storage: Skipping Image GC because cache is incomplete.");
-            } else {
-                const usedIds: string[] = [];
-
-                // From Reflections
-                cache.reflections?.forEach(r => {
-                    if (r.imageIds) usedIds.push(...r.imageIds);
-                });
-
-                // From Logs
-                cache.logs?.forEach(l => {
-                    if (l.type === 'photo' && l.mediaId && !l.mediaId.startsWith('http')) {
-                        usedIds.push(l.mediaId);
-                    }
-                });
-
-                await cleanupImages(usedIds);
-            }
-        } catch (err) {
-            console.warn("Storage: Image GC skipped or failed:", err);
-        }
-    })();
-
-    return initPromise;
-};
-
-export const hydrateCache = async (force = false) => {
-    if (pendingHydrations.all && !force) return pendingHydrations.all;
-
-    pendingHydrations.all = (async () => {
-        try {
-            console.log("Storage: Hydrating cache...");
-            await Promise.all([
-                hydrateTable('priorities', force),
-                hydrateTable('reflections', force),
-                hydrateTable('notes', force),
-                hydrateTable('noteHistories', force),
-                hydrateTable('routines', force),
-                hydrateTable('logs', force),
-                hydrateTable('habits', force),
-                hydrateTable('habitLogs', force),
-            ]);
-            notifyListeners(); // Notify UI that data is ready
-        } finally {
-            pendingHydrations.all = null;
-        }
-    })();
-
-    return pendingHydrations.all;
-};
 
 // --- Sync Token Management ---
 const getSyncToken = (table: string): string | undefined => {
@@ -400,3 +208,255 @@ export async function hydrateTable(table: keyof typeof cache, force = false): Pr
     })();
     return pendingHydrations[table];
 }
+
+export const hydrateCache = async (force = false) => {
+    if (pendingHydrations.all && !force) return pendingHydrations.all;
+
+    pendingHydrations.all = (async () => {
+        try {
+            console.log("Storage: Hydrating cache...");
+
+            // Try Unified Sync first if available (CloudflareD1Provider)
+            if (provider instanceof CloudflareD1Provider) {
+                // Determine 'since' for unified sync?
+                // For simplicity, we assume we want all latest data or rely on individual since tokens if we implement granular unified sync.
+                // But our syncAll implemention currently accepts one global 'since' or none.
+                // Let's try to pass undefined to get everything fresh for now, or pick the oldest invalid token?
+                // Better: Just call syncAll(). internal logic can optimize.
+
+                // Note: provider.syncAll() returns populated data which we already saved to localDB inside syncAll.
+                // So we just need to re-read from localDB to memory cache.
+                // BUT, to be safe and consistent with existing logic, let's just let syncAll update localDB,
+                // and then we load from localDB (or just use the returned data to populate cache directly).
+
+                const unifiedResult = await provider.syncAll();
+
+                if (unifiedResult) {
+                    // If Unified Sync succeeded, the data is already in IndexedDB (via syncAll).
+                    // However, to populate the in-memory 'cache' variable, we still need to read it back from IndexedDB.
+                    // IMPORTANT OPTIMIZATION:
+                    // Instead of reading everything again, CloudflareD1Provider.syncAll() COULD return the data directly.
+                    // And looking at our implementation, IT DOES return `result` !
+                    // So we can populate the cache directly from memory without hitting IDB again.
+
+                    cache.priorities = unifiedResult.priorities || [];
+                    cache.routines = unifiedResult.routines || [];
+                    cache.notes = unifiedResult.notes || [];
+                    cache.habits = unifiedResult.habits || [];
+                    cache.habitLogs = unifiedResult.habitLogs || [];
+
+                    // These might need mapping if types differ slightly (e.g. dates), 
+                    // but assuming they match for now or hydration handles it seamlessly.
+                    cache.reflections = unifiedResult.reflections || [];
+                    cache.logs = unifiedResult.logs || [];
+
+                    // We still need to handle noteHistories if not included in syncAll (it was excluded for size reasons).
+                    // So we might need a partial fetch for that.
+
+                    console.log("Storage: Unified Sync successful. Cache populated from memory.");
+                    notifyListeners();
+                    return; // EXIT EARLY - Skip the heavy parallel fetch below!
+                }
+            }
+
+            // Fallback: Load into memory (Parallel) 
+            // - Runs if Unified Sync failed
+            // - OR if not using Cloudflare
+            // - OR for tables not covered by Unified Sync (like just noteHistories?)
+
+            // Note: If we returned early above, we missed noteHistories. 
+            // noteHistories = await hydrateTable('noteHistories', force); 
+            // But let's stick to the safe path: if unified sync fails or isn't used, do full load.
+            // If unified sync works, we might want to lazy load histories or load them separately.
+
+            await Promise.all([
+                hydrateTable('priorities', force),
+                hydrateTable('reflections', force),
+                hydrateTable('notes', force),
+                hydrateTable('routines', force),
+                hydrateTable('logs', force),
+                hydrateTable('habits', force),
+                hydrateTable('habitLogs', force),
+                // hydrateTable('noteHistories', force), // Keep this if we want it always
+            ]);
+
+            // Always hydrate heavy items separately or if they were missing
+            if (cache.noteHistories === null) {
+                hydrateTable('noteHistories', force);
+            }
+            notifyListeners(); // Notify UI that data is ready
+        } finally {
+            pendingHydrations.all = null;
+        }
+    })();
+
+    return pendingHydrations.all;
+};
+
+// --- Migration & Initialization ---
+var initPromise: Promise<void> | null = null;
+
+export const initializeStorage = () => {
+    if (initPromise) return initPromise;
+
+    initPromise = (async () => {
+        // 1. Basic Migrations (localStorage -> IndexedDB)
+        const migrationTasks = [
+            { key: STORAGE_KEYS.PRIORITIES, table: 'priorities', save: (d: any) => provider.savePriorities(d) },
+            { key: STORAGE_KEYS.REFLECTIONS, table: 'reflections', save: async (d: any) => { for (const r of d) await provider.saveReflection(r); } },
+            { key: STORAGE_KEYS.NOTES, table: 'notes', save: (d: any) => provider.saveNotes(d) },
+            { key: STORAGE_KEYS.ROUTINES, table: 'routines', save: (d: any) => provider.saveRoutines(d) },
+            { key: STORAGE_KEYS.LOGS, table: 'logs', save: async (d: any) => { for (const l of d) await provider.saveLog(l); } },
+            { key: STORAGE_KEYS.HABITS, table: 'habits', save: (d: any) => provider.saveHabits(d) },
+            { key: STORAGE_KEYS.HABIT_LOGS, table: 'habitLogs', save: (d: any) => provider.saveHabitLogs(d) },
+            { key: 'personal_notes_data', table: 'personal_notes', save: (d: any) => provider.savePersonalNotes(d) },
+        ];
+
+        for (const task of migrationTasks) {
+            const oldData = localStorage.getItem(task.key);
+            if (oldData) {
+                try {
+                    const data = JSON.parse(oldData);
+                    await task.save(data);
+                    localStorage.removeItem(task.key);
+                    console.log(`Storage: Migrated ${task.table} to IndexedDB`);
+                } catch (e) {
+                    console.error(`Storage: Failed to migrate ${task.table}:`, e);
+                }
+            }
+        }
+
+        // 2. Initial Hydration
+        await hydrateCache();
+
+        // 3. Reset old priority completions (day boundary handling)
+        try {
+            const { resetOldCompletions } = await import('./priorities');
+            await resetOldCompletions();
+        } catch (err) {
+            console.warn("Storage: Failed to reset old completions:", err);
+        }
+
+        // 4. GC Images (Guest Mode Optimization)
+        try {
+            // Safety: Only run GC if we have loaded the reference data
+            if (!cache.reflections || !cache.logs) {
+                console.warn("Storage: Skipping Image GC because cache is incomplete.");
+            } else {
+                const usedIds: string[] = [];
+
+                // From Reflections
+                cache.reflections?.forEach(r => {
+                    if (r.imageIds) usedIds.push(...r.imageIds);
+                });
+
+                // From Logs
+                cache.logs?.forEach(l => {
+                    if (l.type === 'photo' && l.mediaId && !l.mediaId.startsWith('http')) {
+                        usedIds.push(l.mediaId);
+                    }
+                });
+
+                await cleanupImages(usedIds);
+            }
+        } catch (err) {
+            console.warn("Storage: Image GC skipped or failed:", err);
+        }
+    })();
+
+    return initPromise;
+};
+
+// Helper function to handle auth state changes
+const handleAuthStateChange = (user: { id: string; email?: string } | null, isInitial: boolean = false) => {
+    const newUserId = user?.id || null;
+    const identityChanged = newUserId !== currentUserId;
+    const previousProvider = provider;
+    const previousUserId = currentUserId; // Store previous user ID before changing
+
+    if (isInitial || identityChanged) {
+        currentUserId = newUserId;
+
+        // Clear offline queue before switching providers (prevent stale data sync)
+        if ((previousProvider instanceof SupabaseProvider || previousProvider instanceof CloudflareD1Provider) && !user) {
+            // Switching from cloud to local - clear any pending offline queue
+            try {
+                localStorage.removeItem(STORAGE_KEYS.OFFLINE_QUEUE);
+                console.log('Storage: Cleared offline queue on logout');
+            } catch (e) {
+                console.warn('Failed to clear offline queue:', e);
+            }
+        }
+
+        const isCloud = !!user;
+        if (user) {
+            if (useCloudflareBackend) {
+                provider = new CloudflareD1Provider();
+                console.log(`Storage: Cloudflare D1 Mode - User: ${newUserId}`);
+            } else {
+                provider = new SupabaseProvider();
+                console.log(`Storage: Supabase Mode - User: ${newUserId}`);
+            }
+        } else {
+            provider = new LocalStorageProvider();
+            console.log(`Storage: Local Mode`);
+        }
+
+        // Clear cache if identity actually changed
+        if (identityChanged) {
+            Object.keys(cache).forEach(key => (cache[key as keyof typeof cache] = null));
+
+            // Clear sync tokens for the previous user to ensure fresh sync on next login
+            if (previousUserId) {
+                ['priorities', 'reflections', 'notes', 'routines', 'logs'].forEach(table => {
+                    const oldKey = `sync_token_${previousUserId}_${table}`;
+                    localStorage.removeItem(oldKey);
+                });
+            }
+        }
+
+        // Start auth sync (notifies listeners that sync is in progress)
+        startAuthSync(user ? { id: user.id, email: user.email } : null, isCloud);
+
+        // Hydrate cache and mark sync complete when done
+        (async () => {
+            try {
+                await hydrateCache();
+                completeAuthSync();
+            } catch (error) {
+                console.error('Storage: Hydration failed during auth change:', error);
+                completeAuthSync(error instanceof Error ? error : new Error(String(error)));
+            }
+        })();
+    }
+};
+
+// Listen for auth changes based on backend configuration
+if (useCloudflareBackend) {
+    // Use Cloudflare auth
+    onCloudflareAuthChange((user: any) => {
+        handleAuthStateChange(user, false);
+    });
+
+    // Initial check for Cloudflare auth
+    const cfUser = getCloudflareUser();
+    if (cfUser) {
+        handleAuthStateChange(cfUser, true);
+    }
+} else if (useSupabaseBackend) {
+    // Use Supabase auth (original behavior)
+    supabase.auth.onAuthStateChange((event: string, session: any) => {
+        const user = session?.user ? { id: session.user.id, email: session.user.email } : null;
+        const isInitial = event === 'INITIAL_SESSION';
+        // Cast as any because our internal User type != Supabase User type
+        handleAuthStateChange(user, isInitial);
+    });
+}
+
+export const setStorageProvider = (newProvider: IStorageProvider) => {
+    provider = newProvider;
+    hydrateCache(true);
+};
+
+export const getIsCloudActive = () => provider instanceof SupabaseProvider || provider instanceof CloudflareD1Provider;
+

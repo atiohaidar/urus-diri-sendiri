@@ -12,21 +12,21 @@ priorities.get('/', async (c) => {
   try {
     const userId = c.get('userId');
     const since = c.req.query('since');
-    
+
     let query = 'SELECT * FROM priorities WHERE user_id = ?';
     const params: any[] = [userId];
-    
+
     if (since) {
       query += ' AND (updated_at > ? OR deleted_at > ?)';
       params.push(since, since);
     } else {
       query += ' AND deleted_at IS NULL';
     }
-    
+
     query += ' ORDER BY updated_at DESC';
-    
+
     const result = await c.env.DB.prepare(query).bind(...params).all();
-    
+
     // Convert to camelCase for API response
     const priorities = (result.results || []).map((row: any) => ({
       id: row.id,
@@ -35,7 +35,7 @@ priorities.get('/', async (c) => {
       updatedAt: row.updated_at,
       deletedAt: row.deleted_at,
     }));
-    
+
     return c.json({ success: true, data: priorities });
   } catch (error) {
     console.error('Get priorities error:', error);
@@ -43,20 +43,26 @@ priorities.get('/', async (c) => {
   }
 });
 
+import { zValidator } from '@hono/zod-validator';
+import { batchPrioritySchema } from '../schemas';
+
 // Upsert priorities (batch)
-priorities.put('/', async (c) => {
+priorities.put('/', zValidator('json', batchPrioritySchema), async (c) => {
   try {
     const userId = c.get('userId');
-    const items = await c.req.json();
-    
-    if (!Array.isArray(items)) {
-      return c.json({ success: false, error: 'Expected array of priorities' }, 400);
+    const items = c.req.valid('json');
+
+    // items is now typed and validated
+    const itemsArray = Array.isArray(items) ? items : [items];
+
+    if (itemsArray.length === 0) {
+      return c.json({ success: true, message: 'No priorities to save' });
     }
-    
+
     const now = new Date().toISOString();
-    
-    for (const item of items) {
-      await c.env.DB.prepare(`
+
+    const statements = itemsArray.map((item) =>
+      c.env.DB.prepare(`
         INSERT INTO priorities (id, text, completed, updated_at, user_id)
         VALUES (?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
@@ -69,10 +75,12 @@ priorities.put('/', async (c) => {
         item.completed ? 1 : 0,
         item.updatedAt || now,
         userId
-      ).run();
-    }
-    
-    return c.json({ success: true, message: 'Priorities saved' });
+      )
+    );
+
+    await c.env.DB.batch(statements);
+
+    return c.json({ success: true, message: `Saved ${itemsArray.length} priorities` });
   } catch (error) {
     console.error('Save priorities error:', error);
     return c.json({ success: false, error: 'Failed to save priorities' }, 500);
@@ -85,13 +93,13 @@ priorities.delete('/:id', async (c) => {
     const userId = c.get('userId');
     const id = c.req.param('id');
     const now = new Date().toISOString();
-    
+
     await c.env.DB.prepare(`
       UPDATE priorities 
       SET deleted_at = ?, updated_at = ?
       WHERE id = ? AND user_id = ?
     `).bind(now, now, id, userId).run();
-    
+
     return c.json({ success: true, message: 'Priority deleted' });
   } catch (error) {
     console.error('Delete priority error:', error);

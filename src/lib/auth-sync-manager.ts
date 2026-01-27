@@ -9,9 +9,13 @@
  * Ini memastikan tidak ada race condition saat login/logout
  */
 
-import type { User, Session, AuthChangeEvent } from '@supabase/supabase-js';
-
 // --- Types ---
+export interface User {
+    id: string;
+    email?: string;
+    [key: string]: any; // Allow other properties if present
+}
+
 export type AuthSyncState = 'idle' | 'syncing' | 'ready' | 'error';
 
 export interface AuthSyncStatus {

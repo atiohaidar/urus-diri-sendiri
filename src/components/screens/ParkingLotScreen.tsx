@@ -189,15 +189,19 @@ const ParkingLotScreen = () => {
               useWindowScroll
               data={Object.entries(filteredAndSortedNotes.reduce((acc, note) => {
                 const date = new Date(note.updatedAt || note.createdAt);
-                const dateKey = date.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+                const dateKey = !isNaN(date.getTime())
+                  ? date.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+                  : 'Tanggal Tidak Valid';
+
                 if (!acc[dateKey]) acc[dateKey] = [];
                 acc[dateKey].push(note);
                 return acc;
               }, {} as Record<string, Note[]>))}
               itemContent={(index, [dateKey, groupNotes]) => (
-                <div className="mb-8 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                <div className="mb-8 animate-in fade-in slide-in-from-bottom-4 duration-300 px-2 md:px-0">
                   {/* Date Header - Stickyish look */}
-                  <div className="flex items-center gap-3 mb-4 sticky top-0 md:relative z-20 md:z-0 bg-notebook/95 md:bg-transparent py-2 backdrop-blur-sm md:backdrop-blur-none">
+                  <div className="flex items-center gap-3 mb-4 sticky top-[73px] md:relative z-30 md:z-0 py-2">
+                    <div className="absolute inset-x-0 top-0 bottom-0 bg-notebook/95 backdrop-blur-sm -z-10 md:hidden" />
                     <div className="h-[2px] w-8 bg-pencil/30 hidden md:block" />
                     <h3 className="font-handwriting text-lg md:text-xl font-bold text-ink bg-sticky-yellow/30 px-3 py-1 rounded-sm rotate-[-1deg] inline-block shadow-sm border border-black/5">
                       {dateKey}
@@ -206,40 +210,16 @@ const ParkingLotScreen = () => {
                   </div>
 
                   {/* Notes Container */}
-                  <div className={cn(
-                    "relative ml-3 md:ml-0",
-                    "border-l-2 border-dashed border-paper-lines md:border-l-0", // Mobile: Border left | Desktop: No border
-                    "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-0 md:gap-4" // Mobile: Stack | Desktop: Grid
-                  )}>
-                    {groupNotes.map((note, noteIndex) => (
-                      <div
-                        key={note.id}
-                        className={cn(
-                          "relative pl-6 md:pl-0 pb-8 md:pb-0 pr-1", // Mobile padding for timeline
-                          "group"
-                        )}
-                      >
-                        {/* Mobile Timeline: Dot (Hidden on Desktop) */}
-                        <div className={cn(
-                          "md:hidden absolute -left-[9px] top-1 w-4 h-4 border-4 border-paper rounded-full z-10",
-                          noteIndex % 3 === 0 ? "bg-sticky-blue" : noteIndex % 3 === 1 ? "bg-sticky-pink" : "bg-sticky-green"
-                        )} />
-
-                        {/* Mobile Timeline: Time Label (Hidden on Desktop) */}
-                        <div className="md:hidden text-xs font-handwriting text-pencil mb-2 flex items-center gap-2">
-                          <span>
-                            {new Date(note.updatedAt || note.createdAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
-                          </span>
-                        </div>
-
-                        {/* Note Card */}
-                        <div className="h-full">
-                          <NoteCard
-                            note={note}
-                            onClick={() => openEditNote(note)}
-                            index={index * 10 + noteIndex} // Unique index for animation delay
-                          />
-                        </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {groupNotes.map((note) => (
+                      <div key={note.id} className="h-full">
+                        <NoteCard
+                          note={note}
+                          title={note.isEncrypted ? "Catatan Rahasia" : note.title}
+                          content={note.isEncrypted ? "Konten ini terkunci. Ketuk untuk membuka." : note.content}
+                          onClick={() => openEditNote(note)}
+                          index={index} // Just simple index for now
+                        />
                       </div>
                     ))}
                   </div>

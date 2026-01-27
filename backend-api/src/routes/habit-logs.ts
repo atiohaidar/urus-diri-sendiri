@@ -11,21 +11,21 @@ habitLogs.get('/', async (c) => {
   try {
     const userId = c.get('userId');
     const since = c.req.query('since');
-    
+
     let query = 'SELECT * FROM habit_logs WHERE user_id = ?';
     const params: any[] = [userId];
-    
+
     if (since) {
       query += ' AND (updated_at > ? OR deleted_at > ?)';
       params.push(since, since);
     } else {
       query += ' AND deleted_at IS NULL';
     }
-    
+
     query += ' ORDER BY date DESC';
-    
+
     const result = await c.env.DB.prepare(query).bind(...params).all();
-    
+
     const habitLogs = (result.results || []).map((row: any) => ({
       id: row.id,
       habitId: row.habit_id,
@@ -38,7 +38,7 @@ habitLogs.get('/', async (c) => {
       updatedAt: row.updated_at,
       deletedAt: row.deleted_at,
     }));
-    
+
     return c.json({ success: true, data: habitLogs });
   } catch (error) {
     console.error('Get habit logs error:', error);
@@ -46,20 +46,26 @@ habitLogs.get('/', async (c) => {
   }
 });
 
+import { zValidator } from '@hono/zod-validator';
+import { batchHabitLogSchema } from '../schemas';
+
 // Upsert habit logs (batch)
-habitLogs.put('/', async (c) => {
+habitLogs.put('/', zValidator('json', batchHabitLogSchema), async (c) => {
   try {
     const userId = c.get('userId');
-    const items = await c.req.json();
-    
-    if (!Array.isArray(items)) {
-      return c.json({ success: false, error: 'Expected array of habit logs' }, 400);
+    const items = c.req.valid('json');
+
+    // items is now typed and validated
+    const itemsArray = Array.isArray(items) ? items : [items];
+
+    if (itemsArray.length === 0) {
+      return c.json({ success: true, message: 'No habit logs to save' });
     }
-    
+
     const now = new Date().toISOString();
-    
-    for (const item of items) {
-      await c.env.DB.prepare(`
+
+    const statements = itemsArray.map((item) =>
+      c.env.DB.prepare(`
         INSERT INTO habit_logs (id, habit_id, date, completed, completed_at, count, note, created_at, updated_at, user_id)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
@@ -81,10 +87,12 @@ habitLogs.put('/', async (c) => {
         item.createdAt || now,
         item.updatedAt || now,
         userId
-      ).run();
-    }
-    
-    return c.json({ success: true, message: 'Habit logs saved' });
+      )
+    );
+
+    await c.env.DB.batch(statements);
+
+    return c.json({ success: true, message: `Saved ${itemsArray.length} habit logs` });
   } catch (error) {
     console.error('Save habit logs error:', error);
     return c.json({ success: false, error: 'Failed to save habit logs' }, 500);

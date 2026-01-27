@@ -115,7 +115,7 @@ const App = () => {
                 <Sonner />
 
                 {/* Lapis 6: Sistem Navigasi - Mengatur perpindahan halaman tanpa refresh browser */}
-                <BrowserRouter>
+                <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
                   <BackButtonHandler />
                   <AppNotificationListener />
 

@@ -8,7 +8,7 @@ import { formatDistanceToNow, format } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
 import { Clock, FileText, ArrowLeft, Loader2, Calendar, Trash2 } from 'lucide-react';
 import { triggerHaptic } from '@/lib/haptics';
-import 'react-quill/dist/quill.snow.css';
+import 'react-quill-new/dist/quill.snow.css';
 import {
     AlertDialog,
     AlertDialogAction,

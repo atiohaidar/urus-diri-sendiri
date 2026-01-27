@@ -11,21 +11,21 @@ routines.get('/', async (c) => {
   try {
     const userId = c.get('userId');
     const since = c.req.query('since');
-    
+
     let query = 'SELECT * FROM routines WHERE user_id = ?';
     const params: any[] = [userId];
-    
+
     if (since) {
       query += ' AND (updated_at > ? OR deleted_at > ?)';
       params.push(since, since);
     } else {
       query += ' AND deleted_at IS NULL';
     }
-    
+
     query += ' ORDER BY start_time ASC';
-    
+
     const result = await c.env.DB.prepare(query).bind(...params).all();
-    
+
     const routines = (result.results || []).map((row: any) => ({
       id: row.id,
       startTime: row.start_time,
@@ -37,7 +37,7 @@ routines.get('/', async (c) => {
       description: row.description,
       deletedAt: row.deleted_at,
     }));
-    
+
     return c.json({ success: true, data: routines });
   } catch (error) {
     console.error('Get routines error:', error);
@@ -50,15 +50,19 @@ routines.put('/', async (c) => {
   try {
     const userId = c.get('userId');
     const items = await c.req.json();
-    
+
     if (!Array.isArray(items)) {
       return c.json({ success: false, error: 'Expected array of routines' }, 400);
     }
-    
+
+    if (items.length === 0) {
+      return c.json({ success: true, message: 'No routines to save' });
+    }
+
     const now = new Date().toISOString();
-    
-    for (const item of items) {
-      await c.env.DB.prepare(`
+
+    const statements = items.map((item: any) =>
+      c.env.DB.prepare(`
         INSERT INTO routines (id, start_time, end_time, activity, category, completed_at, updated_at, description, user_id)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
@@ -79,10 +83,12 @@ routines.put('/', async (c) => {
         item.updatedAt || now,
         item.description || null,
         userId
-      ).run();
-    }
-    
-    return c.json({ success: true, message: 'Routines saved' });
+      )
+    );
+
+    await c.env.DB.batch(statements);
+
+    return c.json({ success: true, message: `Saved ${items.length} routines` });
   } catch (error) {
     console.error('Save routines error:', error);
     return c.json({ success: false, error: 'Failed to save routines' }, 500);
@@ -95,13 +101,13 @@ routines.delete('/:id', async (c) => {
     const userId = c.get('userId');
     const id = c.req.param('id');
     const now = new Date().toISOString();
-    
+
     await c.env.DB.prepare(`
       UPDATE routines 
       SET deleted_at = ?, updated_at = ?
       WHERE id = ? AND user_id = ?
     `).bind(now, now, id, userId).run();
-    
+
     return c.json({ success: true, message: 'Routine deleted' });
   } catch (error) {
     console.error('Delete routine error:', error);

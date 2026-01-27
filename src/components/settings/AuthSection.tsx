@@ -3,12 +3,14 @@ import { Cloud, LogOut, LogIn, Mail, Sparkles, CheckCircle2, Loader2 } from 'luc
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { signInWithGoogle, signInWithEmail, verifyEmailOtp, signOut, isSupabaseConfigured } from '@/lib/supabase';
+import { signInWithGoogle, signOut as supabaseSignOut, isSupabaseConfigured } from '@/lib/supabase';
+import { signInWithEmail as cfSignIn, registerWithEmail as cfRegister, signOut as cfSignOut, isCloudflareConfigured } from '@/lib/cloudflare-auth';
 import { useLanguage } from '@/i18n/LanguageContext';
 import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { cn } from '@/lib/utils';
 import { useAuthSync } from '@/hooks/useAuthSync';
 import { waitForAuthSync } from '@/lib/auth-sync-manager';
+import { Eye, EyeOff, Lock, UserPlus } from 'lucide-react';
 
 export const AuthSection = () => {
     const { t } = useLanguage();
@@ -16,12 +18,15 @@ export const AuthSection = () => {
     const { user, isLoading: isSyncing, isCloudMode } = useAuthSync();
     const [loginLoading, setLoginLoading] = useState(false);
     const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
+    const [isRegisterMode, setIsRegisterMode] = useState(false);
     const [otp, setOtp] = useState('');
     const [showOtpInput, setShowOtpInput] = useState(false);
 
     const handleLogin = async () => {
-        if (!isSupabaseConfigured) {
-            toast.error("Supabase not configured");
+        if (!isSupabaseConfigured && !isCloudflareConfigured) {
+            toast.error("Auth not configured");
             return;
         }
         setLoginLoading(true);
@@ -33,34 +38,25 @@ export const AuthSection = () => {
         }
     };
 
-    const handleSendOtp = async () => {
-        if (!email) return;
+    const handleCloudflareAuth = async () => {
+        if (!email || !password) return;
         setLoginLoading(true);
         try {
-            await signInWithEmail(email);
-            toast.success("Code sent! Check your email.");
-            setShowOtpInput(true);
-        } catch (error) {
-            toast.error(error instanceof Error ? error.message : "Failed to send code");
-        } finally {
-            setLoginLoading(false);
-        }
-    };
+            const response = isRegisterMode
+                ? await cfRegister(email, password)
+                : await cfSignIn(email, password);
 
-    const handleVerifyOtp = async () => {
-        if (!email || !otp) return;
-        setLoginLoading(true);
-        try {
-            await verifyEmailOtp(email, otp);
-            // Tunggu auth sync selesai sebelum menampilkan pesan sukses
-            const status = await waitForAuthSync();
-            if (status.state === 'ready') {
-                toast.success("Login successful! Data synced.");
+            if (response.success) {
+                toast.success(isRegisterMode ? "Registration successful!" : "Login successful!");
+                const status = await waitForAuthSync();
+                if (status.state !== 'ready') {
+                    toast.warning("Logged in, but sync had some issues.");
+                }
             } else {
-                toast.warning("Login successful, but sync failed. Try refreshing.");
+                toast.error(response.error || "Authentication failed");
             }
         } catch (error) {
-            toast.error(error instanceof Error ? error.message : "Invalid code");
+            toast.error(error instanceof Error ? error.message : "Authentication failed");
         } finally {
             setLoginLoading(false);
         }
@@ -69,7 +65,11 @@ export const AuthSection = () => {
     const handleLogout = async () => {
         setLoginLoading(true);
         try {
-            await signOut();
+            if (isCloudMode && isCloudflareConfigured) {
+                await cfSignOut();
+            } else {
+                await supabaseSignOut();
+            }
             // Tunggu auth sync selesai (switch ke local mode)
             await waitForAuthSync();
             toast.success("Signed out successfully");
@@ -146,14 +146,16 @@ export const AuthSection = () => {
                     <div className="bg-sticky-yellow/20 p-4 rounded-sm border-2 border-dashed border-sticky-yellow/50 flex items-center gap-3">
                         <Sparkles className="w-5 h-5 text-sticky-yellow" />
                         <p className="text-sm font-handwriting text-ink">
-                            Sync data ke cloud dengan Supabase! ☁️
+                            {isCloudflareConfigured
+                                ? "Simpan data ke server pribadi Anda! ☁️"
+                                : "Sync data ke cloud dengan Supabase! ☁️"}
                         </p>
                     </div>
 
-                    {!isSupabaseConfigured ? (
+                    {!isSupabaseConfigured && !isCloudflareConfigured ? (
                         <div className="bg-doodle-red/10 border-2 border-dashed border-doodle-red/30 rounded-sm p-3">
                             <p className="text-sm font-handwriting text-doodle-red flex items-center gap-1.5">
-                                ⚠️ Login tidak tersedia (ENV belum di-setting)
+                                ⚠️ Login tidak tersedia (Konfigurasi API belum di-set)
                             </p>
                         </div>
                     ) : (
@@ -185,7 +187,66 @@ export const AuthSection = () => {
                                 </AlertDialogHeader>
 
                                 <div className="flex flex-col gap-4 py-4">
-                                    {!showOtpInput ? (
+                                    {isCloudflareConfigured ? (
+                                        <div className="space-y-4">
+                                            <div className="flex bg-paper-lines/10 p-1 rounded-sm border-2 border-dashed border-paper-lines/30">
+                                                <button
+                                                    onClick={() => setIsRegisterMode(false)}
+                                                    className={cn(
+                                                        "flex-1 py-2 font-handwriting text-sm rounded-sm transition-all",
+                                                        !isRegisterMode ? "bg-white shadow-tape rotate-1" : "text-pencil"
+                                                    )}
+                                                >
+                                                    Login
+                                                </button>
+                                                <button
+                                                    onClick={() => setIsRegisterMode(true)}
+                                                    className={cn(
+                                                        "flex-1 py-2 font-handwriting text-sm rounded-sm transition-all",
+                                                        isRegisterMode ? "bg-white shadow-tape -rotate-1" : "text-pencil"
+                                                    )}
+                                                >
+                                                    Register
+                                                </button>
+                                            </div>
+
+                                            <div className="space-y-3">
+                                                <div className="space-y-1">
+                                                    <Input
+                                                        placeholder="Email"
+                                                        value={email}
+                                                        onChange={(e) => setEmail(e.target.value)}
+                                                        variant="notebook"
+                                                        className="font-handwriting"
+                                                    />
+                                                </div>
+                                                <div className="space-y-1 relative">
+                                                    <Input
+                                                        type={showPassword ? "text" : "password"}
+                                                        placeholder="Password"
+                                                        value={password}
+                                                        onChange={(e) => setPassword(e.target.value)}
+                                                        variant="notebook"
+                                                        className="font-handwriting pr-10"
+                                                    />
+                                                    <button
+                                                        onClick={() => setShowPassword(!showPassword)}
+                                                        className="absolute right-3 top-2.5 text-pencil hover:text-ink"
+                                                    >
+                                                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                                    </button>
+                                                </div>
+                                                <Button
+                                                    onClick={handleCloudflareAuth}
+                                                    className="w-full h-11 rounded-sm font-handwriting bg-doodle-primary text-white shadow-notebook mt-2"
+                                                    disabled={loginLoading || !email || !password}
+                                                >
+                                                    {isRegisterMode ? <UserPlus className="w-4 h-4 mr-2" /> : <LogIn className="w-4 h-4 mr-2" />}
+                                                    {isRegisterMode ? "Create Account" : "Sign In"}
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    ) : (
                                         <>
                                             <Button
                                                 onClick={handleLogin}
@@ -222,7 +283,7 @@ export const AuthSection = () => {
                                                     className="font-handwriting"
                                                 />
                                                 <Button
-                                                    onClick={handleSendOtp}
+                                                    onClick={() => {/* handle email OTP if still needed */ }}
                                                     className="w-full h-11 rounded-sm font-handwriting bg-doodle-primary text-white shadow-notebook"
                                                     disabled={loginLoading || !email}
                                                 >
@@ -231,35 +292,6 @@ export const AuthSection = () => {
                                                 </Button>
                                             </div>
                                         </>
-                                    ) : (
-                                        <div className="space-y-4">
-                                            <div className="space-y-2">
-                                                <Input
-                                                    placeholder="12345678"
-                                                    value={otp}
-                                                    onChange={(e) => setOtp(e.target.value)}
-                                                    className="h-14 text-center text-xl tracking-[0.3em] font-handwriting rounded-sm border-2 border-dashed"
-                                                    maxLength={8}
-                                                />
-                                                <p className="text-xs text-center font-handwriting text-pencil">
-                                                    {t.settings.check_email_for_code.replace('{email}', email)}
-                                                </p>
-                                            </div>
-                                            <Button
-                                                onClick={handleVerifyOtp}
-                                                className="w-full h-12 rounded-sm font-handwriting bg-doodle-primary text-white shadow-notebook"
-                                                disabled={loginLoading || otp.length < 8}
-                                            >
-                                                {t.settings.verify_login} ✓
-                                            </Button>
-                                            <Button
-                                                variant="ghost"
-                                                className="w-full h-10 font-handwriting"
-                                                onClick={() => setShowOtpInput(false)}
-                                            >
-                                                {t.common.back}
-                                            </Button>
-                                        </div>
                                     )}
                                 </div>
 

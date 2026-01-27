@@ -26,6 +26,41 @@ import {
 export class CloudflareD1Provider implements IStorageProvider {
     private localProvider = new LocalStorageProvider();
 
+    // Unified Sync Implementation
+    async syncAll(since?: string): Promise<any> {
+        if (!this.isOnline()) return null;
+
+        try {
+            console.log("Unified Sync: Fetching all data...");
+            const result = await import('../api/cloudflare-api').then(m => m.dataApi.sync('/api/sync/all', since));
+
+            if (result) {
+                // Parallel saving to local DB for speed
+                await Promise.all([
+                    this.localProvider.savePriorities(result.priorities || []),
+                    this.localProvider.saveRoutines(result.routines || []),
+                    this.localProvider.saveNotes(result.notes || []),
+                    this.localProvider.saveHabits(result.habits || []),
+                    this.localProvider.saveHabitLogs(result.habitLogs || []),
+                    // Handle reflections one by one due to structure differences or just array save
+                    (async () => {
+                        for (const r of (result.reflections || [])) await this.localProvider.saveReflection(r);
+                    })(),
+                    (async () => {
+                        for (const l of (result.logs || [])) await this.localProvider.saveLog(l);
+                    })(),
+                ]);
+
+                return result;
+            }
+        } catch (error) {
+            console.error("Unified Sync Error:", error);
+            // Fallback to individual syncs logic is automatic via hydration retry if needed
+            // But here we just return null to indicate failure
+        }
+        return null;
+    }
+
     constructor() {
         // Set up the queue processor for offline support
         offlineQueue.setProcessor(async (item: QueueItem) => {
@@ -100,10 +135,15 @@ export class CloudflareD1Provider implements IStorageProvider {
 
     async savePriorities(priorities: PriorityTask[]): Promise<void> {
         await this.localProvider.savePriorities(priorities);
-        await this.executeOrQueue(
-            { type: 'priorities', data: priorities },
-            async () => { await prioritiesApi.save(priorities); }
-        );
+        try {
+            await this.executeOrQueue(
+                { type: 'priorities', data: priorities },
+                async () => { await prioritiesApi.save(priorities); }
+            );
+        } catch (error) {
+            this.handleAuthError(error);
+            throw error; // Re-throw to let queue handle retry logic if needed
+        }
     }
 
     async deletePriority(id: string): Promise<void> {
@@ -135,10 +175,15 @@ export class CloudflareD1Provider implements IStorageProvider {
 
     async saveReflection(reflection: Reflection): Promise<void> {
         await this.localProvider.saveReflection(reflection);
-        await this.executeOrQueue(
-            { type: 'reflection', data: reflection },
-            async () => { await reflectionsApi.save(reflection); }
-        );
+        try {
+            await this.executeOrQueue(
+                { type: 'reflection', data: reflection },
+                async () => { await reflectionsApi.save(reflection); }
+            );
+        } catch (error) {
+            this.handleAuthError(error);
+            throw error;
+        }
     }
 
     // --- Notes ---
@@ -164,10 +209,15 @@ export class CloudflareD1Provider implements IStorageProvider {
 
     async saveNote(note: Note): Promise<void> {
         await this.localProvider.saveNote(note);
-        await this.executeOrQueue(
-            { type: 'notes', data: note },
-            async () => { await notesApi.saveSingle(note); }
-        );
+        try {
+            await this.executeOrQueue(
+                { type: 'notes', data: note },
+                async () => { await notesApi.saveSingle(note); }
+            );
+        } catch (error) {
+            this.handleAuthError(error);
+            throw error;
+        }
     }
 
     async saveNotes(notes: Note[]): Promise<void> {
@@ -241,10 +291,15 @@ export class CloudflareD1Provider implements IStorageProvider {
 
     async saveRoutines(routines: RoutineItem[]): Promise<void> {
         await this.localProvider.saveRoutines(routines);
-        await this.executeOrQueue(
-            { type: 'routines', data: routines },
-            async () => { await routinesApi.save(routines); }
-        );
+        try {
+            await this.executeOrQueue(
+                { type: 'routines', data: routines },
+                async () => { await routinesApi.save(routines); }
+            );
+        } catch (error) {
+            this.handleAuthError(error);
+            throw error;
+        }
     }
 
     async deleteRoutine(id: string): Promise<void> {
@@ -276,10 +331,15 @@ export class CloudflareD1Provider implements IStorageProvider {
 
     async saveLog(log: ActivityLog): Promise<void> {
         await this.localProvider.saveLog(log);
-        await this.executeOrQueue(
-            { type: 'log', data: log },
-            async () => { await logsApi.save(log); }
-        );
+        try {
+            await this.executeOrQueue(
+                { type: 'log', data: log },
+                async () => { await logsApi.save(log); }
+            );
+        } catch (error) {
+            this.handleAuthError(error);
+            throw error;
+        }
     }
 
     async deleteLog(id: string): Promise<void> {

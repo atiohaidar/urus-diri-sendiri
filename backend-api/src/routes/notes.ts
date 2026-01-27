@@ -11,21 +11,21 @@ notes.get('/', async (c) => {
   try {
     const userId = c.get('userId');
     const since = c.req.query('since');
-    
+
     let query = 'SELECT * FROM notes WHERE user_id = ?';
     const params: any[] = [userId];
-    
+
     if (since) {
       query += ' AND (updated_at > ? OR deleted_at > ?)';
       params.push(since, since);
     } else {
       query += ' AND deleted_at IS NULL';
     }
-    
+
     query += ' ORDER BY updated_at DESC';
-    
+
     const result = await c.env.DB.prepare(query).bind(...params).all();
-    
+
     const notes = (result.results || []).map((row: any) => ({
       id: row.id,
       title: row.title,
@@ -39,7 +39,7 @@ notes.get('/', async (c) => {
       encryptionIv: row.encryption_iv,
       passwordHash: row.password_hash,
     }));
-    
+
     return c.json({ success: true, data: notes });
   } catch (error) {
     console.error('Get notes error:', error);
@@ -53,7 +53,7 @@ notes.put('/single', async (c) => {
     const userId = c.get('userId');
     const item = await c.req.json();
     const now = new Date().toISOString();
-    
+
     await c.env.DB.prepare(`
       INSERT INTO notes (id, title, content, category, created_at, updated_at, is_encrypted, encryption_salt, encryption_iv, password_hash, user_id)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -79,7 +79,7 @@ notes.put('/single', async (c) => {
       item.passwordHash || null,
       userId
     ).run();
-    
+
     return c.json({ success: true, message: 'Note saved' });
   } catch (error) {
     console.error('Save note error:', error);
@@ -92,12 +92,19 @@ notes.put('/', async (c) => {
   try {
     const userId = c.get('userId');
     const items = await c.req.json();
-    
+
+    // Ensure items is an array
     const itemsArray = Array.isArray(items) ? items : [items];
+
+    if (itemsArray.length === 0) {
+      return c.json({ success: true, message: 'No notes to save' });
+    }
+
     const now = new Date().toISOString();
-    
-    for (const item of itemsArray) {
-      await c.env.DB.prepare(`
+
+    // Create batch statements
+    const statements = itemsArray.map((item: any) =>
+      c.env.DB.prepare(`
         INSERT INTO notes (id, title, content, category, created_at, updated_at, is_encrypted, encryption_salt, encryption_iv, password_hash, user_id)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
@@ -121,10 +128,13 @@ notes.put('/', async (c) => {
         item.encryptionIv || null,
         item.passwordHash || null,
         userId
-      ).run();
-    }
-    
-    return c.json({ success: true, message: 'Notes saved' });
+      )
+    );
+
+    // Execute batch
+    await c.env.DB.batch(statements);
+
+    return c.json({ success: true, message: `Saved ${itemsArray.length} notes` });
   } catch (error) {
     console.error('Save notes error:', error);
     return c.json({ success: false, error: 'Failed to save notes' }, 500);
@@ -137,13 +147,13 @@ notes.delete('/:id', async (c) => {
     const userId = c.get('userId');
     const id = c.req.param('id');
     const now = new Date().toISOString();
-    
+
     await c.env.DB.prepare(`
       UPDATE notes 
       SET deleted_at = ?, updated_at = ?
       WHERE id = ? AND user_id = ?
     `).bind(now, now, id, userId).run();
-    
+
     return c.json({ success: true, message: 'Note deleted' });
   } catch (error) {
     console.error('Delete note error:', error);

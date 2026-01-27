@@ -41,6 +41,8 @@ app.get('/health', (c) => {
 });
 
 // Mount routes
+import sync from './routes/sync';
+
 app.route('/api/auth', auth);
 app.route('/api/priorities', priorities);
 app.route('/api/routines', routines);
@@ -51,6 +53,7 @@ app.route('/api/logs', logs);
 app.route('/api/habits', habits);
 app.route('/api/habit-logs', habitLogs);
 app.route('/api/personal-notes', personalNotes);
+app.route('/api/sync', sync);
 
 // 404 handler
 app.notFound((c) => {

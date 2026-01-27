@@ -8,6 +8,8 @@ interface NoteCardProps {
   note: Note;
   onClick: () => void;
   index: number;
+  title?: string;
+  content?: string;
 }
 
 // Sticky note colors for varied appearance
@@ -21,10 +23,14 @@ const stickyColors = [
 // Rotation variations
 const rotations = ['rotate-[-1deg]', 'rotate-[1deg]', 'rotate-[-0.5deg]', 'rotate-[1.5deg]'];
 
-const NoteCard = ({ note, onClick, index }: NoteCardProps) => {
+const NoteCard = ({ note, onClick, index, title, content }: NoteCardProps) => {
   const { language } = useLanguage();
   const colorIndex = index % stickyColors.length;
   const rotation = rotations[index % rotations.length];
+
+  const displayTitle = title ?? (note.title || 'Catatan tanpa judul');
+  // Content used to be HTML, but we are just showing title here. 
+  // If we want preview later, we can use content.
 
   return (
     <button
@@ -46,7 +52,7 @@ const NoteCard = ({ note, onClick, index }: NoteCardProps) => {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
             <h3 className="font-handwriting text-lg font-semibold text-ink truncate">
-              {note.title || 'Catatan tanpa judul'}
+              {displayTitle}
             </h3>
             {/* Encrypted Badge */}
             {note.isEncrypted && (

@@ -63,7 +63,8 @@ export const authApi = {
     async register(email: string, password: string) {
         const response = await apiRequest<{
             success: boolean;
-            data: { user: { id: string; email: string }; token: string };
+            data?: { user: { id: string; email: string }; token: string };
+            error?: string;
         }>('/api/auth/register', {
             method: 'POST',
             body: JSON.stringify({ email, password }),
@@ -80,7 +81,8 @@ export const authApi = {
     async login(email: string, password: string) {
         const response = await apiRequest<{
             success: boolean;
-            data: { user: { id: string; email: string }; token: string };
+            data?: { user: { id: string; email: string }; token: string };
+            error?: string;
         }>('/api/auth/login', {
             method: 'POST',
             body: JSON.stringify({ email, password }),
@@ -105,7 +107,8 @@ export const authApi = {
     async getCurrentUser() {
         const response = await apiRequest<{
             success: boolean;
-            data: { user: { id: string; email: string } };
+            data?: { user: { id: string; email: string } };
+            error?: string;
         }>('/api/auth/me');
 
         if (response.success && response.data) {
@@ -138,6 +141,12 @@ export const dataApi = {
     async delete(endpoint: string, id: string): Promise<void> {
         await apiRequest(`${endpoint}/${id}`, { method: 'DELETE' });
     },
+
+    async sync(endpoint: string, since?: string): Promise<any> {
+        const url = since ? `${endpoint}?since=${encodeURIComponent(since)}` : endpoint;
+        const response = await apiRequest<{ success: boolean; data: any }>(url);
+        return response.data;
+    }
 };
 
 // Specific API endpoints
