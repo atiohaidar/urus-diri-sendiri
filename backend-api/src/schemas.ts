@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from '@hono/zod-openapi';
 
 // Shared schemas
 const timestampSchema = z.string().datetime().optional().nullable();
@@ -17,7 +17,10 @@ export const prioritySchema = z.object({
     id: z.string(),
     text: z.string().optional().default(''),
     completed: booleanOrIntSchema.optional().default(false),
-    updatedAt: timestampSchema
+    completionNote: z.string().optional().nullable(),
+    updatedAt: timestampSchema,
+    scheduledFor: z.string().optional().nullable(),
+    calendarEventId: z.string().optional().nullable()
 });
 
 export const routineSchema = z.object({
@@ -27,8 +30,10 @@ export const routineSchema = z.object({
     activity: z.string().optional().default(''),
     category: z.string().optional().nullable(),
     completedAt: timestampSchema,
+    completionNote: z.string().optional().nullable(),
     updatedAt: timestampSchema,
-    description: z.string().optional().nullable()
+    description: z.string().optional().nullable(),
+    calendarEventId: z.string().optional().nullable()
 });
 
 export const noteSchema = z.object({

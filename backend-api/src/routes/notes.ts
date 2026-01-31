@@ -1,5 +1,7 @@
 import { Hono } from 'hono';
 import type { Env } from '../types';
+import { zValidator } from '@hono/zod-validator';
+import { noteSchema, batchNoteSchema } from '../schemas';
 import { authMiddleware } from '../middleware/auth';
 
 const notes = new Hono<{ Bindings: Env }>();
@@ -48,10 +50,10 @@ notes.get('/', async (c) => {
 });
 
 // Upsert single note
-notes.put('/single', async (c) => {
+notes.put('/single', zValidator('json', noteSchema), async (c) => {
   try {
     const userId = c.get('userId');
-    const item = await c.req.json();
+    const item = c.req.valid('json');
     const now = new Date().toISOString();
 
     await c.env.DB.prepare(`
@@ -88,12 +90,13 @@ notes.put('/single', async (c) => {
 });
 
 // Upsert notes (batch)
-notes.put('/', async (c) => {
+notes.put('/', zValidator('json', batchNoteSchema), async (c) => {
   try {
     const userId = c.get('userId');
-    const items = await c.req.json();
+    const items = c.req.valid('json');
 
-    // Ensure items is an array
+    // Ensure items is an array - schema handles single object too but valid returns normalized type?
+    // Batch schema is z.array().or(z.object())
     const itemsArray = Array.isArray(items) ? items : [items];
 
     if (itemsArray.length === 0) {
@@ -103,7 +106,7 @@ notes.put('/', async (c) => {
     const now = new Date().toISOString();
 
     // Create batch statements
-    const statements = itemsArray.map((item: any) =>
+    const statements = itemsArray.map((item) =>
       c.env.DB.prepare(`
         INSERT INTO notes (id, title, content, category, created_at, updated_at, is_encrypted, encryption_salt, encryption_iv, password_hash, user_id)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)

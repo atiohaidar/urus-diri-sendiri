@@ -1,6 +1,8 @@
 import { Hono } from 'hono';
 import type { Env } from '../types';
 import { authMiddleware } from '../middleware/auth';
+import { zValidator } from '@hono/zod-validator';
+import { batchHabitSchema } from '../schemas';
 import { parseJsonField, stringifyJsonField } from '../utils';
 
 const habits = new Hono<{ Bindings: Env }>();
@@ -52,22 +54,20 @@ habits.get('/', async (c) => {
 });
 
 // Upsert habits (batch)
-habits.put('/', async (c) => {
+habits.put('/', zValidator('json', batchHabitSchema), async (c) => {
   try {
     const userId = c.get('userId');
-    const items = await c.req.json();
+    const items = c.req.valid('json');
 
-    if (!Array.isArray(items)) {
-      return c.json({ success: false, error: 'Expected array of habits' }, 400);
-    }
+    const itemsArray = Array.isArray(items) ? items : [items];
 
-    if (items.length === 0) {
+    if (itemsArray.length === 0) {
       return c.json({ success: true, message: 'No habits to save' });
     }
 
     const now = new Date().toISOString();
 
-    const statements = items.map((item: any) =>
+    const statements = itemsArray.map((item) =>
       c.env.DB.prepare(`
         INSERT INTO habits (id, name, description, icon, color, frequency, interval_days, specific_days, allowed_day_off, target_count, is_archived, created_at, updated_at, user_id)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -103,7 +103,7 @@ habits.put('/', async (c) => {
 
     await c.env.DB.batch(statements);
 
-    return c.json({ success: true, message: `Saved ${items.length} habits` });
+    return c.json({ success: true, message: `Saved ${itemsArray.length} habits` });
   } catch (error) {
     console.error('Save habits error:', error);
     return c.json({ success: false, error: 'Failed to save habits' }, 500);

@@ -1,4 +1,5 @@
-import { Hono } from 'hono';
+import { OpenAPIHono } from '@hono/zod-openapi';
+import { apiReference } from '@scalar/hono-api-reference';
 import { cors } from 'hono/cors';
 import type { Env } from './types';
 
@@ -14,7 +15,7 @@ import habits from './routes/habits';
 import habitLogs from './routes/habit-logs';
 import personalNotes from './routes/personal-notes';
 
-const app = new Hono<{ Bindings: Env }>();
+const app = new OpenAPIHono<{ Bindings: Env }>();
 
 // CORS middleware - allow requests from the frontend
 app.use('*', cors({
@@ -39,6 +40,29 @@ app.get('/', (c) => {
 app.get('/health', (c) => {
   return c.json({ success: true, status: 'healthy' });
 });
+
+// OpenAPI Documentation
+app.openAPIRegistry.registerComponent('securitySchemes', 'Bearer', {
+  type: 'http',
+  scheme: 'bearer',
+});
+
+app.doc('/doc', {
+  openapi: '3.0.0',
+  info: {
+    version: '1.0.0',
+    title: 'Urus Diri Sendiri API',
+  },
+});
+
+app.get(
+  '/reference',
+  apiReference({
+    spec: {
+      url: '/doc',
+    },
+  })
+);
 
 // Mount routes
 import sync from './routes/sync';

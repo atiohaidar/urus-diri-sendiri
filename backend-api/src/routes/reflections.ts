@@ -1,6 +1,8 @@
 import { Hono } from 'hono';
 import type { Env } from '../types';
 import { authMiddleware } from '../middleware/auth';
+import { zValidator } from '@hono/zod-validator';
+import { batchReflectionSchema } from '../schemas';
 import { parseJsonField, stringifyJsonField } from '../utils';
 
 const reflections = new Hono<{ Bindings: Env }>();
@@ -49,10 +51,10 @@ reflections.get('/', async (c) => {
 });
 
 // Upsert reflection (batch support)
-reflections.put('/', async (c) => {
+reflections.put('/', zValidator('json', batchReflectionSchema), async (c) => {
   try {
     const userId = c.get('userId');
-    const items = await c.req.json();
+    const items = c.req.valid('json');
     const now = new Date().toISOString();
 
     // Support both single object and array
@@ -62,7 +64,7 @@ reflections.put('/', async (c) => {
       return c.json({ success: true, message: 'No reflections to save' });
     }
 
-    const statements = itemsArray.map((item: any) =>
+    const statements = itemsArray.map((item) =>
       c.env.DB.prepare(`
         INSERT INTO reflections (id, date, win_of_day, hurdle, priorities, small_change, today_routines, today_priorities, images, updated_at, user_id)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
