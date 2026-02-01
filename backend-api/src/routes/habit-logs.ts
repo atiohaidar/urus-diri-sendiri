@@ -1,16 +1,56 @@
-import { Hono } from 'hono';
+import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
 import type { Env } from '../types';
 import { authMiddleware } from '../middleware/auth';
+import { batchHabitLogSchema, habitLogSchema } from '../schemas';
 
-const habitLogs = new Hono<{ Bindings: Env }>();
+const habitLogs = new OpenAPIHono<{ Bindings: Env }>();
 
 habitLogs.use('*', authMiddleware);
 
+const successResponseSchema = z.object({
+  success: z.boolean(),
+  data: z.array(habitLogSchema.extend({
+    deletedAt: z.string().nullable().optional(),
+    date: z.string(),
+  })).optional(),
+  message: z.string().optional(),
+  error: z.string().optional(),
+});
+
 // Get all habit logs
-habitLogs.get('/', async (c) => {
+const getHabitLogsRoute = createRoute({
+  method: 'get',
+  path: '/',
+  request: {
+    query: z.object({
+      since: z.string().optional().openapi({
+        param: {
+          name: 'since',
+          in: 'query',
+        },
+        example: '2023-01-01T00:00:00Z',
+      }),
+    }),
+  },
+  responses: {
+    200: {
+      content: {
+        'application/json': {
+          schema: successResponseSchema,
+        },
+      },
+      description: 'Retrieve habit logs',
+    },
+    500: {
+      description: 'Server Error',
+    },
+  },
+});
+
+habitLogs.openapi(getHabitLogsRoute, async (c) => {
   try {
     const userId = c.get('userId');
-    const since = c.req.query('since');
+    const { since } = c.req.valid('query');
 
     let query = 'SELECT * FROM habit_logs WHERE user_id = ?';
     const params: any[] = [userId];
@@ -26,7 +66,7 @@ habitLogs.get('/', async (c) => {
 
     const result = await c.env.DB.prepare(query).bind(...params).all();
 
-    const habitLogs = (result.results || []).map((row: any) => ({
+    const habitLogsData = (result.results || []).map((row: any) => ({
       id: row.id,
       habitId: row.habit_id,
       date: row.date,
@@ -39,18 +79,42 @@ habitLogs.get('/', async (c) => {
       deletedAt: row.deleted_at,
     }));
 
-    return c.json({ success: true, data: habitLogs });
+    return c.json({ success: true, data: habitLogsData }, 200);
   } catch (error) {
     console.error('Get habit logs error:', error);
     return c.json({ success: false, error: 'Failed to fetch habit logs' }, 500);
   }
 });
 
-import { zValidator } from '@hono/zod-validator';
-import { batchHabitLogSchema } from '../schemas';
-
 // Upsert habit logs (batch)
-habitLogs.put('/', zValidator('json', batchHabitLogSchema), async (c) => {
+const upsertHabitLogsRoute = createRoute({
+  method: 'put',
+  path: '/',
+  request: {
+    body: {
+      content: {
+        'application/json': {
+          schema: batchHabitLogSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      content: {
+        'application/json': {
+          schema: successResponseSchema,
+        },
+      },
+      description: 'Habit logs saved',
+    },
+    500: {
+      description: 'Server Error',
+    },
+  },
+});
+
+habitLogs.openapi(upsertHabitLogsRoute, async (c) => {
   try {
     const userId = c.get('userId');
     const items = c.req.valid('json');
@@ -59,7 +123,7 @@ habitLogs.put('/', zValidator('json', batchHabitLogSchema), async (c) => {
     const itemsArray = Array.isArray(items) ? items : [items];
 
     if (itemsArray.length === 0) {
-      return c.json({ success: true, message: 'No habit logs to save' });
+      return c.json({ success: true, message: 'No habit logs to save' }, 200);
     }
 
     const now = new Date().toISOString();
@@ -92,7 +156,7 @@ habitLogs.put('/', zValidator('json', batchHabitLogSchema), async (c) => {
 
     await c.env.DB.batch(statements);
 
-    return c.json({ success: true, message: `Saved ${itemsArray.length} habit logs` });
+    return c.json({ success: true, message: `Saved ${itemsArray.length} habit logs` }, 200);
   } catch (error) {
     console.error('Save habit logs error:', error);
     return c.json({ success: false, error: 'Failed to save habit logs' }, 500);
@@ -100,3 +164,4 @@ habitLogs.put('/', zValidator('json', batchHabitLogSchema), async (c) => {
 });
 
 export default habitLogs;
+

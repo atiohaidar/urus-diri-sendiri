@@ -1,19 +1,58 @@
-import { Hono } from 'hono';
+import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
 import type { Env } from '../types';
 import { authMiddleware } from '../middleware/auth';
-import { zValidator } from '@hono/zod-validator';
-import { batchHabitSchema } from '../schemas';
+import { batchHabitSchema, habitSchema } from '../schemas';
 import { parseJsonField, stringifyJsonField } from '../utils';
 
-const habits = new Hono<{ Bindings: Env }>();
+const habits = new OpenAPIHono<{ Bindings: Env }>();
 
 habits.use('*', authMiddleware);
 
+const successResponseSchema = z.object({
+  success: z.boolean(),
+  data: z.array(habitSchema.extend({
+    deletedAt: z.string().nullable().optional(),
+    isArchived: z.boolean().optional(),
+    specificDays: z.any(), // Override for response object
+  })).optional(),
+  message: z.string().optional(),
+  error: z.string().optional(),
+});
+
 // Get all habits
-habits.get('/', async (c) => {
+const getHabitsRoute = createRoute({
+  method: 'get',
+  path: '/',
+  request: {
+    query: z.object({
+      since: z.string().optional().openapi({
+        param: {
+          name: 'since',
+          in: 'query',
+        },
+        example: '2023-01-01T00:00:00Z',
+      }),
+    }),
+  },
+  responses: {
+    200: {
+      content: {
+        'application/json': {
+          schema: successResponseSchema,
+        },
+      },
+      description: 'Retrieve habits',
+    },
+    500: {
+      description: 'Server Error',
+    },
+  },
+});
+
+habits.openapi(getHabitsRoute, async (c) => {
   try {
     const userId = c.get('userId');
-    const since = c.req.query('since');
+    const { since } = c.req.valid('query');
 
     let query = 'SELECT * FROM habits WHERE user_id = ?';
     const params: any[] = [userId];
@@ -29,7 +68,7 @@ habits.get('/', async (c) => {
 
     const result = await c.env.DB.prepare(query).bind(...params).all();
 
-    const habits = (result.results || []).map((row: any) => ({
+    const habitsData = (result.results || []).map((row: any) => ({
       id: row.id,
       name: row.name,
       description: row.description,
@@ -46,7 +85,7 @@ habits.get('/', async (c) => {
       deletedAt: row.deleted_at,
     }));
 
-    return c.json({ success: true, data: habits });
+    return c.json({ success: true, data: habitsData }, 200);
   } catch (error) {
     console.error('Get habits error:', error);
     return c.json({ success: false, error: 'Failed to fetch habits' }, 500);
@@ -54,7 +93,34 @@ habits.get('/', async (c) => {
 });
 
 // Upsert habits (batch)
-habits.put('/', zValidator('json', batchHabitSchema), async (c) => {
+const upsertHabitsRoute = createRoute({
+  method: 'put',
+  path: '/',
+  request: {
+    body: {
+      content: {
+        'application/json': {
+          schema: batchHabitSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      content: {
+        'application/json': {
+          schema: successResponseSchema,
+        },
+      },
+      description: 'Habits saved',
+    },
+    500: {
+      description: 'Server Error',
+    },
+  },
+});
+
+habits.openapi(upsertHabitsRoute, async (c) => {
   try {
     const userId = c.get('userId');
     const items = c.req.valid('json');
@@ -62,7 +128,7 @@ habits.put('/', zValidator('json', batchHabitSchema), async (c) => {
     const itemsArray = Array.isArray(items) ? items : [items];
 
     if (itemsArray.length === 0) {
-      return c.json({ success: true, message: 'No habits to save' });
+      return c.json({ success: true, message: 'No habits to save' }, 200);
     }
 
     const now = new Date().toISOString();
@@ -103,7 +169,7 @@ habits.put('/', zValidator('json', batchHabitSchema), async (c) => {
 
     await c.env.DB.batch(statements);
 
-    return c.json({ success: true, message: `Saved ${itemsArray.length} habits` });
+    return c.json({ success: true, message: `Saved ${itemsArray.length} habits` }, 200);
   } catch (error) {
     console.error('Save habits error:', error);
     return c.json({ success: false, error: 'Failed to save habits' }, 500);
@@ -111,3 +177,4 @@ habits.put('/', zValidator('json', batchHabitSchema), async (c) => {
 });
 
 export default habits;
+

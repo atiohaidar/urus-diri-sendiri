@@ -1,5 +1,5 @@
 import { Reflection, PriorityTask } from '../types';
-import { cache, provider, generateId } from './core';
+import { cache, provider, generateId, isSnapshotSuppressed } from './core';
 import { getReflectionsAsync } from './reflections';
 import { getRoutines } from './routines';
 import { getPriorities } from './priorities';
@@ -8,51 +8,91 @@ import { getPriorities } from './priorities';
 let snapshotTimeout: any = null;
 
 export const updateDailySnapshot = async () => {
+    // If a manual save just happened, don't auto-snapshot
+    if (isSnapshotSuppressed()) return;
+
     // Debounce: Wait 2 seconds before saving snapshot
     if (snapshotTimeout) clearTimeout(snapshotTimeout);
 
     snapshotTimeout = setTimeout(async () => {
         try {
+            // Avoid saving if core data isn't loaded yet
+            if (!provider || !cache.routines || !cache.priorities || !cache.reflections) return;
+
             const reflections = await getReflectionsAsync();
             const todayDate = new Date();
             const todayStr = todayDate.toDateString();
-            const todayIndex = reflections.findIndex(r => new Date(r.date).toDateString() === todayStr);
-
-            // Avoid saving if data isn't loaded yet
-            if (!provider || !cache.routines || !cache.priorities) return;
+            const existingReflection = reflections.find(r => new Date(r.date).toDateString() === todayStr);
 
             const currentRoutines = getRoutines();
-            const currentPriorities = getPriorities();
+            const currentPriorities = getPriorities('Snapshot');
 
-            // Check if there's actual change to avoid redundant writes?
-            // For now, just simplistic override.
+            // SENSITIVITY FIX: Only compare content-essential fields for routines and priorities.
+            // This ignores 'updatedAt' changes that come from background syncs, which was causing the "PUT loop".
+            const simplifyRoutine = (r: any) => ({
+                id: String(r.id),
+                c: r.completedAt ? r.completedAt.split('T')[0] : null,
+                n: r.completionNote || r.note || ""
+            });
+            const simplifyPriority = (p: any) => ({
+                id: String(p.id),
+                c: !!p.completed
+            });
 
-            if (todayIndex !== -1) {
-                // Update existing reflection
-                const updatedReflection = {
-                    ...reflections[todayIndex],
-                    todayRoutines: currentRoutines,
-                    todayPriorities: currentPriorities,
-                    updatedAt: new Date().toISOString(), // Ensure sync triggers
+            // IMPORTANT: Sort by ID to make comparison order-independent
+            const currentRoutinesSimplified = currentRoutines.map(simplifyRoutine).sort((a, b) => a.id.localeCompare(b.id));
+            const currentPrioritiesSimplified = currentPriorities.map(simplifyPriority).sort((a, b) => a.id.localeCompare(b.id));
+
+            if (existingReflection) {
+                // Compare with what we already have in the reflection snapshot
+                const existingRoutinesSimplified = (existingReflection.todayRoutines || []).map(simplifyRoutine).sort((a, b) => a.id.localeCompare(b.id));
+                const existingPrioritiesSimplified = (existingReflection.todayPriorities || []).map(simplifyPriority).sort((a, b) => a.id.localeCompare(b.id));
+
+                const routinesChanged = JSON.stringify(currentRoutinesSimplified) !== JSON.stringify(existingRoutinesSimplified);
+                const prioritiesChanged = JSON.stringify(currentPrioritiesSimplified) !== JSON.stringify(existingPrioritiesSimplified);
+
+                if (!routinesChanged && !prioritiesChanged) return;
+
+                // DETAILED LOGGING OF CHANGES
+                const logDiff = (label: string, cur: any[], old: any[]) => {
+                    const curMap = new Map(cur.map(i => [i.id, i]));
+                    const oldMap = new Map(old.map(i => [i.id, i]));
+                    const changes: string[] = [];
+
+                    cur.forEach(c => {
+                        const o = oldMap.get(c.id);
+                        if (!o) { changes.push(`Added ${c.id}`); return; }
+                        Object.keys(c).forEach(k => {
+                            if (c[k] !== o[k]) changes.push(`${c.id}.${k}: ${o[k]}->${c[k]}`);
+                        });
+                    });
+                    old.forEach(o => { if (!curMap.has(o.id)) changes.push(`Removed ${o.id}`); });
+
+                    if (changes.length > 0) console.log(`[Snapshot ${label}] Changes: ${changes.join(', ')}`);
                 };
 
-                // Compare if changed to avoid loop
-                const currentStr = JSON.stringify({
-                    r: reflections[todayIndex].todayRoutines,
-                    p: reflections[todayIndex].todayPriorities
-                });
-                const newStr = JSON.stringify({
-                    r: updatedReflection.todayRoutines,
-                    p: updatedReflection.todayPriorities
-                });
+                if (routinesChanged) logDiff('Routines', currentRoutinesSimplified, existingRoutinesSimplified);
+                if (prioritiesChanged) logDiff('Priorities', currentPrioritiesSimplified, existingPrioritiesSimplified);
 
-                if (currentStr === newStr) return;
+                // Update existing reflection
+                const updatedReflection = {
+                    ...existingReflection,
+                    todayRoutines: currentRoutines,
+                    todayPriorities: currentPriorities,
+                    updatedAt: new Date().toISOString(),
+                };
 
-                // Optimistic
-                cache.reflections![todayIndex] = updatedReflection;
-                await provider.saveReflection(updatedReflection);
+                // FIX: Search cache by ID instead of using index from sorted/deduplicated array
+                const cacheIndex = cache.reflections.findIndex(r => r.id === existingReflection.id);
+                if (cacheIndex !== -1) {
+                    cache.reflections[cacheIndex] = updatedReflection;
+                } else {
+                    cache.reflections.unshift(updatedReflection);
+                }
+
+                await provider.saveReflection(updatedReflection, 'Auto-Snapshot');
             } else {
-                // Create a new "Passive" reflection entry if at least one thing is checked
+                // Create a new "Passive" reflection entry if some progress exists
                 const hasProgress = currentRoutines.some(r => r.completedAt) || currentPriorities.some(p => p.completed);
 
                 if (hasProgress) {
@@ -66,12 +106,11 @@ export const updateDailySnapshot = async () => {
                         smallChange: "",
                         todayRoutines: currentRoutines,
                         todayPriorities: currentPriorities,
-                        updatedAt: now, // Ensure sync triggers
+                        updatedAt: now,
                     };
 
-                    // Optimistic
-                    cache.reflections = [newReflection, ...reflections];
-                    await provider.saveReflection(newReflection);
+                    cache.reflections = [newReflection, ...(cache.reflections || [])];
+                    await provider.saveReflection(newReflection, 'Auto-Snapshot (New Day)');
                 }
             }
         } catch (e) {

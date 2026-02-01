@@ -2,8 +2,9 @@ import { z } from '@hono/zod-openapi';
 
 // Shared schemas
 const timestampSchema = z.string().datetime().optional().nullable();
-const booleanOrIntSchema = z.union([z.boolean(), z.number().int().min(0).max(1)]).transform((val) => {
+const booleanOrIntSchema = z.union([z.boolean(), z.number().int().min(0).max(1), z.null()]).transform((val) => {
     if (typeof val === 'boolean') return val;
+    if (val === null) return false;
     return val === 1;
 });
 
@@ -67,8 +68,8 @@ export const habitSchema = z.object({
     frequency: z.string(),
     interval: z.number().int().optional().nullable(),
     specificDays: jsonStringSchema,
-    allowedDayOff: z.number().int().optional().default(1),
-    targetCount: z.number().int().optional().default(1),
+    allowedDayOff: z.number().int().optional().nullable().transform(v => v ?? 1),
+    targetCount: z.number().int().optional().nullable().transform(v => v ?? 1),
     isArchived: booleanOrIntSchema.optional().default(false),
     createdAt: timestampSchema,
     updatedAt: timestampSchema
@@ -80,7 +81,7 @@ export const habitLogSchema = z.object({
     date: z.string(),
     completed: booleanOrIntSchema.optional().default(false),
     completedAt: timestampSchema,
-    count: z.number().int().optional().default(1),
+    count: z.number().int().optional().nullable().transform(v => v ?? 1),
     note: z.string().optional().nullable(),
     createdAt: timestampSchema,
     updatedAt: timestampSchema

@@ -32,6 +32,7 @@ export const getRoutines = (): RoutineItem[] => {
         }));
 
         cache.routines = resetRoutines;
+        // Only send the reset items to cloud
         provider.saveRoutines(resetRoutines).catch((error) => {
             handleSaveError(error, 'Reset rutinitas harian');
         });
@@ -64,7 +65,13 @@ export const deleteRoutine = (id: string) => {
 
 export const toggleRoutineCompletion = (id: string, routines: RoutineItem[], note?: string) => {
     const updated = toggleRoutineHelper(id, routines, note);
-    saveRoutines(updated);
+    cache.routines = updated;
+    const updatedItem = updated.find(r => r.id === id);
+    if (updatedItem) {
+        provider.saveRoutines([updatedItem]).catch((error) => {
+            handleSaveError(error, 'Update status rutinitas');
+        });
+    }
     notifyListeners(); // Auto-update snapshot
     return updated;
 };

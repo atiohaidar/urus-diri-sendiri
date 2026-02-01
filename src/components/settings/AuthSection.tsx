@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Cloud, LogOut, LogIn, Mail, Sparkles, CheckCircle2, Loader2 } from 'lucide-react';
+import { Cloud, LogOut, LogIn, Mail, Sparkles, CheckCircle2, Loader2, Info } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -10,7 +10,8 @@ import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescript
 import { cn } from '@/lib/utils';
 import { useAuthSync } from '@/hooks/useAuthSync';
 import { waitForAuthSync } from '@/lib/auth-sync-manager';
-import { Eye, EyeOff, Lock, UserPlus } from 'lucide-react';
+import { Eye, EyeOff, Lock, UserPlus, RotateCcw } from 'lucide-react';
+import { hydrateCache } from '@/lib/storage';
 
 export const AuthSection = () => {
     const { t } = useLanguage();
@@ -77,6 +78,21 @@ export const AuthSection = () => {
             setTimeout(() => window.location.reload(), 300);
         } catch (error) {
             toast.error(error instanceof Error ? error.message : "Failed to logout");
+        } finally {
+            setLoginLoading(false);
+        }
+    };
+
+    const handleForceRefresh = async () => {
+        setLoginLoading(true);
+        toast.loading("Refetching all data...");
+        try {
+            await hydrateCache(true);
+            toast.dismiss();
+            toast.success("Data refreshed successfully!");
+        } catch (error) {
+            toast.dismiss();
+            toast.error("Failed to refresh data");
         } finally {
             setLoginLoading(false);
         }
@@ -305,6 +321,27 @@ export const AuthSection = () => {
                     )}
                 </div>
             )}
+            {/* Manual Sync / Troubleshooting Section */}
+            <div className="mt-6 pt-6 border-t-2 border-dashed border-paper-lines/30">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <p className="font-handwriting text-sm text-ink group flex items-center gap-2">
+                            Troubleshooting <Info className="w-3 h-3 text-pencil" />
+                        </p>
+                        <p className="text-[10px] font-handwriting text-pencil">Data tidak sinkron? Coba paksa pembaruan.</p>
+                    </div>
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleForceRefresh}
+                        className="font-handwriting text-xs gap-2 text-pencil hover:text-ink hover:bg-paper-lines/20"
+                        disabled={loginLoading}
+                    >
+                        <RotateCcw className={cn("w-3 h-3", loginLoading && "animate-spin")} />
+                        Refresh Data
+                    </Button>
+                </div>
+            </div>
         </section>
     );
 };

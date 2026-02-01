@@ -1,16 +1,55 @@
-import { Hono } from 'hono';
+import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
 import type { Env } from '../types';
 import { authMiddleware } from '../middleware/auth';
+import { batchNoteHistorySchema, noteHistorySchema } from '../schemas';
 
-const noteHistories = new Hono<{ Bindings: Env }>();
+const noteHistories = new OpenAPIHono<{ Bindings: Env }>();
 
 noteHistories.use('*', authMiddleware);
 
+const successResponseSchema = z.object({
+  success: z.boolean(),
+  data: z.array(noteHistorySchema.extend({
+    deletedAt: z.string().nullable().optional(),
+  })).optional(),
+  message: z.string().optional(),
+  error: z.string().optional(),
+});
+
 // Get all note histories
-noteHistories.get('/', async (c) => {
+const getNoteHistoriesRoute = createRoute({
+  method: 'get',
+  path: '/',
+  request: {
+    query: z.object({
+      since: z.string().optional().openapi({
+        param: {
+          name: 'since',
+          in: 'query',
+        },
+        example: '2023-01-01T00:00:00Z',
+      }),
+    }),
+  },
+  responses: {
+    200: {
+      content: {
+        'application/json': {
+          schema: successResponseSchema,
+        },
+      },
+      description: 'Retrieve note histories',
+    },
+    500: {
+      description: 'Server Error',
+    },
+  },
+});
+
+noteHistories.openapi(getNoteHistoriesRoute, async (c) => {
   try {
     const userId = c.get('userId');
-    const since = c.req.query('since');
+    const { since } = c.req.valid('query');
 
     let query = 'SELECT * FROM note_histories WHERE user_id = ?';
     const params: any[] = [userId];
@@ -36,7 +75,7 @@ noteHistories.get('/', async (c) => {
       deletedAt: row.deleted_at,
     }));
 
-    return c.json({ success: true, data: histories });
+    return c.json({ success: true, data: histories }, 200);
   } catch (error) {
     console.error('Get note histories error:', error);
     return c.json({ success: false, error: 'Failed to fetch note histories' }, 500);
@@ -44,11 +83,34 @@ noteHistories.get('/', async (c) => {
 });
 
 // Upsert note history (batch support)
-import { zValidator } from '@hono/zod-validator';
-import { batchNoteHistorySchema } from '../schemas';
+const upsertNoteHistoriesRoute = createRoute({
+  method: 'put',
+  path: '/',
+  request: {
+    body: {
+      content: {
+        'application/json': {
+          schema: batchNoteHistorySchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      content: {
+        'application/json': {
+          schema: successResponseSchema,
+        },
+      },
+      description: 'Note histories saved',
+    },
+    500: {
+      description: 'Server Error',
+    },
+  },
+});
 
-// Upsert note history (batch support)
-noteHistories.put('/', zValidator('json', batchNoteHistorySchema), async (c) => {
+noteHistories.openapi(upsertNoteHistoriesRoute, async (c) => {
   try {
     const userId = c.get('userId');
     const items = c.req.valid('json');
@@ -58,7 +120,7 @@ noteHistories.put('/', zValidator('json', batchNoteHistorySchema), async (c) => 
     const itemsArray = Array.isArray(items) ? items : [items];
 
     if (itemsArray.length === 0) {
-      return c.json({ success: true, message: 'No note histories to save' });
+      return c.json({ success: true, message: 'No note histories to save' }, 200);
     }
 
     const statements = itemsArray.map((item) =>
@@ -83,7 +145,7 @@ noteHistories.put('/', zValidator('json', batchNoteHistorySchema), async (c) => 
 
     await c.env.DB.batch(statements);
 
-    return c.json({ success: true, message: `Saved ${itemsArray.length} note histories` });
+    return c.json({ success: true, message: `Saved ${itemsArray.length} note histories` }, 200);
   } catch (error) {
     console.error('Save note history error:', error);
     return c.json({ success: false, error: 'Failed to save note history' }, 500);
@@ -91,3 +153,4 @@ noteHistories.put('/', zValidator('json', batchNoteHistorySchema), async (c) => 
 });
 
 export default noteHistories;
+

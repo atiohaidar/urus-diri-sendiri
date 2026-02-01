@@ -10,7 +10,7 @@ export const ReviewSection = () => {
     // but for the check-in page usage flow, direct access is acceptable as done in original file.
 
     const routines = getRoutines();
-    const priorities = getPriorities();
+    const priorities = getPriorities('ReviewSection');
 
     const completedRoutines = routines.filter(r => r.completedAt).length;
     const completedPriorities = priorities.filter(p => p.completed).length;

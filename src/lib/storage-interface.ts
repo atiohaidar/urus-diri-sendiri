@@ -3,12 +3,12 @@ import { PriorityTask, Reflection, Note, NoteHistory, RoutineItem, ActivityLog, 
 export interface IStorageProvider {
     // Priorities
     getPriorities(since?: string): Promise<PriorityTask[]>;
-    savePriorities(priorities: PriorityTask[]): Promise<void>;
+    savePriorities(priorities: PriorityTask[], reason?: string): Promise<void>;
     deletePriority(id: string): Promise<void>;
 
     // Reflections
     getReflections(since?: string): Promise<Reflection[]>;
-    saveReflection(reflection: Reflection): Promise<void>; // Expects full object with ID
+    saveReflection(reflection: Reflection, reason?: string): Promise<void>; // Expects full object with ID
 
     // Notes
     getNotes(since?: string): Promise<Note[]>;
@@ -19,6 +19,7 @@ export interface IStorageProvider {
     // Note Histories
     getNoteHistories?(since?: string): Promise<NoteHistory[]>;
     saveNoteHistory?(history: NoteHistory): Promise<void>;
+    saveNoteHistories?(history: NoteHistory[]): Promise<void>;
 
     // Routines
     getRoutines(since?: string): Promise<RoutineItem[]>;

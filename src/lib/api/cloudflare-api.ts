@@ -1,9 +1,9 @@
 // Cloudflare D1 API Client
 // Used by CloudflareD1Provider to communicate with Hono backend
+// Import RPC client
+import { client } from '../rpc-client';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8787';
-
-// Token storage
+// Token helpers (kept for backward compatibility with components using them directly)
 const TOKEN_KEY = 'cloudflare_auth_token';
 const USER_KEY = 'cloudflare_user';
 
@@ -29,93 +29,54 @@ export const setStoredUser = (user: { id: string; email: string }): void => {
     localStorage.setItem(USER_KEY, JSON.stringify(user));
 };
 
-// API Request helper
-async function apiRequest<T>(
-    endpoint: string,
-    options: RequestInit = {}
-): Promise<T> {
-    const token = getStoredToken();
-    const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-        ...options.headers as Record<string, string>,
-    };
-
-    if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-    }
-
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-        ...options,
-        headers,
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-        throw new Error(data.error || `API Error: ${response.status}`);
-    }
-
-    return data;
-}
 
 // Auth API
 export const authApi = {
     async register(email: string, password: string) {
-        const response = await apiRequest<{
-            success: boolean;
-            data?: { user: { id: string; email: string }; token: string };
-            error?: string;
-        }>('/api/auth/register', {
-            method: 'POST',
-            body: JSON.stringify({ email, password }),
+        const res = await client.api.auth.register.$post({
+            json: { email, password }
         });
+        const data = await res.json() as any;
 
-        if (response.success && response.data) {
-            setStoredToken(response.data.token);
-            setStoredUser(response.data.user);
+        if (res.ok && data.success && data.data) {
+            setStoredToken(data.data.token);
+            setStoredUser(data.data.user);
         }
 
-        return response;
+        return data;
     },
 
     async login(email: string, password: string) {
-        const response = await apiRequest<{
-            success: boolean;
-            data?: { user: { id: string; email: string }; token: string };
-            error?: string;
-        }>('/api/auth/login', {
-            method: 'POST',
-            body: JSON.stringify({ email, password }),
+        const res = await client.api.auth.login.$post({
+            json: { email, password }
         });
+        const data = await res.json() as any;
 
-        if (response.success && response.data) {
-            setStoredToken(response.data.token);
-            setStoredUser(response.data.user);
+        if (res.ok && data.success && data.data) {
+            setStoredToken(data.data.token);
+            setStoredUser(data.data.user);
         }
 
-        return response;
+        return data;
     },
 
     async logout() {
         try {
-            await apiRequest('/api/auth/logout', { method: 'POST' });
+            await client.api.auth.logout.$post();
         } finally {
             clearStoredToken();
         }
     },
 
     async getCurrentUser() {
-        const response = await apiRequest<{
-            success: boolean;
-            data?: { user: { id: string; email: string } };
-            error?: string;
-        }>('/api/auth/me');
+        const res = await client.api.auth.me.$get();
+        const data = await res.json() as any;
 
-        if (response.success && response.data) {
-            setStoredUser(response.data.user);
+        if (res.ok && data.success && data.data) {
+            setStoredUser(data.data.user);
         }
 
-        return response;
+        return data;
     },
 
     isAuthenticated() {
@@ -123,82 +84,185 @@ export const authApi = {
     },
 };
 
-// Generic Data API
-export const dataApi = {
-    async get<T>(endpoint: string, since?: string): Promise<T[]> {
-        const url = since ? `${endpoint}?since=${encodeURIComponent(since)}` : endpoint;
-        const response = await apiRequest<{ success: boolean; data: T[] }>(url);
-        return response.data || [];
-    },
 
-    async put<T>(endpoint: string, data: T | T[]): Promise<void> {
-        await apiRequest(endpoint, {
-            method: 'PUT',
-            body: JSON.stringify(data),
-        });
-    },
-
-    async delete(endpoint: string, id: string): Promise<void> {
-        await apiRequest(`${endpoint}/${id}`, { method: 'DELETE' });
-    },
-
-    async sync(endpoint: string, since?: string): Promise<any> {
-        const url = since ? `${endpoint}?since=${encodeURIComponent(since)}` : endpoint;
-        const response = await apiRequest<{ success: boolean; data: any }>(url);
-        return response.data;
-    }
-};
+// Generic Data API - REPLACED with Typed wrappers
+// We keep the structure but implement using specific RPC calls where we can.
+// Generic Data API - REPLACED with Typed wrappers
+// dataApi has been removed in favor of specific typed APIs
 
 // Specific API endpoints
+// Specific API endpoints
 export const prioritiesApi = {
-    get: (since?: string) => dataApi.get('/api/priorities', since),
-    save: (data: any[]) => dataApi.put('/api/priorities', data),
-    delete: (id: string) => dataApi.delete('/api/priorities', id),
+    get: async (since?: string) => {
+        const res = await client.api.priorities.$get({ query: { since } });
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error);
+        return json.data || [];
+    },
+    save: async (data: any[]) => {
+        const res = await client.api.priorities.$put({ json: data });
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error);
+    },
+    delete: async (id: string) => {
+        const res = await client.api.priorities[':id'].$delete({ param: { id } });
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error);
+    },
 };
 
 export const routinesApi = {
-    get: (since?: string) => dataApi.get('/api/routines', since),
-    save: (data: any[]) => dataApi.put('/api/routines', data),
-    delete: (id: string) => dataApi.delete('/api/routines', id),
+    get: async (since?: string) => {
+        const res = await client.api.routines.$get({ query: { since } });
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error || "Failed");
+        return json.data || [];
+    },
+    save: async (data: any[]) => {
+        const res = await client.api.routines.$put({ json: data });
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error || "Failed");
+    },
+    delete: async (id: string) => {
+        const res = await client.api.routines[':id'].$delete({ param: { id } });
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error || "Failed");
+    },
 };
 
 export const notesApi = {
-    get: (since?: string) => dataApi.get('/api/notes', since),
-    save: (data: any | any[]) => dataApi.put('/api/notes', data),
-    saveSingle: (data: any) => dataApi.put('/api/notes/single', data),
-    delete: (id: string) => dataApi.delete('/api/notes', id),
+    get: async (since?: string) => {
+        const res = await client.api.notes.$get({ query: { since } });
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error);
+        return json.data || [];
+    },
+    save: async (data: any | any[]) => {
+        // Handle array vs single object if backend supports it, backend expects generic save usually handles both or typed
+        // Based on routes usually accepts array or object depending on implementation.
+        // Assuming /api/notes PUT accepts data
+        const res = await client.api.notes.$put({ json: data });
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error);
+    },
+    saveSingle: async (data: any) => {
+        const res = await client.api.notes.single.$put({ json: data });
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error);
+    },
+    delete: async (id: string) => {
+        const res = await client.api.notes[':id'].$delete({ param: { id } });
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error);
+    },
 };
 
 export const noteHistoriesApi = {
-    get: (since?: string) => dataApi.get('/api/note-histories', since),
-    save: (data: any) => dataApi.put('/api/note-histories', data),
+    get: async (since?: string) => {
+        const res = await client.api['note-histories'].$get({ query: { since } });
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error);
+        return json.data || [];
+    },
+    save: async (data: any) => {
+        const res = await client.api['note-histories'].$put({ json: data });
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error);
+    },
 };
 
 export const reflectionsApi = {
-    get: (since?: string) => dataApi.get('/api/reflections', since),
-    save: (data: any) => dataApi.put('/api/reflections', data),
+    get: async (since?: string) => {
+        const res = await client.api.reflections.$get({ query: { since } });
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error);
+        return json.data || [];
+    },
+    save: async (data: any) => {
+        const res = await client.api.reflections.$put({ json: data });
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error);
+    },
 };
 
 export const logsApi = {
-    get: (since?: string) => dataApi.get('/api/logs', since),
-    save: (data: any) => dataApi.put('/api/logs', data),
-    delete: (id: string) => dataApi.delete('/api/logs', id),
+    get: async (since?: string) => {
+        const res = await client.api.logs.$get({ query: { since } });
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error);
+        return json.data || [];
+    },
+    save: async (data: any) => {
+        const res = await client.api.logs.$put({ json: data });
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error);
+    },
+    delete: async (id: string) => {
+        const res = await client.api.logs[':id'].$delete({ param: { id } });
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error);
+    },
 };
 
 export const habitsApi = {
-    get: (since?: string) => dataApi.get('/api/habits', since),
-    save: (data: any[]) => dataApi.put('/api/habits', data),
+    get: async (since?: string) => {
+        const res = await client.api.habits.$get({ query: { since } });
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error);
+        return json.data || [];
+    },
+    save: async (data: any[]) => {
+        const res = await client.api.habits.$put({ json: data });
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error);
+    },
 };
 
 export const habitLogsApi = {
-    get: (since?: string) => dataApi.get('/api/habit-logs', since),
-    save: (data: any[]) => dataApi.put('/api/habit-logs', data),
+    get: async (since?: string) => {
+        const res = await client.api['habit-logs'].$get({ query: { since } });
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error);
+        return json.data || [];
+    },
+    save: async (data: any[]) => {
+        const res = await client.api['habit-logs'].$put({ json: data });
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error);
+    },
 };
 
 export const personalNotesApi = {
     get: async () => {
-        const response = await apiRequest<{ success: boolean; data: any }>('/api/personal-notes');
-        return response.data;
+        const res = await client.api['personal-notes'].$get();
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error);
+        return json.data;
     },
-    save: (data: any) => dataApi.put('/api/personal-notes', data),
+    save: async (data: any) => {
+        const res = await client.api['personal-notes'].$put({ json: data });
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error);
+    },
 };
+
+export const syncApi = {
+    getAll: async (since?: string) => {
+        const res = await client.api.sync.all.$get({ query: { since } });
+
+        // Jika 304 (Not Modified), langsung return null
+        if (res.status === 304) {
+            console.log("♻️ Sync: Server says Not Modified (304)");
+            return null;
+        }
+
+        const json = await res.json() as any;
+
+        if (!json.success) {
+            throw new Error(json.error || 'Sync failed');
+        }
+
+        return json.data;
+    }
+};
+

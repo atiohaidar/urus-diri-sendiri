@@ -10,6 +10,7 @@ import {
     addPriority,
     initializeStorage,
     hydrateCache,
+    syncTable,
     type RoutineItem,
     type PriorityTask,
     deletePriority,
@@ -43,7 +44,7 @@ export const useRoutines = () => {
             setRoutines(loadedRoutines);
 
             // Priorities: Load using centralized intelligent filter/sort
-            const visiblePriorities = getPriorities();
+            const visiblePriorities = getPriorities('useRoutines');
             setPriorities(visiblePriorities);
             setStats(getCompletionStats(loadedRoutines));
 
@@ -56,10 +57,14 @@ export const useRoutines = () => {
             setIsLoading(false);
         }
     }, []);
-
     useEffect(() => {
-        // Initial load
+        // Initial load (from IndexedDB - Fast)
         loadData(false);
+
+        // Background Sync (On-Demand - Lazy)
+        // This hits the network but doesn't block the initial render
+        syncTable('routines');
+        syncTable('priorities');
 
         // Subscribe to storage changes (e.g. background sync or re-hydration)
         const unsubscribe = registerListener(() => {

@@ -1,6 +1,5 @@
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
 import type { Env } from '../types';
-import { zValidator } from '@hono/zod-validator';
 import { authMiddleware } from '../middleware/auth';
 import { batchRoutineSchema, routineSchema } from '../schemas';
 

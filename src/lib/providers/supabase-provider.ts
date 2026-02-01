@@ -126,7 +126,8 @@ export class SupabaseProvider implements IStorageProvider {
         }
     }
 
-    async savePriorities(priorities: PriorityTask[]): Promise<void> {
+    async savePriorities(priorities: PriorityTask[], reason: string = 'Unknown'): Promise<void> {
+        console.log(`[Supabase] PUT ${priorities.length} Priorities - Reason: ${reason}`);
         await this.localProvider.savePriorities(priorities);
         // We still upsert the whole list to ensure consistency, 
         // but because we removed the "delete if not in" logic in the handler, 
@@ -171,7 +172,8 @@ export class SupabaseProvider implements IStorageProvider {
         }
     }
 
-    async saveReflection(reflection: Reflection): Promise<void> {
+    async saveReflection(reflection: Reflection, reason: string = 'Unknown'): Promise<void> {
+        console.log(`[Supabase] PUT Reflection (${reflection.date}) - Reason: ${reason}`);
         await this.localProvider.saveReflection(reflection);
         await this.executeOrQueue(
             { type: 'reflection', data: reflection },

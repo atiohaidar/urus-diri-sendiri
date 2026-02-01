@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getReflectionsAsync, initializeStorage, registerListener, type Reflection } from '@/lib/storage';
+import { getReflectionsAsync, initializeStorage, registerListener, syncTable, type Reflection } from '@/lib/storage';
 
 export const useReflections = () => {
     const [reflections, setReflections] = useState<Reflection[]>([]);
@@ -17,7 +17,11 @@ export const useReflections = () => {
         };
 
         // Initialize and load
-        initializeStorage().then(load);
+        initializeStorage().then(() => {
+            load();
+            // Trigger background sync for reflections
+            syncTable('reflections');
+        });
 
         // Subscribe to changes
         const unsubscribe = registerListener(() => {

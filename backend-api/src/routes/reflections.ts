@@ -1,19 +1,63 @@
-import { Hono } from 'hono';
+import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
 import type { Env } from '../types';
 import { authMiddleware } from '../middleware/auth';
-import { zValidator } from '@hono/zod-validator';
-import { batchReflectionSchema } from '../schemas';
+import { batchReflectionSchema, reflectionSchema } from '../schemas';
 import { parseJsonField, stringifyJsonField } from '../utils';
 
-const reflections = new Hono<{ Bindings: Env }>();
+const reflections = new OpenAPIHono<{ Bindings: Env }>();
 
 reflections.use('*', authMiddleware);
 
+
+const successResponseSchema = z.object({
+  success: z.boolean(),
+  data: z.array(reflectionSchema.extend({
+    deletedAt: z.string().nullable().optional(),
+    // Override JSON fields to allow 'any' (Objects) instead of enforcing string transform
+    priorities: z.any(),
+    todayRoutines: z.any(),
+    todayPriorities: z.any(),
+    images: z.any(),
+  })).optional(),
+  message: z.string().optional(),
+  error: z.string().optional(),
+});
+
+
 // Get all reflections
-reflections.get('/', async (c) => {
+const getReflectionsRoute = createRoute({
+  method: 'get',
+  path: '/',
+  request: {
+    query: z.object({
+      since: z.string().optional().openapi({
+        param: {
+          name: 'since',
+          in: 'query',
+        },
+        example: '2023-01-01T00:00:00Z',
+      }),
+    }),
+  },
+  responses: {
+    200: {
+      content: {
+        'application/json': {
+          schema: successResponseSchema,
+        },
+      },
+      description: 'Retrieve reflections',
+    },
+    500: {
+      description: 'Server Error',
+    },
+  },
+});
+
+reflections.openapi(getReflectionsRoute, async (c) => {
   try {
     const userId = c.get('userId');
-    const since = c.req.query('since');
+    const { since } = c.req.valid('query');
 
     let query = 'SELECT * FROM reflections WHERE user_id = ?';
     const params: any[] = [userId];
@@ -29,7 +73,7 @@ reflections.get('/', async (c) => {
 
     const result = await c.env.DB.prepare(query).bind(...params).all();
 
-    const reflections = (result.results || []).map((row: any) => ({
+    const reflectionsData = (result.results || []).map((row: any) => ({
       id: row.id,
       date: row.date,
       winOfDay: row.win_of_day,
@@ -43,7 +87,7 @@ reflections.get('/', async (c) => {
       deletedAt: row.deleted_at,
     }));
 
-    return c.json({ success: true, data: reflections });
+    return c.json({ success: true, data: reflectionsData }, 200);
   } catch (error) {
     console.error('Get reflections error:', error);
     return c.json({ success: false, error: 'Failed to fetch reflections' }, 500);
@@ -51,7 +95,34 @@ reflections.get('/', async (c) => {
 });
 
 // Upsert reflection (batch support)
-reflections.put('/', zValidator('json', batchReflectionSchema), async (c) => {
+const upsertReflectionsRoute = createRoute({
+  method: 'put',
+  path: '/',
+  request: {
+    body: {
+      content: {
+        'application/json': {
+          schema: batchReflectionSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      content: {
+        'application/json': {
+          schema: successResponseSchema,
+        },
+      },
+      description: 'Reflections saved',
+    },
+    500: {
+      description: 'Server Error',
+    },
+  },
+});
+
+reflections.openapi(upsertReflectionsRoute, async (c) => {
   try {
     const userId = c.get('userId');
     const items = c.req.valid('json');
@@ -61,7 +132,7 @@ reflections.put('/', zValidator('json', batchReflectionSchema), async (c) => {
     const itemsArray = Array.isArray(items) ? items : [items];
 
     if (itemsArray.length === 0) {
-      return c.json({ success: true, message: 'No reflections to save' });
+      return c.json({ success: true, message: 'No reflections to save' }, 200);
     }
 
     const statements = itemsArray.map((item) =>
@@ -95,7 +166,7 @@ reflections.put('/', zValidator('json', batchReflectionSchema), async (c) => {
 
     await c.env.DB.batch(statements);
 
-    return c.json({ success: true, message: `Saved ${itemsArray.length} reflections` });
+    return c.json({ success: true, message: `Saved ${itemsArray.length} reflections` }, 200);
   } catch (error) {
     console.error('Save reflection error:', error);
     return c.json({ success: false, error: 'Failed to save reflection' }, 500);
@@ -103,3 +174,4 @@ reflections.put('/', zValidator('json', batchReflectionSchema), async (c) => {
 });
 
 export default reflections;
+

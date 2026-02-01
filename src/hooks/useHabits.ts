@@ -15,6 +15,7 @@ import {
     getTodayString,
     initializeStorage,
     registerListener,
+    syncTable,
     type Habit,
     type HabitFrequency,
 } from '@/lib/storage';
@@ -60,6 +61,10 @@ export const useHabits = () => {
 
     useEffect(() => {
         loadData();
+
+        // Trigger background sync for habits and logs
+        syncTable('habits');
+        syncTable('habitLogs');
 
         const unsubscribe = registerListener(() => {
             console.log("♻️ UI: Habits updated from storage event");

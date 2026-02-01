@@ -74,7 +74,6 @@ const HomeScreen = () => {
       <HomeHeader
         currentDate={currentDate}
         isLoading={isRoutineLoading}
-        onRefresh={refreshData}
         routines={routines}
         priorities={priorities}
       />

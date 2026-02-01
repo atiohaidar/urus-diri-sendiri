@@ -1,6 +1,6 @@
 import { PriorityTask } from '../types';
 import { cache, provider, generateId, notifyListeners, handleSaveError } from './core';
-import { getTodayDateString } from '../time-utils';
+import { getTodayDateString, toLocalISODate } from '../time-utils';
 
 // Flag to prevent concurrent reset operations
 let isResettingPriorities = false;
@@ -40,7 +40,7 @@ export const resetOldCompletions = async (): Promise<void> => {
 
             // Check if priority was updated on a previous day and is completed
             if (p.updatedAt) {
-                const priorityDateISO = p.updatedAt.split('T')[0]; // Extract YYYY-MM-DD
+                const priorityDateISO = toLocalISODate(p.updatedAt); // Extract local YYYY-MM-DD
                 if (priorityDateISO < todayISO && p.completed) {
                     hasChanges = true;
                     return {
@@ -55,7 +55,10 @@ export const resetOldCompletions = async (): Promise<void> => {
 
         if (hasChanges) {
             cache.priorities = updatedPriorities;
-            await provider.savePriorities(updatedPriorities);
+            const changesOnly = updatedPriorities.filter(p => p.updatedAt?.startsWith(todayISO)); // Not exact but close enough for reset
+            // Better: just filter the ones we actually changed in the map above
+            const resetItems = updatedPriorities.filter((p, i) => p !== priorities[i]);
+            await provider.savePriorities(resetItems, 'Reset Old Completions');
             notifyListeners();
         }
     } finally {
@@ -63,7 +66,8 @@ export const resetOldCompletions = async (): Promise<void> => {
     }
 };
 
-export const getPriorities = (): PriorityTask[] => {
+export const getPriorities = (caller: string = 'Unknown'): PriorityTask[] => {
+    console.log(`Storage: getPriorities called by [${caller}]`);
     const priorities = getAllPriorities();
     const todayISO = getTodayDateString();
 
@@ -106,11 +110,11 @@ export const getPriorities = (): PriorityTask[] => {
         });
 };
 
-export const savePriorities = (priorities: PriorityTask[]) => {
+export const savePriorities = (priorities: PriorityTask[], reason: string = 'UI Update') => {
     cache.priorities = priorities;
     // Async save with proper error handling
-    provider.savePriorities(priorities).catch((error) => {
-        handleSaveError(error, 'Menyimpan prioritas', () => savePriorities(priorities));
+    provider.savePriorities(priorities, reason).catch((error) => {
+        handleSaveError(error, 'Menyimpan prioritas', () => savePriorities(priorities, reason));
     });
 };
 
@@ -125,8 +129,14 @@ export const updatePriorityCompletion = (id: string, completed: boolean, note?: 
             updatedAt: now
         } : p
     );
-    savePriorities(updated);
-    notifyListeners(); // Auto-update snapshot
+    const updatedItem = updated.find(p => p.id === id);
+    cache.priorities = updated;
+    if (updatedItem) {
+        provider.savePriorities([updatedItem], `Update Completion (${completed})`).catch((error) => {
+            handleSaveError(error, 'Update status prioritas');
+        });
+    }
+    notifyListeners();
     return updated;
 };
 
@@ -140,8 +150,13 @@ export const addPriority = (text: string, scheduledFor?: string) => {
         updatedAt: new Date().toISOString(),
     };
     const updated = [...priorities, newPriority];
-    savePriorities(updated);
-    notifyListeners(); // Auto-update snapshot
+    cache.priorities = updated;
+
+    provider.savePriorities([newPriority], 'Add Priority').catch((error) => {
+        handleSaveError(error, 'Menambah prioritas');
+    });
+
+    notifyListeners();
     return updated;
 };
 
@@ -160,10 +175,17 @@ export const deletePriority = (id: string) => {
 
 export const updatePriorityText = (id: string, text: string) => {
     const priorities = getAllPriorities();
+    const now = new Date().toISOString();
     const updated = priorities.map(p =>
-        p.id === id ? { ...p, text, updatedAt: new Date().toISOString() } : p
+        p.id === id ? { ...p, text, updatedAt: now } : p
     );
-    savePriorities(updated);
+    cache.priorities = updated;
+    const updatedItem = updated.find(p => p.id === id);
+    if (updatedItem) {
+        provider.savePriorities([updatedItem], 'Update Text').catch((error) => {
+            handleSaveError(error, 'Update teks prioritas');
+        });
+    }
     notifyListeners();
     return updated;
 };
@@ -175,16 +197,22 @@ export const updatePriorityText = (id: string, text: string) => {
  */
 export const updatePrioritySchedule = (id: string, scheduledFor: string | undefined) => {
     const priorities = getAllPriorities();
+    const now = new Date().toISOString();
     const updated = priorities.map(p =>
         p.id === id ? {
             ...p,
             scheduledFor,
-            // Reset completion if changing to a future date
             completed: scheduledFor && scheduledFor > getTodayDateString() ? false : p.completed,
-            updatedAt: new Date().toISOString()
+            updatedAt: now
         } : p
     );
-    savePriorities(updated);
+    cache.priorities = updated;
+    const updatedItem = updated.find(p => p.id === id);
+    if (updatedItem) {
+        provider.savePriorities([updatedItem], 'Update Schedule').catch((error) => {
+            handleSaveError(error, 'Update jadwal prioritas');
+        });
+    }
     notifyListeners();
     return updated;
 };

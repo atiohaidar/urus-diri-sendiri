@@ -41,9 +41,9 @@ export const addHabit = (habit: Omit<Habit, 'id' | 'createdAt' | 'updatedAt'>): 
 
     cache.habits = [...(cache.habits || []), newHabit];
 
-    // Persist
+    // Persist - only send the new habit, not the entire list
     try {
-        provider.save('habits', cache.habits);
+        provider.saveHabits?.([newHabit]);
     } catch (error) {
         handleSaveError(error, 'addHabit', () => addHabit(habit));
     }
@@ -62,8 +62,10 @@ export const updateHabit = (id: string, updates: Partial<Habit>): Habit[] => {
         return h;
     });
 
+    const updatedHabit = (cache.habits || []).find(h => h.id === id);
+
     try {
-        provider.save('habits', cache.habits);
+        if (updatedHabit) provider.saveHabits?.([updatedHabit]);
     } catch (error) {
         handleSaveError(error, 'updateHabit', () => updateHabit(id, updates));
     }
@@ -83,8 +85,10 @@ export const deleteHabit = (id: string): Habit[] => {
         return h;
     });
 
+    const deletedHabit = (cache.habits || []).find(h => h.id === id);
+
     try {
-        provider.save('habits', cache.habits);
+        if (deletedHabit) provider.saveHabits?.([deletedHabit]);
     } catch (error) {
         handleSaveError(error, 'deleteHabit', () => deleteHabit(id));
     }
@@ -105,17 +109,12 @@ export const logHabitCompletion = (habitId: string, date: string, note?: string)
     // Check if log already exists for this date
     const existingLog = getHabitLogByDate(habitId, date);
 
+    let logToSave: HabitLog;
     if (existingLog) {
-        // Update existing log
-        cache.habitLogs = (cache.habitLogs || []).map(l => {
-            if (l.id === existingLog.id) {
-                return { ...l, completed: true, completedAt: now, note, updatedAt: now };
-            }
-            return l;
-        });
+        logToSave = { ...existingLog, completed: true, completedAt: now, note, updatedAt: now };
+        cache.habitLogs = (cache.habitLogs || []).map(l => l.id === existingLog.id ? logToSave : l);
     } else {
-        // Create new log
-        const newLog: HabitLog = {
+        logToSave = {
             id: generateId('hlog'),
             habitId,
             date,
@@ -125,11 +124,11 @@ export const logHabitCompletion = (habitId: string, date: string, note?: string)
             createdAt: now,
             updatedAt: now,
         };
-        cache.habitLogs = [...(cache.habitLogs || []), newLog];
+        cache.habitLogs = [...(cache.habitLogs || []), logToSave];
     }
 
     try {
-        provider.save('habitLogs', cache.habitLogs);
+        provider.saveHabitLogs?.([logToSave]);
     } catch (error) {
         handleSaveError(error, 'logHabitCompletion', () => logHabitCompletion(habitId, date, note));
     }
@@ -143,16 +142,16 @@ export const unlogHabitCompletion = (habitId: string, date: string): HabitLog[] 
     const existingLog = getHabitLogByDate(habitId, date);
 
     if (existingLog) {
-        // Soft delete the log
+        const updatedLog = { ...existingLog, completed: false, deletedAt: now, updatedAt: now };
         cache.habitLogs = (cache.habitLogs || []).map(l => {
             if (l.id === existingLog.id) {
-                return { ...l, completed: false, deletedAt: now, updatedAt: now };
+                return updatedLog;
             }
             return l;
         });
 
         try {
-            provider.save('habitLogs', cache.habitLogs);
+            provider.saveHabitLogs?.([updatedLog]);
         } catch (error) {
             handleSaveError(error, 'unlogHabitCompletion', () => unlogHabitCompletion(habitId, date));
         }

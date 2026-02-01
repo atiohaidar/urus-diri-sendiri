@@ -24,7 +24,7 @@ import {
  * It uses the same offline queue mechanism for resilience.
  */
 export class CloudflareD1Provider implements IStorageProvider {
-    private localProvider = new LocalStorageProvider();
+    public localProvider = new LocalStorageProvider();
 
     // Unified Sync Implementation
     async syncAll(since?: string): Promise<any> {
@@ -32,7 +32,8 @@ export class CloudflareD1Provider implements IStorageProvider {
 
         try {
             console.log("Unified Sync: Fetching all data...");
-            const result = await import('../api/cloudflare-api').then(m => m.dataApi.sync('/api/sync/all', since));
+            // Use static import for syncApi to ensure we don't rely on legacy dataApi
+            const result = await import('../api/cloudflare-api').then(m => m.syncApi.getAll(since));
 
             if (result) {
                 // Parallel saving to local DB for speed
@@ -125,7 +126,7 @@ export class CloudflareD1Provider implements IStorageProvider {
                 priorities.forEach(p => mergedMap.set(p.id, p));
                 await this.localProvider.savePriorities(Array.from(mergedMap.values()));
             }
-            return priorities;
+            return this.localProvider.getPriorities();
         } catch (error) {
             if (this.handleAuthError(error)) return [];
             console.error('Error fetching priorities:', error);
@@ -133,7 +134,8 @@ export class CloudflareD1Provider implements IStorageProvider {
         }
     }
 
-    async savePriorities(priorities: PriorityTask[]): Promise<void> {
+    async savePriorities(priorities: PriorityTask[], reason: string = 'Unknown'): Promise<void> {
+        console.log(`[CloudflareD1] PUT ${priorities.length} Priorities - Reason: ${reason}`);
         await this.localProvider.savePriorities(priorities);
         try {
             await this.executeOrQueue(
@@ -165,7 +167,7 @@ export class CloudflareD1Provider implements IStorageProvider {
             } else if (reflections.length > 0) {
                 for (const r of reflections) await this.localProvider.saveReflection(r);
             }
-            return reflections;
+            return this.localProvider.getReflections();
         } catch (error) {
             if (this.handleAuthError(error)) return [];
             console.error('Error fetching reflections:', error);
@@ -173,7 +175,8 @@ export class CloudflareD1Provider implements IStorageProvider {
         }
     }
 
-    async saveReflection(reflection: Reflection): Promise<void> {
+    async saveReflection(reflection: Reflection, reason: string = 'Unknown'): Promise<void> {
+        console.log(`[CloudflareD1] PUT Reflection (${reflection.date}) - Reason: ${reason}`);
         await this.localProvider.saveReflection(reflection);
         try {
             await this.executeOrQueue(
@@ -200,7 +203,7 @@ export class CloudflareD1Provider implements IStorageProvider {
                 notes.forEach(n => mergedMap.set(n.id, n));
                 await this.localProvider.saveNotes(Array.from(mergedMap.values()));
             }
-            return notes;
+            return this.localProvider.getNotes();
         } catch (error) {
             if (this.handleAuthError(error)) return [];
             return this.localProvider.getNotes(since);
@@ -251,7 +254,7 @@ export class CloudflareD1Provider implements IStorageProvider {
                     await this.localProvider.saveNoteHistory?.(h);
                 }
             }
-            return histories;
+            return this.localProvider.getNoteHistories?.() ?? [];
         } catch (error) {
             if (this.handleAuthError(error)) return [];
             console.error('Error fetching note histories:', error);
@@ -263,7 +266,16 @@ export class CloudflareD1Provider implements IStorageProvider {
         await this.localProvider.saveNoteHistory?.(history);
         await this.executeOrQueue(
             { type: 'note_history', data: history },
-            async () => { await noteHistoriesApi.save(history); }
+            async () => { await noteHistoriesApi.save([history]); }
+        );
+    }
+
+    async saveNoteHistories(histories: NoteHistory[]): Promise<void> {
+        // @ts-ignore
+        await this.localProvider.saveNoteHistories?.(histories);
+        await this.executeOrQueue(
+            { type: 'note_history', data: histories },
+            async () => { await noteHistoriesApi.save(histories); }
         );
     }
 
@@ -281,7 +293,7 @@ export class CloudflareD1Provider implements IStorageProvider {
                 routines.forEach(r => mergedMap.set(r.id, r));
                 await this.localProvider.saveRoutines(Array.from(mergedMap.values()));
             }
-            return routines;
+            return this.localProvider.getRoutines();
         } catch (error) {
             if (this.handleAuthError(error)) return [];
             console.error('Error fetching routines:', error);
@@ -321,7 +333,7 @@ export class CloudflareD1Provider implements IStorageProvider {
             } else if (logs.length > 0) {
                 for (const l of logs) await this.localProvider.saveLog(l);
             }
-            return logs;
+            return this.localProvider.getLogs();
         } catch (error) {
             if (this.handleAuthError(error)) return [];
             console.error('Error fetching logs:', error);
@@ -364,7 +376,7 @@ export class CloudflareD1Provider implements IStorageProvider {
                 habits.forEach(h => mergedMap.set(h.id, h));
                 await this.localProvider.saveHabits(Array.from(mergedMap.values()));
             }
-            return habits;
+            return this.localProvider.getHabits();
         } catch (error) {
             if (this.handleAuthError(error)) return [];
             console.error('Error fetching habits:', error);
@@ -394,7 +406,7 @@ export class CloudflareD1Provider implements IStorageProvider {
                 habitLogs.forEach(l => mergedMap.set(l.id, l));
                 await this.localProvider.saveHabitLogs(Array.from(mergedMap.values()));
             }
-            return habitLogs;
+            return this.localProvider.getHabitLogs();
         } catch (error) {
             if (this.handleAuthError(error)) return [];
             console.error('Error fetching habit_logs:', error);

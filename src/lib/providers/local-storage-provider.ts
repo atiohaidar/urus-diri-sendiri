@@ -18,7 +18,7 @@ export class LocalStorageProvider implements IStorageProvider {
         return getAllItems<PriorityTask>(IDB_STORES.PRIORITIES);
     }
 
-    async savePriorities(priorities: PriorityTask[]): Promise<void> {
+    async savePriorities(priorities: PriorityTask[], reason?: string): Promise<void> {
         // Since we want to keep current behavior of "replacing everything" for priorities locally,
         // we should ideally clear then put. But for now, putting items with same ID replaces them.
         // NOTE: If some items are deleted, we need to handle that. 
@@ -37,7 +37,7 @@ export class LocalStorageProvider implements IStorageProvider {
         return reflections;
     }
 
-    async saveReflection(reflection: Reflection): Promise<void> {
+    async saveReflection(reflection: Reflection, reason?: string): Promise<void> {
         await putItem(IDB_STORES.REFLECTIONS, reflection);
     }
 
@@ -67,6 +67,10 @@ export class LocalStorageProvider implements IStorageProvider {
 
     async saveNoteHistory(history: NoteHistory): Promise<void> {
         await putItem(IDB_STORES.NOTE_HISTORIES, history);
+    }
+
+    async saveNoteHistories(histories: NoteHistory[]): Promise<void> {
+        await putItems(IDB_STORES.NOTE_HISTORIES, histories);
     }
 
     // --- Routines ---

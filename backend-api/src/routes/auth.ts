@@ -166,7 +166,7 @@ auth.openapi(loginRoute, async (c) => {
     // Find user
     const user = await c.env.DB.prepare(
       'SELECT id, email, password_hash FROM users WHERE email = ?'
-    ).bind(email).first<{ id: string; email: string; password_hash: string }>();
+    ).bind(email).first() as { id: string; email: string; password_hash: string } | null;
 
     if (!user) {
       return c.json({ success: false, error: 'Invalid email or password' }, 401);
@@ -276,7 +276,7 @@ auth.openapi(meRoute, async (c) => {
        FROM sessions s 
        JOIN users u ON s.user_id = u.id 
        WHERE s.token = ?`
-    ).bind(token).first<{ user_id: string; email: string; expires_at: string }>();
+    ).bind(token).first() as { user_id: string; email: string; expires_at: string } | null;
 
     if (!session) {
       return c.json({ success: false, error: 'Invalid session' }, 401);

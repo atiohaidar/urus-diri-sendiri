@@ -1,18 +1,65 @@
-import { Hono } from 'hono';
+import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
 import type { Env } from '../types';
-import { zValidator } from '@hono/zod-validator';
 import { noteSchema, batchNoteSchema } from '../schemas';
 import { authMiddleware } from '../middleware/auth';
 
-const notes = new Hono<{ Bindings: Env }>();
+const notes = new OpenAPIHono<{ Bindings: Env }>();
 
 notes.use('*', authMiddleware);
 
+const paramsSchema = z.object({
+  id: z.string().openapi({
+    param: {
+      name: 'id',
+      in: 'path',
+    },
+    example: '123',
+  }),
+});
+
+const successResponseSchema = z.object({
+  success: z.boolean(),
+  data: z.array(noteSchema.extend({
+    deletedAt: z.string().nullable().optional(),
+  })).optional(),
+  message: z.string().optional(),
+  error: z.string().optional(),
+});
+
 // Get all notes
-notes.get('/', async (c) => {
+const getNotesRoute = createRoute({
+  method: 'get',
+  path: '/',
+  request: {
+    query: z.object({
+      since: z.string().optional().openapi({
+        param: {
+          name: 'since',
+          in: 'query',
+        },
+        example: '2023-01-01T00:00:00Z',
+      }),
+    }),
+  },
+  responses: {
+    200: {
+      content: {
+        'application/json': {
+          schema: successResponseSchema,
+        },
+      },
+      description: 'Retrieve notes',
+    },
+    500: {
+      description: 'Server Error',
+    },
+  },
+});
+
+notes.openapi(getNotesRoute, async (c) => {
   try {
     const userId = c.get('userId');
-    const since = c.req.query('since');
+    const { since } = c.req.valid('query');
 
     let query = 'SELECT * FROM notes WHERE user_id = ?';
     const params: any[] = [userId];
@@ -28,7 +75,7 @@ notes.get('/', async (c) => {
 
     const result = await c.env.DB.prepare(query).bind(...params).all();
 
-    const notes = (result.results || []).map((row: any) => ({
+    const notesData = (result.results || []).map((row: any) => ({
       id: row.id,
       title: row.title,
       content: row.content,
@@ -42,7 +89,7 @@ notes.get('/', async (c) => {
       passwordHash: row.password_hash,
     }));
 
-    return c.json({ success: true, data: notes });
+    return c.json({ success: true, data: notesData }, 200);
   } catch (error) {
     console.error('Get notes error:', error);
     return c.json({ success: false, error: 'Failed to fetch notes' }, 500);
@@ -50,7 +97,34 @@ notes.get('/', async (c) => {
 });
 
 // Upsert single note
-notes.put('/single', zValidator('json', noteSchema), async (c) => {
+const upsertSingleNoteRoute = createRoute({
+  method: 'put',
+  path: '/single',
+  request: {
+    body: {
+      content: {
+        'application/json': {
+          schema: noteSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      content: {
+        'application/json': {
+          schema: successResponseSchema,
+        },
+      },
+      description: 'Note saved',
+    },
+    500: {
+      description: 'Server Error',
+    },
+  },
+});
+
+notes.openapi(upsertSingleNoteRoute, async (c) => {
   try {
     const userId = c.get('userId');
     const item = c.req.valid('json');
@@ -82,7 +156,7 @@ notes.put('/single', zValidator('json', noteSchema), async (c) => {
       userId
     ).run();
 
-    return c.json({ success: true, message: 'Note saved' });
+    return c.json({ success: true, message: 'Note saved' }, 200);
   } catch (error) {
     console.error('Save note error:', error);
     return c.json({ success: false, error: 'Failed to save note' }, 500);
@@ -90,7 +164,34 @@ notes.put('/single', zValidator('json', noteSchema), async (c) => {
 });
 
 // Upsert notes (batch)
-notes.put('/', zValidator('json', batchNoteSchema), async (c) => {
+const upsertNotesRoute = createRoute({
+  method: 'put',
+  path: '/',
+  request: {
+    body: {
+      content: {
+        'application/json': {
+          schema: batchNoteSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      content: {
+        'application/json': {
+          schema: successResponseSchema,
+        },
+      },
+      description: 'Notes saved',
+    },
+    500: {
+      description: 'Server Error',
+    },
+  },
+});
+
+notes.openapi(upsertNotesRoute, async (c) => {
   try {
     const userId = c.get('userId');
     const items = c.req.valid('json');
@@ -100,7 +201,7 @@ notes.put('/', zValidator('json', batchNoteSchema), async (c) => {
     const itemsArray = Array.isArray(items) ? items : [items];
 
     if (itemsArray.length === 0) {
-      return c.json({ success: true, message: 'No notes to save' });
+      return c.json({ success: true, message: 'No notes to save' }, 200);
     }
 
     const now = new Date().toISOString();
@@ -137,7 +238,7 @@ notes.put('/', zValidator('json', batchNoteSchema), async (c) => {
     // Execute batch
     await c.env.DB.batch(statements);
 
-    return c.json({ success: true, message: `Saved ${itemsArray.length} notes` });
+    return c.json({ success: true, message: `Saved ${itemsArray.length} notes` }, 200);
   } catch (error) {
     console.error('Save notes error:', error);
     return c.json({ success: false, error: 'Failed to save notes' }, 500);
@@ -145,10 +246,31 @@ notes.put('/', zValidator('json', batchNoteSchema), async (c) => {
 });
 
 // Delete note (soft delete)
-notes.delete('/:id', async (c) => {
+const deleteNoteRoute = createRoute({
+  method: 'delete',
+  path: '/{id}',
+  request: {
+    params: paramsSchema,
+  },
+  responses: {
+    200: {
+      content: {
+        'application/json': {
+          schema: successResponseSchema,
+        },
+      },
+      description: 'Note deleted',
+    },
+    500: {
+      description: 'Server Error',
+    },
+  },
+});
+
+notes.openapi(deleteNoteRoute, async (c) => {
   try {
     const userId = c.get('userId');
-    const id = c.req.param('id');
+    const { id } = c.req.valid('param');
     const now = new Date().toISOString();
 
     await c.env.DB.prepare(`
@@ -157,7 +279,7 @@ notes.delete('/:id', async (c) => {
       WHERE id = ? AND user_id = ?
     `).bind(now, now, id, userId).run();
 
-    return c.json({ success: true, message: 'Note deleted' });
+    return c.json({ success: true, message: 'Note deleted' }, 200);
   } catch (error) {
     console.error('Delete note error:', error);
     return c.json({ success: false, error: 'Failed to delete note' }, 500);
@@ -165,3 +287,4 @@ notes.delete('/:id', async (c) => {
 });
 
 export default notes;
+

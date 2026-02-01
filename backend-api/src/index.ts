@@ -61,23 +61,26 @@ app.get(
     spec: {
       url: '/doc',
     },
-  })
+  } as any)
 );
 
 // Mount routes
 import sync from './routes/sync';
 
-app.route('/api/auth', auth);
-app.route('/api/priorities', priorities);
-app.route('/api/routines', routines);
-app.route('/api/notes', notes);
-app.route('/api/note-histories', noteHistories);
-app.route('/api/reflections', reflections);
-app.route('/api/logs', logs);
-app.route('/api/habits', habits);
-app.route('/api/habit-logs', habitLogs);
-app.route('/api/personal-notes', personalNotes);
-app.route('/api/sync', sync);
+const routes = app
+  .route('/api/auth', auth)
+  .route('/api/priorities', priorities)
+  .route('/api/routines', routines)
+  .route('/api/notes', notes)
+  .route('/api/note-histories', noteHistories)
+  .route('/api/reflections', reflections)
+  .route('/api/logs', logs)
+  .route('/api/habits', habits)
+  .route('/api/habit-logs', habitLogs)
+  .route('/api/personal-notes', personalNotes)
+  .route('/api/sync', sync);
+
+export type AppType = typeof routes;
 
 // 404 handler
 app.notFound((c) => {

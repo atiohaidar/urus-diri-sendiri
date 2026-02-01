@@ -250,7 +250,7 @@ export const smartSyncTodayToCalendar = async (): Promise<SyncResult> => {
 
         // Get data
         const routines = getRoutines();
-        const allPriorities = getPriorities();
+        const allPriorities = getPriorities('CalendarSync');
         const todayStr = getTodayDateString();
 
         // Filter priorities for today
@@ -461,7 +461,7 @@ export const clearTodayCalendarEvents = async (): Promise<{ success: boolean; de
 
     try {
         const routines = getRoutines();
-        const priorities = getPriorities();
+        const priorities = getPriorities('CalendarSync-Clear');
         const syncStore = getSyncHashes();
 
         // Delete routine events
