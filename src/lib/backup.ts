@@ -1,5 +1,42 @@
-import { getAllAppDataAsync, initializeStorage, restoreData } from './storage';
-import { PriorityTask, Reflection, Note, RoutineItem, ActivityLog } from './types';
+import { initializeStorage, provider, cache, hydrateCache } from './storage';
+import { PriorityTask, Reflection, Note, NoteHistory, RoutineItem, ActivityLog, Habit, HabitLog } from './types';
+
+type BackupData = {
+    priorities?: PriorityTask[];
+    reflections?: Reflection[];
+    notes?: Note[];
+    noteHistories?: NoteHistory[];
+    routines?: RoutineItem[];
+    logs?: ActivityLog[];
+    habits?: Habit[];
+    habitLogs?: HabitLog[];
+    version?: number;
+    timestamp?: string;
+};
+
+const getAllAppDataAsync = async () => {
+    const [priorities, reflections, notes, routines, logs] = await Promise.all([
+        provider.getPriorities(),
+        provider.getReflections(),
+        provider.getNotes(),
+        provider.getRoutines(),
+        provider.getLogs(),
+    ]);
+    return { priorities, reflections, notes, routines, logs };
+};
+
+const restoreData = async (data: BackupData) => {
+    if (data.priorities) await provider.savePriorities(data.priorities);
+    if (data.reflections) for (const r of data.reflections) await provider.saveReflection(r);
+    if (data.notes) await provider.saveNotes(data.notes);
+    if (data.routines) await provider.saveRoutines(data.routines);
+    if (data.logs) for (const l of data.logs) await provider.saveLog(l);
+    // Reset cache so UI refreshes with restored data
+    Object.keys(cache).forEach(key => {
+        cache[key as keyof typeof cache] = null;
+    });
+    await hydrateCache(true);
+};
 
 export const exportData = async () => {
     try {
