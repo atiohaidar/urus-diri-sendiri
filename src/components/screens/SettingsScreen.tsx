@@ -1,9 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { Settings as SettingsIcon, ArrowLeft, Info } from 'lucide-react';
 import { useLanguage } from '@/i18n/LanguageContext';
-import { AuthSection } from '@/components/settings/AuthSection';
 import { PreferencesSection } from '@/components/settings/PreferencesSection';
-import { CloudLegacySection } from '@/components/settings/CloudLegacySection';
 import { DataBackupSection } from '@/components/settings/DataBackupSection';
 import { PersonalNotesSection } from '@/components/settings/PersonalNotesSection';
 import { CalendarSection } from '@/components/settings/CalendarSection';
@@ -44,9 +42,6 @@ const SettingsScreen = () => {
 
             <main className="container md:max-w-5xl mx-auto px-4 py-6 space-y-6">
 
-                {/* Auth & Account */}
-                <AuthSection />
-
                 {/* Personal Notes (Secure Storage) */}
                 <PersonalNotesSection />
 
@@ -55,9 +50,6 @@ const SettingsScreen = () => {
 
                 {/* Calendar Integration (Native Only) */}
                 <CalendarSection />
-
-                {/* Legacy Cloud Sync (Google Sheets) */}
-                <CloudLegacySection />
 
                 {/* Local Data Backup */}
                 <DataBackupSection />

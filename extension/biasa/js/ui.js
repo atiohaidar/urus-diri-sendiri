@@ -1,18 +1,13 @@
-import { config } from './config.js';
-
 const tabs = document.querySelectorAll('.tab-btn');
 const panes = document.querySelectorAll('.tab-pane');
-const authSection = document.getElementById('auth-section');
-const tabContent = document.getElementById('tab-content');
-const logoutBtn = document.getElementById('logout-btn');
-const emailStep = document.getElementById('email-step');
-const otpStep = document.getElementById('otp-step');
 
 export function showTab(tabId) {
     panes.forEach(p => p.classList.remove('active'));
     tabs.forEach(t => t.classList.remove('active'));
-    authSection.classList.add('hidden');
-    tabContent.classList.remove('hidden');
+    const authSection = document.getElementById('auth-section');
+    const tabContent = document.getElementById('tab-content');
+    if (authSection) authSection.classList.add('hidden');
+    if (tabContent) tabContent.classList.remove('hidden');
     const targetPane = document.getElementById(tabId);
     if (targetPane) targetPane.classList.add('active');
     const targetTab = Array.from(tabs).find(t => t.dataset.tab === tabId);
@@ -20,16 +15,21 @@ export function showTab(tabId) {
 }
 
 export function showAuth(visible) {
+    const authSection = document.getElementById('auth-section');
+    const tabContent = document.getElementById('tab-content');
+    const logoutBtn = document.getElementById('logout-btn');
+    const emailStep = document.getElementById('email-step');
+    const otpStep = document.getElementById('otp-step');
     if (visible) {
-        authSection.classList.remove('hidden');
-        tabContent.classList.add('hidden');
+        if (authSection) authSection.classList.remove('hidden');
+        if (tabContent) tabContent.classList.add('hidden');
         if (logoutBtn) logoutBtn.classList.add('hidden');
         if (emailStep) emailStep.classList.remove('hidden');
         if (otpStep) otpStep.classList.add('hidden');
     } else {
-        authSection.classList.add('hidden');
-        tabContent.classList.remove('hidden');
-        if (config.session && logoutBtn) logoutBtn.classList.remove('hidden');
+        if (authSection) authSection.classList.add('hidden');
+        if (tabContent) tabContent.classList.remove('hidden');
+        if (logoutBtn) logoutBtn.classList.remove('hidden');
     }
 }
 

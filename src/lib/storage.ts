@@ -28,9 +28,5 @@ export * from './storage-modules/notes';
 export * from './storage-modules/note-histories';
 export * from './storage-modules/routines'; // Contains stateful toggleRoutineCompletion
 export * from './storage-modules/logs';
-export * from './storage-modules/cloud';
 export * from './storage-modules/snapshot';
 export * from './storage-modules/habits';
-
-// Auth Sync Manager (koordinasi antara auth dan storage)
-export * from './auth-sync-manager';
