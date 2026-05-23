@@ -103,16 +103,25 @@ export const normalizeTime = (t: string) => {
 
 export const getTodayDateString = (): string => {
     const d = new Date();
-    // Adjust for timezone offset to get "Local ISO"
-    const offset = d.getTimezoneOffset() * 60000;
-    const localISODate = new Date(d.getTime() - offset).toISOString().split('T')[0];
-    return localISODate;
+    return toLocalISODate(d);
 };
 
 export const getTomorrowDateString = (): string => {
     const d = new Date();
     d.setDate(d.getDate() + 1);
+    return toLocalISODate(d);
+};
+
+/**
+ * Standardizes a date/string to YYYY-MM-DD local format.
+ * Essential for comparing "Day" without being affected by UTC timezone shifts.
+ */
+export const toLocalISODate = (date: Date | string): string => {
+    const d = typeof date === 'string' ? new Date(date) : date;
+    if (isNaN(d.getTime())) return "";
+
+    // Adjust for timezone offset to get the correct LOCAL calendar day
     const offset = d.getTimezoneOffset() * 60000;
-    const localISODate = new Date(d.getTime() - offset).toISOString().split('T')[0];
-    return localISODate;
+    const localISO = new Date(d.getTime() - offset).toISOString();
+    return localISO.split('T')[0];
 };

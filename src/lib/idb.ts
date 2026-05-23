@@ -218,3 +218,36 @@ export const cleanupImages = async (keepIds: string[]): Promise<void> => {
         transaction.onerror = () => reject(transaction.error);
     });
 };
+
+export const clearStore = async (storeName: string): Promise<void> => {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction(storeName, 'readwrite');
+        const store = transaction.objectStore(storeName);
+        const request = store.clear();
+
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => resolve();
+    });
+};
+
+export const clearAllData = async (): Promise<void> => {
+    const stores = Object.values(STORES);
+    for (const store of stores) {
+        // Skip images if we want to preserve them, but for privacy on user switch, usually we should clear them too 
+        // OR implement a smarter GC. For now, wiping strict user data is priority.
+        // We will skip IMAGES for now to avoid re-downloading huge assets if sharing device family,
+        // but strictly all text data must go.
+        if (store === STORES.IMAGES) continue;
+        if (store === STORES.OFFLINE_QUEUE) continue; // Keep queue? No, if user switches, queue is invalid (wrong auth). Clear it.
+    }
+
+    // Actually, clearing offline queue is handled in core.ts, but let's be thorough here.
+    // If we clear everything:
+    await Promise.all(stores.map(store => {
+        if (store === STORES.IMAGES) return Promise.resolve(); // Skip images to save bandwidth
+        return clearStore(store);
+    }));
+
+    console.log("Storage: All user data wiped from IndexedDB.");
+};

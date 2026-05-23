@@ -1,6 +1,5 @@
 import { Reflection, PriorityTask } from '../types';
-import { cache, provider, generateId, hydrateTable } from './core';
-import { savePriorities } from './priorities';
+import { cache, provider, generateId, hydrateTable, notifyListeners, suppressSnapshot } from './core';
 import { getTomorrowDateString } from '../time-utils';
 
 /** @deprecated Use getReflectionsAsync for better performance */
@@ -14,8 +13,20 @@ export const getReflectionsAsync = async (): Promise<Reflection[]> => {
     // Deduplicate by Date (keep latest updated)
     const uniqueMap = new Map<string, Reflection>();
 
-    // Process all reflections
-    for (const r of reflections) {
+    // Process all reflections and normalize data
+    for (let r of reflections) {
+        // Normalize fields to prevent UI crashes from old/corrupt data
+        r = {
+            ...r,
+            priorities: Array.isArray(r.priorities) ? r.priorities : [],
+            images: Array.isArray(r.images) ? r.images : [],
+            todayRoutines: Array.isArray(r.todayRoutines) ? r.todayRoutines : [],
+            todayPriorities: Array.isArray(r.todayPriorities) ? r.todayPriorities : [],
+            winOfDay: r.winOfDay || '',
+            hurdle: r.hurdle || '',
+            smallChange: r.smallChange || '',
+        };
+
         const dateKey = new Date(r.date).toDateString();
         const existing = uniqueMap.get(dateKey);
 
@@ -38,7 +49,8 @@ export const getReflectionsAsync = async (): Promise<Reflection[]> => {
     );
 };
 
-export const saveReflection = async (reflection: Omit<Reflection, 'id'>) => {
+export const saveReflection = async (reflection: Omit<Reflection, 'id'>, reason: string = 'Manual Save') => {
+    console.log(`Storage: saveReflection triggered by [${reason}]`);
     // Ensure we have latest data
     const reflections = await getReflectionsAsync();
     const today = new Date().toDateString();
@@ -66,28 +78,45 @@ export const saveReflection = async (reflection: Omit<Reflection, 'id'>) => {
         cache.reflections = [savedItem, ...reflections];
     }
 
-    await provider.saveReflection(savedItem);
+    await provider.saveReflection(savedItem, reason);
+
+    // Suppress automatic snapshot for 5 seconds to avoid double-firing
+    suppressSnapshot(5000);
+
 
     // Add tomorrow's priorities from reflection (MERGE, not replace!)
-    // Only add new priorities that don't already exist
     if (reflection.priorities && reflection.priorities.length > 0) {
-        const { getPriorities, addPriority: addPriorityFn } = await import('./priorities');
-        const existingPriorities = getPriorities();
+        const { getPriorities } = await import('./priorities');
+        const existingPriorities = getPriorities('Reflections');
         const existingTexts = new Set(existingPriorities.map(p => p.text.toLowerCase().trim()));
 
-        // Filter to only truly new priorities (not duplicates)
         const newPriorityTexts = reflection.priorities
             .filter(p => p.trim())
             .filter(text => !existingTexts.has(text.toLowerCase().trim()));
 
-        // Calculate "Tomorrow"
-        const tomorrowStr = getTomorrowDateString();
+        if (newPriorityTexts.length > 0) {
+            const tomorrowStr = getTomorrowDateString();
+            const now = new Date().toISOString();
 
-        // Add each new priority individually (this preserves existing ones)
-        for (const text of newPriorityTexts) {
-            addPriorityFn(text, tomorrowStr);
+            const newPriorities = newPriorityTexts.map(text => ({
+                id: generateId('priority'),
+                text,
+                completed: false,
+                scheduledFor: tomorrowStr,
+                updatedAt: now,
+            }));
+
+            cache.priorities = [...(cache.priorities || []), ...newPriorities];
+
+            try {
+                // Batch save new priorities
+                await provider.savePriorities?.(newPriorities, 'From Reflection');
+            } catch (error) {
+                console.error("Failed to save priorities from reflection", error);
+            }
         }
     }
 
+    notifyListeners();
     return savedItem;
 };

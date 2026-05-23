@@ -15,6 +15,10 @@ import { useAppInit } from "@/hooks/useAppInit"; // Hook buatan kita buat persia
 
 // Layout utama (misal Header/Footer yang selalu muncul)
 import AppLayout from "./components/layout/AppLayout";
+import { LoginPage } from "./pages/LoginPage";
+import { OfflinePage } from "./pages/OfflinePage";
+import { useAuthSync } from "./hooks/useAuthSync";
+import { cn } from "@/lib/utils";
 
 // --- 2. LAZY LOADING PAGES ---
 // Cara ini bikin aplikasi ringan: Halaman cuma di-download pas dibuka aja
@@ -63,6 +67,8 @@ const App = () => {
   // Jalankan persiapan aplikasi (Capacitor, Storage, Auth)
   const { isReady, forceEntry } = useAppInit(queryClient);
   const [showForceButton, setShowForceButton] = useState(false);
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+  const { user } = useAuthSync();
 
   useEffect(() => {
     // Tampilkan tombol "Masuk Paksa" kalau loading kelamaan (5 detik)
@@ -71,6 +77,19 @@ const App = () => {
     }, 5000);
     return () => clearTimeout(timer);
   }, [isReady]);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   // --- 3. SUSUNAN PROVIDER & ROUTING (Lapis-lapis Pelindung Aplikasi) ---
   return (
@@ -114,39 +133,49 @@ const App = () => {
                 <Toaster />
                 <Sonner />
 
-                {/* Lapis 6: Sistem Navigasi - Mengatur perpindahan halaman tanpa refresh browser */}
-                <BrowserRouter>
-                  <BackButtonHandler />
-                  <AppNotificationListener />
+                {!user ? (
+                  <LoginPage />
+                ) : (
+                  <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+                    {isOffline && (
+                      <div className="bg-sticky-yellow border-b-2 border-paper-lines text-ink text-center py-2 px-4 text-xs font-handwriting fixed top-0 left-0 right-0 z-50 flex items-center justify-center gap-2 shadow-sm animate-in slide-in-from-top duration-300 select-none">
+                        <span>🔌 <strong>Mode Baca-Saja (Offline):</strong> Perangkat terputus dari internet. Anda tetap bisa membaca jurnal Anda, tetapi pengeditan dinonaktifkan.</span>
+                      </div>
+                    )}
+                    <div className={cn("transition-all duration-300", isOffline ? "pt-8" : "pt-0")}>
+                      <BackButtonHandler />
+                      <AppNotificationListener />
 
-                  {/* Lapis 7: Layar Tunggu - Menampilkan loading ikon saat halaman sedang di-download */}
-                  <Suspense fallback={<PageLoader />}>
-                    <Routes>
-                      {/* Grup Halaman yang pakai Menu Navigasi Bawah (AppLayout) */}
-                      <Route element={<AppLayout />}>
-                        <Route path="/" element={<HomeScreen />} />
-                        <Route path="/habits" element={<HabitsScreen />} />
-                        <Route path="/ideas" element={<ParkingLotScreen />} />
-                        <Route path="/history" element={<HistoryScreen />} />
-                      </Route>
+                      {/* Lapis 7: Layar Tunggu - Menampilkan loading ikon saat halaman sedang di-download */}
+                      <Suspense fallback={<PageLoader />}>
+                        <Routes>
+                          {/* Grup Halaman yang pakai Menu Navigasi Bawah (AppLayout) */}
+                          <Route element={<AppLayout />}>
+                            <Route path="/" element={<HomeScreen />} />
+                            <Route path="/habits" element={<HabitsScreen />} />
+                            <Route path="/ideas" element={<ParkingLotScreen />} />
+                            <Route path="/history" element={<HistoryScreen />} />
+                          </Route>
 
-                      {/* Halaman Mandiri (Halaman Full tanpa menu bawah) */}
-                      <Route path="/settings" element={<SettingsScreen />} />
-                      <Route path="/schedule-editor" element={<EditSchedule />} />
-                      <Route path="/note-editor/:id" element={<NoteEditorPage />} />
-                      <Route path="/note-history/:noteId" element={<NoteHistoryPage />} />
-                      <Route path="/maghrib-checkin" element={<MaghribCheckinPage />} />
-                      <Route path="/about" element={<AboutPage />} />
-                      <Route path="/log-creator" element={<LogCreatorPage />} />
-                      <Route path="/reflection/:id" element={<ReflectionDetailPage />} />
-                      <Route path="/personal-notes" element={<PersonalNotesPage />} />
-                      <Route path="/habit/:habitId" element={<HabitDetailPage />} />
+                          {/* Halaman Mandiri (Halaman Full tanpa menu bawah) */}
+                          <Route path="/settings" element={<SettingsScreen />} />
+                          <Route path="/schedule-editor" element={<EditSchedule />} />
+                          <Route path="/note-editor/:id" element={<NoteEditorPage />} />
+                          <Route path="/note-history/:noteId" element={<NoteHistoryPage />} />
+                          <Route path="/maghrib-checkin" element={<MaghribCheckinPage />} />
+                          <Route path="/about" element={<AboutPage />} />
+                          <Route path="/log-creator" element={<LogCreatorPage />} />
+                          <Route path="/reflection/:id" element={<ReflectionDetailPage />} />
+                          <Route path="/personal-notes" element={<PersonalNotesPage />} />
+                          <Route path="/habit/:habitId" element={<HabitDetailPage />} />
 
-                      {/* fallback: Kalau alamat URL tidak ditemukan */}
-                      <Route path="*" element={<NotFound />} />
-                    </Routes>
-                  </Suspense>
-                </BrowserRouter>
+                          {/* fallback: Kalau alamat URL tidak ditemukan */}
+                          <Route path="*" element={<NotFound />} />
+                        </Routes>
+                      </Suspense>
+                    </div>
+                  </BrowserRouter>
+                )}
 
               </TooltipProvider>
             </ErrorBoundary>

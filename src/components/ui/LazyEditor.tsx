@@ -1,9 +1,9 @@
-import { forwardRef } from 'react';
-import ReactQuill, { ReactQuillProps } from 'react-quill';
-import 'react-quill/dist/quill.snow.css';
+import { ComponentProps, forwardRef } from 'react';
+import ReactQuill from 'react-quill-new';
+import 'react-quill-new/dist/quill.snow.css';
 
-// Re-export properties for type safety if needed usually ReactQuill types are enough
-export type EditorProps = ReactQuillProps;
+// Re-export properties for type safety using ComponentProps
+export type EditorProps = ComponentProps<typeof ReactQuill>;
 
 // Wrap ReactQuill to be lazy loaded
 const LazyEditor = forwardRef<ReactQuill, EditorProps>((props, ref) => {

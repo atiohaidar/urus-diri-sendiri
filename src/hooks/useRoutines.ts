@@ -10,6 +10,8 @@ import {
     addPriority,
     initializeStorage,
     hydrateCache,
+    syncTable,
+    getIsCloudActive,
     type RoutineItem,
     type PriorityTask,
     deletePriority,
@@ -18,6 +20,7 @@ import {
     registerListener,
     getTodayDateString
 } from '@/lib/storage';
+import { pageDataApi } from '@/lib/api/cloudflare-api';
 
 export const useRoutines = () => {
     const [routines, setRoutines] = useState<RoutineItem[]>([]);
@@ -39,31 +42,42 @@ export const useRoutines = () => {
                 await hydrateCache(true);
             }
 
-            const loadedRoutines = getRoutines();
-            setRoutines(loadedRoutines);
+            if (getIsCloudActive()) {
+                // Use backend unified page-data endpoint (1 request for all data)
+                const data = await pageDataApi.fetch('home');
+                setRoutines(data.routines || []);
+                setPriorities(data.priorities || []);
+                setStats(data.routineStats || { total: 0, completed: 0, percent: 0 });
+                setActiveIndex(data.activeIndex ?? 0);
+            } else {
+                const loadedRoutines = getRoutines();
+                setRoutines(loadedRoutines);
 
-            // Priorities: Load using centralized intelligent filter/sort
-            const visiblePriorities = getPriorities();
-            setPriorities(visiblePriorities);
-            setStats(getCompletionStats(loadedRoutines));
+                // Priorities: Load using centralized intelligent filter/sort
+                const visiblePriorities = getPriorities('useRoutines');
+                setPriorities(visiblePriorities);
+                setStats(getCompletionStats(loadedRoutines));
 
-            // Find current routine index
-            const currentIndex = findCurrentRoutineIndex(loadedRoutines);
-            setActiveIndex(currentIndex);
+                // Find current routine index
+                const currentIndex = findCurrentRoutineIndex(loadedRoutines);
+                setActiveIndex(currentIndex);
+            }
         } catch (error) {
             console.error("Failed to load routines:", error);
         } finally {
             setIsLoading(false);
         }
     }, []);
-
     useEffect(() => {
-        // Initial load
         loadData(false);
 
-        // Subscribe to storage changes (e.g. background sync or re-hydration)
+        // Background sync only needed for local mode
+        if (!getIsCloudActive()) {
+            syncTable('routines');
+            syncTable('priorities');
+        }
+
         const unsubscribe = registerListener(() => {
-            console.log("♻️ UI: Routines updated from storage event");
             loadData(false);
         });
 
@@ -108,8 +122,8 @@ export const useRoutines = () => {
     }, [currentDate.getMinutes(), routines]);
 
     // Handlers
-    const handleTogglePriority = (id: string, completed: boolean, note?: string) => {
-        const updated = updatePriorityCompletion(id, completed, note);
+    const handleTogglePriority = async (id: string, completed: boolean, note?: string) => {
+        const updated = await updatePriorityCompletion(id, completed, note);
         setPriorities(updated);
 
         if (completed) {
@@ -122,34 +136,44 @@ export const useRoutines = () => {
         }
     };
 
-    const handleAddPriority = (text: string) => {
-        // Default to today's date when adding from home screen
-        // This makes it a "todo for today" instead of a recurring daily task
+    const handleAddPriority = async (text: string) => {
         const todayDate = getTodayDateString();
-        const updated = addPriority(text, todayDate);
+        const updated = await addPriority(text, todayDate);
         setPriorities(updated);
         toast.success("Prioritas ditambahkan!");
     };
 
-    const handleDeletePriority = (id: string) => {
-        const updated = deletePriority(id);
+    const handleDeletePriority = async (id: string) => {
+        const updated = await deletePriority(id);
         setPriorities(updated);
         toast.success("Prioritas dihapus");
     };
 
-    const handleUpdatePriorityText = (id: string, text: string) => {
-        const updated = updatePriorityText(id, text);
+    const handleUpdatePriorityText = async (id: string, text: string) => {
+        const updated = await updatePriorityText(id, text);
         setPriorities(updated);
     };
 
-    const handleCheckIn = (id: string, note?: string) => {
-        const updated = toggleRoutineCompletion(id, routines, note);
+    const handleCheckIn = async (id: string, note?: string) => {
+        if (getIsCloudActive()) {
+            const result = await pageDataApi.toggleRoutine(id, note);
+            if (result.completed) {
+                toast.success("Progress updated! Keep it up! 🚀", {
+                    action: {
+                        label: "Batal",
+                        onClick: () => handleCheckIn(id)
+                    }
+                });
+            }
+            loadData();
+            return;
+        }
+
+        // Local mode
+        const updated = await toggleRoutineCompletion(id, routines, note);
         setRoutines(updated);
         setStats(getCompletionStats(updated));
 
-        // Start haptic was triggered in UI
-
-        // Find if it was completed or uncompleted
         const routine = updated.find(r => r.id === id);
         const isCompleted = !!routine?.completedAt;
 
@@ -157,14 +181,14 @@ export const useRoutines = () => {
             toast.success("Progress updated! Keep it up! 🚀", {
                 action: {
                     label: "Batal",
-                    onClick: () => handleCheckIn(id) // Toggle back
+                    onClick: () => handleCheckIn(id)
                 }
             });
         }
     };
 
-    const handleUpdatePrioritySchedule = (id: string, scheduledFor: string | undefined) => {
-        const updated = updatePrioritySchedule(id, scheduledFor);
+    const handleUpdatePrioritySchedule = async (id: string, scheduledFor: string | undefined) => {
+        const updated = await updatePrioritySchedule(id, scheduledFor);
         setPriorities(updated);
         if (scheduledFor) {
             toast.success(`Dijadwalkan untuk ${scheduledFor}`);

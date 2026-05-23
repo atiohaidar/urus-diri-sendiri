@@ -15,9 +15,12 @@ import {
     getTodayString,
     initializeStorage,
     registerListener,
+    syncTable,
+    getIsCloudActive,
     type Habit,
     type HabitFrequency,
 } from '@/lib/storage';
+import { pageDataApi } from '@/lib/api/cloudflare-api';
 
 export interface HabitWithStatus extends Habit {
     isScheduledToday: boolean;
@@ -40,17 +43,22 @@ export const useHabits = () => {
         setIsLoading(true);
         try {
             await initializeStorage();
-            const habitsWithStatus = getHabitsWithStatus();
 
-            // Fix: Map habits in the today only list to ensure isScheduledToday is true
-            // This prevents the "Not scheduled today" badge from appearing in the Today section
-            const todayOnly = getTodayHabits().map(h => ({
-                ...h,
-                isScheduledToday: true
-            }));
-
-            setHabits(habitsWithStatus);
-            setTodayHabits(todayOnly);
+            if (getIsCloudActive()) {
+                // Use backend unified page-data endpoint (1 request for all data)
+                const data = await pageDataApi.fetch('habits');
+                setHabits(data.habits || []);
+                setTodayHabits((data.todayHabits || []).map((h: any) => ({ ...h, isScheduledToday: true })));
+            } else {
+                // Local mode: use local logic
+                const habitsWithStatus = getHabitsWithStatus();
+                const todayOnly = getTodayHabits().map(h => ({
+                    ...h,
+                    isScheduledToday: true
+                }));
+                setHabits(habitsWithStatus);
+                setTodayHabits(todayOnly);
+            }
         } catch (error) {
             console.error("Failed to load habits:", error);
         } finally {
@@ -61,8 +69,13 @@ export const useHabits = () => {
     useEffect(() => {
         loadData();
 
+        // Background sync only needed for local mode
+        if (!getIsCloudActive()) {
+            syncTable('habits');
+            syncTable('habitLogs');
+        }
+
         const unsubscribe = registerListener(() => {
-            console.log("♻️ UI: Habits updated from storage event");
             loadData();
         });
 
@@ -71,35 +84,54 @@ export const useHabits = () => {
 
     // --- Actions ---
 
-    const handleAddHabit = useCallback((habit: Omit<Habit, 'id' | 'createdAt' | 'updatedAt'>) => {
-        addHabit(habit);
+    const handleAddHabit = useCallback(async (habit: Omit<Habit, 'id' | 'createdAt' | 'updatedAt'>) => {
+        await addHabit(habit);
         toast.success("Habit created! 🔥");
         loadData();
     }, [loadData]);
 
-    const handleUpdateHabit = useCallback((id: string, updates: Partial<Habit>) => {
-        updateHabit(id, updates);
+    const handleUpdateHabit = useCallback(async (id: string, updates: Partial<Habit>) => {
+        await updateHabit(id, updates);
         toast.success("Habit updated!");
         loadData();
     }, [loadData]);
 
-    const handleDeleteHabit = useCallback((id: string) => {
-        deleteHabit(id);
+    const handleDeleteHabit = useCallback(async (id: string) => {
+        await deleteHabit(id);
         toast.success("Habit deleted");
         loadData();
     }, [loadData]);
 
-    const handleArchiveHabit = useCallback((id: string, archived: boolean = true) => {
-        archiveHabit(id, archived);
+    const handleArchiveHabit = useCallback(async (id: string, archived: boolean = true) => {
+        await archiveHabit(id, archived);
         toast.success(archived ? "Habit archived" : "Habit restored");
         loadData();
     }, [loadData]);
 
-    const handleToggleCompletion = useCallback((habitId: string, date?: string, note?: string) => {
+    const handleToggleCompletion = useCallback(async (habitId: string, date?: string, note?: string) => {
         const targetDate = date || getTodayString();
+
+        if (getIsCloudActive()) {
+            try {
+                const result = await pageDataApi.toggleHabit(habitId, targetDate, note);
+                if (result.completed) {
+                    toast.success(`Great job! 🔥`, {
+                        action: {
+                            label: "Undo",
+                            onClick: () => handleToggleCompletion(habitId, targetDate)
+                        }
+                    });
+                }
+                loadData();
+                return;
+            } catch (err) {
+                console.warn("Backend toggle failed, falling back to local:", err);
+            }
+        }
+
+        // Fallback: local logic
         toggleHabitCompletion(habitId, targetDate, note);
 
-        // Find the habit to show appropriate toast
         const habit = habits.find(h => h.id === habitId);
         const wasCompleted = habit?.isCompletedToday;
 
@@ -117,6 +149,8 @@ export const useHabits = () => {
     }, [habits, loadData]);
 
     // --- Stats Helpers ---
+    // Note: When cloud is active, prefer using pageDataApi.fetch('habit-detail') directly
+    // These local fallbacks still work for offline mode
 
     const getHabitStreak = useCallback((habitId: string) => {
         return calculateStreak(habitId);
@@ -144,6 +178,30 @@ export const useHabits = () => {
         return calculateCompletionRate(habitId, startDate, now);
     }, []);
 
+    /** Async version: fetches stats from backend when cloud is active */
+    const getHabitStatsAsync = useCallback(async (
+        habitId: string,
+        startDate?: string,
+        endDate?: string
+    ) => {
+        if (getIsCloudActive()) {
+            try {
+                return await pageDataApi.fetch('habit-detail', { habitId });
+            } catch (err) {
+                console.warn("Backend stats failed, using local:", err);
+            }
+        }
+        // Fallback
+        const now = new Date();
+        const start = startDate ? new Date(startDate) : new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        const end = endDate ? new Date(endDate) : now;
+        return {
+            currentStreak: calculateStreak(habitId),
+            longestStreak: calculateLongestStreak(habitId),
+            completionRate: calculateCompletionRate(habitId, start, end),
+        };
+    }, []);
+
     return {
         // Data
         habits,
@@ -161,6 +219,7 @@ export const useHabits = () => {
         getHabitStreak,
         getHabitLongestStreak,
         getHabitCompletionRate,
+        getHabitStatsAsync,
 
         // Utils
         refreshData: loadData,

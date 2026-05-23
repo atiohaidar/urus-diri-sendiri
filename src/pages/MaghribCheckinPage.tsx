@@ -73,7 +73,7 @@ const MaghribCheckinPage = () => {
         setIsSubmitting(true);
         try {
             const todayRoutines = getRoutines();
-            const todayPriorities = getPriorities();
+            const todayPriorities = getPriorities('CheckinPage');
 
             const reflections = await getReflectionsAsync();
             const todayStr = new Date().toDateString();
@@ -108,7 +108,7 @@ const MaghribCheckinPage = () => {
                 todayPriorities,
                 images: cloudUrls,
                 imageIds
-            });
+            }, 'Check-in Page');
 
             toast({
                 title: t.checkin.save_toast_title,

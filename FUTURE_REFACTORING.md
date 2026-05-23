@@ -4,9 +4,10 @@
 Dokumen ini berisi daftar perbaikan arsitektur dan refactoring yang direncanakan untuk meningkatkan kualitas kode dan performa aplikasi.
 
 **Recent Progress (2 Jan 2026):**
-- ✅ Extracted `offline-queue.ts` from `supabase-provider.ts`
+- ✅ Extracted `offline-queue.ts` from old supabase-provider
 - ✅ Extracted `useCamera.ts` from `LogCreatorPage.tsx`
 - ✅ Fixed critical sync & race conditions
+- ✅ **Migrasi total Supabase → Hono + Cloudflare D1 selesai**
 
 ---
 
@@ -40,12 +41,12 @@ Dokumen ini berisi daftar perbaikan arsitektur dan refactoring yang direncanakan
 
 ## Priority 1.5: Component Decomposition (Bloated Files)
 
-### 🧩 `supabase-provider.ts` Decomposition
-**Status**: In Progress  
-**Size**: ~560 lines (was 613)
+### 🧩 `cloudflare-d1-provider.ts` Decomposition
+**Status**: ✅ Selesai (menggantikan supabase-provider.ts)
+**Size**: ~350 lines
 
-- **Done**: Extracted `offline-queue` logic.
-- **Next**: Split entities into separate files/modules (e.g., `SupabasePriorities`, `SupabaseReflections`) to follow Single Responsibility Principle.
+- **Done**: Extracted `offline-queue` logic. Migrasi total ke Cloudflare D1.
+- **Next**: Bisa di-split per entity jika tumbuh terlalu besar.
 
 ### 🧩 `MaghribCheckinPage.tsx` Refactoring
 **Status**: Planned  

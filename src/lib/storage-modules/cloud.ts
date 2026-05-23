@@ -97,11 +97,11 @@ export const pullFromCloud = async (overrideSheetUrl?: string) => {
     if (result.status === "success" && result.payload) {
         const data = result.payload;
 
-        if (data.priorities) await provider.savePriorities(data.priorities);
+        if (data.priorities) await provider.savePriorities(data.priorities, 'Cloud Pull');
 
         if (data.reflections) {
             for (const r of data.reflections) {
-                await provider.saveReflection(r);
+                await provider.saveReflection(r, 'Cloud Pull');
             }
         }
 
@@ -125,11 +125,11 @@ export const pullFromCloud = async (overrideSheetUrl?: string) => {
 };
 
 export const restoreData = async (data: any) => {
-    if (data.priorities) await provider.savePriorities(data.priorities);
+    if (data.priorities) await provider.savePriorities(data.priorities, 'Restore');
 
     if (data.reflections) {
         for (const r of data.reflections) {
-            await provider.saveReflection(r);
+            await provider.saveReflection(r, 'Restore');
         }
     }
 

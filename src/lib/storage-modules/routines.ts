@@ -2,7 +2,7 @@ import { RoutineItem } from '../types';
 import { STORAGE_KEYS } from '../constants';
 import { toggleRoutineCompletion as toggleRoutineHelper } from '../routine-helpers';
 import { parseTimeToMinutes } from '../time-utils';
-import { cache, provider, notifyListeners, handleSaveError } from './core';
+import { cache, provider, notifyListeners, handleSaveError, getIsCloudActive } from './core';
 
 // Helper to sort routines by startTime
 const sortByStartTime = (routines: RoutineItem[]): RoutineItem[] => {
@@ -16,21 +16,22 @@ const getAllRoutines = (): RoutineItem[] => {
 };
 
 export const getRoutines = (): RoutineItem[] => {
+    // When cloud active, backend handles daily reset via computed routes
+    if (getIsCloudActive()) {
+        return sortByStartTime(cache.routines || []);
+    }
+
     const today = new Date().toDateString();
     const lastOpen = localStorage.getItem(STORAGE_KEYS.LAST_OPEN_DATE);
 
-    // If cache is empty, we might be in trouble if hydration hasn't finished.
-    // But for now we proceed assuming initializeStorage was called.
     let routines = cache.routines || [];
 
     if (lastOpen !== today) {
-        // IT'S A NEW DAY! 
         const resetRoutines = routines.map(r => ({
             ...r,
             completedAt: null,
             updatedAt: undefined
         }));
-
         cache.routines = resetRoutines;
         provider.saveRoutines(resetRoutines).catch((error) => {
             handleSaveError(error, 'Reset rutinitas harian');
@@ -42,30 +43,40 @@ export const getRoutines = (): RoutineItem[] => {
     return sortByStartTime(routines);
 };
 
-export const saveRoutines = (routines: RoutineItem[]) => {
+export const saveRoutines = async (routines: RoutineItem[]) => {
     cache.routines = routines;
-    provider.saveRoutines(routines).catch((error) => {
+    try {
+        await provider.saveRoutines(routines);
+    } catch (error) {
         handleSaveError(error, 'Menyimpan rutinitas', () => saveRoutines(routines));
-    });
+    }
 };
 
-export const deleteRoutine = (id: string) => {
+export const deleteRoutine = async (id: string) => {
     const routines = getAllRoutines();
     const updated = routines.filter(r => r.id !== id);
     cache.routines = updated;
-
-    provider.deleteRoutine(id).catch((error) => {
-        handleSaveError(error, 'Menghapus rutinitas', () => deleteRoutine(id));
-    });
-
     notifyListeners();
+    try {
+        await provider.deleteRoutine(id);
+    } catch (error) {
+        handleSaveError(error, 'Menghapus rutinitas', () => deleteRoutine(id));
+    }
     return updated;
 };
 
-export const toggleRoutineCompletion = (id: string, routines: RoutineItem[], note?: string) => {
+export const toggleRoutineCompletion = async (id: string, routines: RoutineItem[], note?: string) => {
     const updated = toggleRoutineHelper(id, routines, note);
-    saveRoutines(updated);
-    notifyListeners(); // Auto-update snapshot
+    cache.routines = updated;
+    notifyListeners();
+    const updatedItem = updated.find(r => r.id === id);
+    if (updatedItem) {
+        try {
+            await provider.saveRoutines([updatedItem]);
+        } catch (error) {
+            handleSaveError(error, 'Update status rutinitas');
+        }
+    }
     return updated;
 };
 

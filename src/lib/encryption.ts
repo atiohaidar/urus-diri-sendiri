@@ -1,95 +1,21 @@
+import CryptoJS from 'crypto-js';
+
 /**
- * Encryption utilities for secure notes using Web Crypto API
+ * Encryption utilities for secure notes using CryptoJS
  * 
- * Features:
- * - AES-256-GCM encryption/decryption
- * - PBKDF2 key derivation from password
- * - Password validation via SHA-256 hash
- * - Secure random salt and IV generation
+ * This implementation is used as a fallback for environments where Web Crypto API (crypto.subtle)
+ * is not available (e.g., non-HTTPS contexts or local IP development).
  */
 
-const PBKDF2_ITERATIONS = 100000;
-const AES_KEY_LENGTH = 256;
-const SALT_LENGTH = 16; // bytes
-const IV_LENGTH = 12; // bytes for GCM
-
-/**
- * Converts ArrayBuffer to Base64 string
- */
-function arrayBufferToBase64(buffer: ArrayBuffer): string {
-    const bytes = new Uint8Array(buffer);
-    let binary = '';
-    for (let i = 0; i < bytes.byteLength; i++) {
-        binary += String.fromCharCode(bytes[i]);
-    }
-    return btoa(binary);
-}
-
-/**
- * Converts Base64 string to ArrayBuffer
- */
-function base64ToArrayBuffer(base64: string): ArrayBuffer {
-    const binary = atob(base64);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) {
-        bytes[i] = binary.charCodeAt(i);
-    }
-    return bytes.buffer;
-}
-
-/**
- * Generates a random salt for key derivation
- */
-function generateSalt(): Uint8Array {
-    return crypto.getRandomValues(new Uint8Array(SALT_LENGTH));
-}
-
-/**
- * Generates a random IV for AES-GCM
- */
-function generateIV(): Uint8Array {
-    return crypto.getRandomValues(new Uint8Array(IV_LENGTH));
-}
-
-/**
- * Derives an encryption key from password using PBKDF2
- */
-async function deriveKey(password: string, salt: Uint8Array): Promise<CryptoKey> {
-    const encoder = new TextEncoder();
-    const passwordBuffer = encoder.encode(password);
-
-    // Import password as key material
-    const keyMaterial = await crypto.subtle.importKey(
-        'raw',
-        passwordBuffer,
-        'PBKDF2',
-        false,
-        ['deriveBits', 'deriveKey']
-    );
-
-    // Derive AES key using PBKDF2
-    return crypto.subtle.deriveKey(
-        {
-            name: 'PBKDF2',
-            salt: salt as BufferSource,
-            iterations: PBKDF2_ITERATIONS,
-            hash: 'SHA-256'
-        },
-        keyMaterial,
-        { name: 'AES-GCM', length: AES_KEY_LENGTH },
-        false,
-        ['encrypt', 'decrypt']
-    );
-}
+const PBKDF2_ITERATIONS = 10000; // Adjusted for performance across devices
+const SALT_SIZE = 128 / 8; // 16 bytes
+const IV_SIZE = 128 / 8; // 16 bytes for AES
 
 /**
  * Creates SHA-256 hash of password for validation
  */
 export async function hashPassword(password: string): Promise<string> {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(password);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-    return arrayBufferToBase64(hashBuffer);
+    return CryptoJS.SHA256(password).toString(CryptoJS.enc.Base64);
 }
 
 /**
@@ -113,33 +39,31 @@ export async function encryptNote(content: string, password: string): Promise<{
     iv: string;
     passwordHash: string;
 }> {
-    const encoder = new TextEncoder();
-    const contentBuffer = encoder.encode(content);
-
     // Generate random salt and IV
-    const salt = generateSalt();
-    const iv = generateIV();
+    const salt = CryptoJS.lib.WordArray.random(SALT_SIZE);
+    const iv = CryptoJS.lib.WordArray.random(IV_SIZE);
 
-    // Derive encryption key from password
-    const key = await deriveKey(password, salt);
+    // Derive key using PBKDF2
+    const key = CryptoJS.PBKDF2(password, salt, {
+        keySize: 256 / 32,
+        iterations: PBKDF2_ITERATIONS,
+        hasher: CryptoJS.algo.SHA256
+    });
 
-    // Encrypt content using AES-GCM
-    const encryptedBuffer = await crypto.subtle.encrypt(
-        {
-            name: 'AES-GCM',
-            iv: iv as BufferSource
-        },
-        key,
-        contentBuffer
-    );
+    // Encrypt content using AES (defaults to CBC with PKCS7 padding)
+    const encrypted = CryptoJS.AES.encrypt(content, key, {
+        iv: iv,
+        padding: CryptoJS.pad.Pkcs7,
+        mode: CryptoJS.mode.CBC
+    });
 
     // Create password hash for validation
     const passwordHash = await hashPassword(password);
 
     return {
-        encryptedContent: arrayBufferToBase64(encryptedBuffer),
-        salt: arrayBufferToBase64(salt.buffer as ArrayBuffer),
-        iv: arrayBufferToBase64(iv.buffer as ArrayBuffer),
+        encryptedContent: encrypted.toString(), // Base64 by default for CipherParams
+        salt: CryptoJS.enc.Base64.stringify(salt),
+        iv: CryptoJS.enc.Base64.stringify(iv),
         passwordHash
     };
 }
@@ -161,27 +85,27 @@ export async function decryptNote(
     iv: string
 ): Promise<string> {
     try {
-        // Convert Base64 strings back to ArrayBuffers
-        const encryptedBuffer = base64ToArrayBuffer(encryptedContent);
-        const saltBuffer = new Uint8Array(base64ToArrayBuffer(salt));
-        const ivBuffer = new Uint8Array(base64ToArrayBuffer(iv));
+        const saltWA = CryptoJS.enc.Base64.parse(salt);
+        const ivWA = CryptoJS.enc.Base64.parse(iv);
 
         // Derive the same key from password and salt
-        const key = await deriveKey(password, saltBuffer);
+        const key = CryptoJS.PBKDF2(password, saltWA, {
+            keySize: 256 / 32,
+            iterations: PBKDF2_ITERATIONS,
+            hasher: CryptoJS.algo.SHA256
+        });
 
-        // Decrypt content using AES-GCM
-        const decryptedBuffer = await crypto.subtle.decrypt(
-            {
-                name: 'AES-GCM',
-                iv: ivBuffer as BufferSource
-            },
-            key,
-            encryptedBuffer
-        );
+        // Decrypt content
+        const decrypted = CryptoJS.AES.decrypt(encryptedContent, key, {
+            iv: ivWA,
+            padding: CryptoJS.pad.Pkcs7,
+            mode: CryptoJS.mode.CBC
+        });
 
-        // Convert decrypted buffer back to string
-        const decoder = new TextDecoder();
-        return decoder.decode(decryptedBuffer);
+        const result = decrypted.toString(CryptoJS.enc.Utf8);
+        if (!result) throw new Error('Decryption failed');
+
+        return result;
     } catch (error) {
         throw new Error('Decryption failed. Wrong password or corrupted data.');
     }

@@ -1,4 +1,5 @@
-import { getReflections } from './storage';
+import { getReflections, getIsCloudActive } from './storage';
+import { pageDataApi } from './api/cloudflare-api';
 
 export const isCheckinCompletedToday = () => {
     const reflections = getReflections();
@@ -14,4 +15,17 @@ export const isCheckinCompletedToday = () => {
             (r.smallChange && r.smallChange.trim().length > 0);
         return isToday && hasContent;
     });
+};
+
+/** Async version: uses backend when cloud is active */
+export const isCheckinCompletedTodayAsync = async (): Promise<boolean> => {
+    if (getIsCloudActive()) {
+        try {
+            const data = await pageDataApi.fetch('home');
+            return data.checkinCompleted ?? false;
+        } catch (err) {
+            console.warn("Backend checkin status failed, falling back to local:", err);
+        }
+    }
+    return isCheckinCompletedToday();
 };

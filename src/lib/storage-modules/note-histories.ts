@@ -9,7 +9,7 @@ export const getNoteHistories = (noteId?: string): NoteHistory[] => {
     return histories.filter(h => !h.deletedAt);
 };
 
-export const saveNoteHistory = (noteId: string, title: string, content: string) => {
+export const saveNoteHistory = async (noteId: string, title: string, content: string) => {
     const histories = cache.noteHistories || [];
     const now = new Date().toISOString();
 
@@ -26,14 +26,16 @@ export const saveNoteHistory = (noteId: string, title: string, content: string) 
     const updated = [newHistory, ...histories];
     cache.noteHistories = updated;
 
-    provider.saveNoteHistory(newHistory).catch((error) => {
+    try {
+        await provider.saveNoteHistory(newHistory);
+    } catch (error) {
         handleSaveError(error, 'Menyimpan riwayat catatan');
-    });
+    }
 
     return newHistory;
 };
 
-export const deleteNoteHistory = (id: string) => {
+export const deleteNoteHistory = async (id: string) => {
     const histories = cache.noteHistories || [];
     const now = new Date().toISOString();
 
@@ -45,16 +47,18 @@ export const deleteNoteHistory = (id: string) => {
 
     const deletedHistory = updated.find(h => h.id === id);
     if (deletedHistory) {
-        provider.saveNoteHistory(deletedHistory).catch((error) => {
+        try {
+            await provider.saveNoteHistory(deletedHistory);
+        } catch (error) {
             handleSaveError(error, 'Menghapus riwayat catatan');
-        });
+        }
     }
 
     return updated;
 };
 
 // Delete all histories for a specific note (when note is deleted)
-export const deleteNoteHistoriesByNoteId = (noteId: string) => {
+export const deleteNoteHistoriesByNoteId = async (noteId: string) => {
     const histories = cache.noteHistories || [];
     const now = new Date().toISOString();
 
@@ -66,11 +70,13 @@ export const deleteNoteHistoriesByNoteId = (noteId: string) => {
 
     // Sync all deleted histories
     const deletedHistories = updated.filter(h => h.noteId === noteId && h.deletedAt);
-    deletedHistories.forEach(history => {
-        provider.saveNoteHistory(history).catch((error) => {
+    for (const history of deletedHistories) {
+        try {
+            await provider.saveNoteHistory(history);
+        } catch (error) {
             handleSaveError(error, 'Menghapus riwayat catatan');
-        });
-    });
+        }
+    }
 
     return updated;
 };

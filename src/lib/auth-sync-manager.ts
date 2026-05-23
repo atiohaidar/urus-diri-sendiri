@@ -3,16 +3,29 @@
  * 
  * Modul terpusat untuk mengelola sinkronisasi antara:
  * 1. Auth state (login/logout)
- * 2. Storage provider (Local/Supabase)
+ * 2. Storage provider (Local/Cloud)
  * 3. Data cache hydration
  * 
  * Ini memastikan tidak ada race condition saat login/logout
  */
 
-import type { User, Session, AuthChangeEvent } from '@supabase/supabase-js';
-
 // --- Types ---
+export interface User {
+    id: string;
+    email?: string;
+    [key: string]: any; // Allow other properties if present
+}
+
 export type AuthSyncState = 'idle' | 'syncing' | 'ready' | 'error';
+
+export interface MigrationStats {
+    priorities: number;
+    routines: number;
+    notes: number;
+    habits: number;
+    reflections: number;
+    logs: number;
+}
 
 export interface AuthSyncStatus {
     state: AuthSyncState;
@@ -20,6 +33,8 @@ export interface AuthSyncStatus {
     isAuthenticated: boolean;
     isCloudMode: boolean;
     error: Error | null;
+    showMigrationDialog: boolean;
+    migrationStats: MigrationStats | null;
 }
 
 type AuthSyncListener = (status: AuthSyncStatus) => void;
@@ -29,6 +44,8 @@ let currentState: AuthSyncState = 'idle';
 let currentUser: User | null = null;
 let currentError: Error | null = null;
 let isCloudMode = false;
+let showMigrationDialog = false;
+let migrationStats: MigrationStats | null = null;
 
 // Promise yang bisa di-await untuk menunggu sync selesai
 let syncPromise: Promise<void> | null = null;
@@ -44,6 +61,8 @@ const getStatus = (): AuthSyncStatus => ({
     isAuthenticated: currentUser !== null,
     isCloudMode,
     error: currentError,
+    showMigrationDialog,
+    migrationStats,
 });
 
 const notifyListeners = () => {
@@ -58,6 +77,21 @@ const notifyListeners = () => {
 };
 
 // --- Public API ---
+
+/**
+ * Trigger migration dialog manually
+ */
+export const setMigrationFlag = (value: boolean, stats: MigrationStats | null = null) => {
+    showMigrationDialog = value;
+    migrationStats = stats;
+    notifyListeners();
+};
+
+export const dismissMigrationDialog = () => {
+    showMigrationDialog = false;
+    migrationStats = null;
+    notifyListeners();
+};
 
 /**
  * Subscribe ke perubahan auth sync status

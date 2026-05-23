@@ -49,24 +49,24 @@ const ReflectionCard = memo(({ reflection, index }: { reflection: Reflection, in
                             [ {formatDate(reflection.date)} ]
                         </p>
                         {/* Achievement Badge (Summary) */}
-                        {(reflection.todayRoutines || reflection.todayPriorities) && (
+                        {(Array.isArray(reflection.todayRoutines) || Array.isArray(reflection.todayPriorities)) && (
                             <div className="flex items-center gap-2">
-                                {reflection.todayPriorities && reflection.todayPriorities.length > 0 && (
+                                {Array.isArray(reflection.todayPriorities) && reflection.todayPriorities.length > 0 && (
                                     <span className={cn(
                                         "flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-sm font-handwriting",
                                         "bg-sticky-yellow text-ink shadow-tape"
                                     )}>
                                         <Rocket className="w-2.5 h-2.5" />
-                                        {Math.min(reflection.todayPriorities.filter(p => p.completed).length, reflection.todayPriorities.length)}/{reflection.todayPriorities.length}
+                                        {Math.min(reflection.todayPriorities.filter(p => p?.completed).length, reflection.todayPriorities.length)}/{reflection.todayPriorities.length}
                                     </span>
                                 )}
-                                {reflection.todayRoutines && reflection.todayRoutines.length > 0 && (
+                                {Array.isArray(reflection.todayRoutines) && reflection.todayRoutines.length > 0 && (
                                     <span className={cn(
                                         "flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-sm font-handwriting",
                                         "bg-sticky-green text-ink shadow-tape"
                                     )}>
                                         <CheckCircle2 className="w-2.5 h-2.5" />
-                                        {Math.min(reflection.todayRoutines.filter(r => r.completedAt).length, reflection.todayRoutines.length)}/{reflection.todayRoutines.length}
+                                        {Math.min(reflection.todayRoutines.filter(r => r?.completedAt).length, reflection.todayRoutines.length)}/{reflection.todayRoutines.length}
                                     </span>
                                 )}
                             </div>
@@ -108,7 +108,7 @@ const ReflectionCard = memo(({ reflection, index }: { reflection: Reflection, in
                         </div>
                     )}
 
-                    {reflection.priorities.some(p => p.trim()) && (
+                    {Array.isArray(reflection.priorities) && reflection.priorities.some(p => p?.trim()) && (
                         <div>
                             <p className="flex items-center gap-2 text-xs font-handwriting text-pencil mb-2">
                                 <Rocket className="w-3.5 h-3.5 text-doodle-primary" />
@@ -137,7 +137,7 @@ const ReflectionCard = memo(({ reflection, index }: { reflection: Reflection, in
                         </div>
                     )}
 
-                    {((reflection.imageIds?.length || 0) > 0 || (reflection.images?.length || 0) > 0) && (
+                    {((reflection.imageIds?.length || 0) > 0 || (Array.isArray(reflection.images) && reflection.images.length > 0)) && (
                         <div>
                             <p className="flex items-center gap-2 text-xs font-handwriting text-pencil mb-2">
                                 <ImageIcon className="w-3.5 h-3.5 text-sticky-pink" />

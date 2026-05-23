@@ -123,7 +123,18 @@ export class OfflineQueue {
                 await this.delete(entry.key);
                 // Moderate throttle
                 await new Promise(resolve => setTimeout(resolve, 100));
-            } catch (err) {
+            } catch (err: any) {
+                // If auth error (401), stop processing entirely — user needs to re-login
+                if (err?.message?.includes('Unauthorized') || err?.message?.includes('401')) {
+                    console.error('🔒 Queue processing stopped: Auth expired. Re-login required.');
+                    import('sonner').then(({ toast }) => {
+                        toast.error("Sesi login berakhir", {
+                            description: `${queueWithKeys.length} perubahan belum tersimpan ke server. Silakan login kembali.`,
+                            duration: 8000,
+                        });
+                    });
+                    break;
+                }
                 console.error(`Failed to process queue item (${entry.item.type}) during sync:`, err);
                 // Stop processing on error to preserve sequence
                 break;

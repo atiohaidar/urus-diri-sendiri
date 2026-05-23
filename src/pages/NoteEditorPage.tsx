@@ -342,7 +342,7 @@ const NoteEditorPage = () => {
                 // New Note
                 const noteData = { title: finalTitle, content: saveContent, category, ...saveMetadata };
                 // @ts-ignore - saveNote signature update pending in useNotes type, but functional
-                const newNote = saveNote(noteData.title, noteData.content, noteData.category, saveMetadata); // Pass metadata
+                const newNote = await saveNote(noteData.title, noteData.content, noteData.category, saveMetadata); // Pass metadata
 
                 clearDraft(noteId);
                 if (!silent) {
@@ -361,7 +361,7 @@ const NoteEditorPage = () => {
                 // Only update if there are actual changes
                 if (hasChanges) {
                     // NOTE: We need to pass the encryption metadata to updateNote
-                    updateNote(existingNote.id, {
+                    await updateNote(existingNote.id, {
                         title: finalTitle,
                         content: saveContent,
                         category,
@@ -512,9 +512,9 @@ const NoteEditorPage = () => {
         setTimeout(scrollCursorIntoView, 50);
     };
 
-    const handleDelete = () => {
+    const handleDelete = async () => {
         if (!isNew && id) {
-            deleteNote(id);
+            await deleteNote(id);
             clearDraft(id); // Clear draft when deleting
             toast({ title: t.note_editor.toast_deleted });
             triggerHaptic();

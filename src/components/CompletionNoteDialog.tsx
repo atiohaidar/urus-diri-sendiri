@@ -26,7 +26,7 @@ export const CompletionNoteDialog = ({
     initialNote = '',
     title
 }: CompletionNoteDialogProps) => {
-    const [note, setNote] = useState(initialNote);
+    const [note, setNote] = useState(initialNote || '');
 
     useEffect(() => {
         if (isOpen) {

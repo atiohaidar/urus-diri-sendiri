@@ -1,4 +1,4 @@
-import { RotateCcw, Settings, Cloud, CloudOff, Loader2 } from 'lucide-react';
+import { Settings, Cloud, CloudOff, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '@/i18n/LanguageContext';
 import { isCheckinCompletedToday } from '@/lib/checkin-helper';
@@ -12,7 +12,6 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 interface HomeHeaderProps {
     currentDate: Date;
     isLoading: boolean;
-    onRefresh: () => void;
     routines: RoutineItem[];
     priorities: PriorityTask[];
 }
@@ -20,7 +19,6 @@ interface HomeHeaderProps {
 export const HomeHeader = ({
     currentDate,
     isLoading,
-    onRefresh,
     routines,
     priorities
 }: HomeHeaderProps) => {
@@ -93,13 +91,6 @@ export const HomeHeader = ({
                         {/* <div className="grade-circle text-xs">
                             {getGrade()}
                         </div> */}
-                        <button
-                            onClick={onRefresh}
-                            className={`p-1.5 rounded-sm hover:bg-paper-lines/30 transition-colors duration-150 ${isLoading ? 'animate-spin' : ''}`}
-                            disabled={isLoading}
-                        >
-                            <RotateCcw className="w-4 h-4 text-pencil" />
-                        </button>
 
 
 

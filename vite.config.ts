@@ -9,6 +9,9 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
     port: 8080,
+    watch: {
+      ignored: ['**/node_modules_windows/**'],
+    },
   },
   plugins: [
     react(),
@@ -62,6 +65,9 @@ export default defineConfig(({ mode }) => ({
       }
     })
   ].filter(Boolean),
+  optimizeDeps: {
+    include: ['react-quill-new'],
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
@@ -73,9 +79,9 @@ export default defineConfig(({ mode }) => ({
         manualChunks: {
           'vendor-react': ['react', 'react-dom', 'react-router-dom'],
           'vendor-ui': ['lucide-react', 'clsx', 'tailwind-merge', 'react-virtuoso'],
-          'vendor-editor': ['react-quill'],
+          'vendor-editor': ['react-quill-new'],
           'vendor-utils': ['date-fns', 'zod', 'react-hook-form'],
-          'vendor-db': ['@supabase/supabase-js', '@tanstack/react-query'],
+          'vendor-db': ['@tanstack/react-query'],
           'vendor-charts': ['recharts'],
         },
       },
