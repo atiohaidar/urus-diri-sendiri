@@ -181,17 +181,15 @@ export const deletePersonalNotes = async (): Promise<void> => {
     // Provider doesn't have explicit "deletePersonalNotes".
     // We can save a null or empty object if we want to "clear".
     // Alternatively, LocalStorageProvider.clearAll removes the key.
-    // But for Supabase, we might want to delete the row.
+    // For cloud, we might want to delete the row.
     // For now, let's just save "not setup" state or rely on dedicated delete if implemented.
     // But since I didn't add deletePersonalNotes to provider interface, I'll save a "reset" state.
 
     // Actually, sending null to savePersonalNotes might reset it?
     // Or we use `provider.savePersonalNotes({ isSetup: false, ... })`.
 
-    // Let's implement robust delete by extending provider later if needed.
-    // For now, let's try to overwrite with invalid/empty data if possible, or assume provider.clearAll handles local.
-    // But wait, `provider.savePersonalNotes` updates Supabase.
-    // If I want to DELETE from Supabase, I need to send a "deleted" signal.
+    // Delete personal notes by saving empty/reset state.
+    // Provider syncs this to cloud (D1) as well.
 
     // Let's follow the pattern of saving an "empty" state.
     // BUT user wants data GONE.

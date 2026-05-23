@@ -75,17 +75,91 @@ export async function verifyToken(token: string, secret: string): Promise<AuthPa
   }
 }
 
-// Hash password using Web Crypto API
+// Hash password using PBKDF2 via Web Crypto API (much more secure than plain SHA-256)
+const PBKDF2_ITERATIONS = 100000;
+const SALT_LENGTH = 16;
+const KEY_LENGTH = 32; // 256 bits
+
 export async function hashPassword(password: string): Promise<string> {
+  const encoder = new TextEncoder();
+  
+  // Generate random salt
+  const salt = crypto.getRandomValues(new Uint8Array(SALT_LENGTH));
+  
+  // Import password as key material
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(password),
+    'PBKDF2',
+    false,
+    ['deriveBits']
+  );
+  
+  // Derive key using PBKDF2
+  const derivedBits = await crypto.subtle.deriveBits(
+    {
+      name: 'PBKDF2',
+      salt: salt,
+      iterations: PBKDF2_ITERATIONS,
+      hash: 'SHA-256',
+    },
+    keyMaterial,
+    KEY_LENGTH * 8
+  );
+  
+  // Encode as: iterations$salt$hash (all base64)
+  const saltB64 = btoa(String.fromCharCode(...salt));
+  const hashB64 = btoa(String.fromCharCode(...new Uint8Array(derivedBits)));
+  
+  return `pbkdf2$${PBKDF2_ITERATIONS}$${saltB64}$${hashB64}`;
+}
+
+export async function verifyPassword(password: string, storedHash: string): Promise<boolean> {
+  // Support legacy SHA-256 hashes (no $ separator) for backward compatibility
+  if (!storedHash.startsWith('pbkdf2$')) {
+    const legacyHash = await legacyHashPassword(password);
+    return legacyHash === storedHash;
+  }
+  
+  const encoder = new TextEncoder();
+  const parts = storedHash.split('$');
+  if (parts.length !== 4) return false;
+  
+  const [, iterationsStr, saltB64, expectedHashB64] = parts;
+  const iterations = parseInt(iterationsStr, 10);
+  const salt = Uint8Array.from(atob(saltB64), c => c.charCodeAt(0));
+  
+  // Import password as key material
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(password),
+    'PBKDF2',
+    false,
+    ['deriveBits']
+  );
+  
+  // Derive key using same parameters
+  const derivedBits = await crypto.subtle.deriveBits(
+    {
+      name: 'PBKDF2',
+      salt: salt,
+      iterations: iterations,
+      hash: 'SHA-256',
+    },
+    keyMaterial,
+    KEY_LENGTH * 8
+  );
+  
+  const actualHashB64 = btoa(String.fromCharCode(...new Uint8Array(derivedBits)));
+  return actualHashB64 === expectedHashB64;
+}
+
+// Legacy SHA-256 hash for backward compatibility with existing passwords
+async function legacyHashPassword(password: string): Promise<string> {
   const encoder = new TextEncoder();
   const data = encoder.encode(password);
   const hashBuffer = await crypto.subtle.digest('SHA-256', data);
   return btoa(String.fromCharCode(...new Uint8Array(hashBuffer)));
-}
-
-export async function verifyPassword(password: string, hash: string): Promise<boolean> {
-  const passwordHash = await hashPassword(password);
-  return passwordHash === hash;
 }
 
 // Convert snake_case DB fields to camelCase for API response

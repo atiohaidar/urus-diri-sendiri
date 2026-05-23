@@ -3,7 +3,6 @@ import { Settings as SettingsIcon, ArrowLeft, Info } from 'lucide-react';
 import { useLanguage } from '@/i18n/LanguageContext';
 import { AuthSection } from '@/components/settings/AuthSection';
 import { PreferencesSection } from '@/components/settings/PreferencesSection';
-import { CloudLegacySection } from '@/components/settings/CloudLegacySection';
 import { DataBackupSection } from '@/components/settings/DataBackupSection';
 import { PersonalNotesSection } from '@/components/settings/PersonalNotesSection';
 import { CalendarSection } from '@/components/settings/CalendarSection';
@@ -55,9 +54,6 @@ const SettingsScreen = () => {
 
                 {/* Calendar Integration (Native Only) */}
                 <CalendarSection />
-
-                {/* Legacy Cloud Sync (Google Sheets) */}
-                <CloudLegacySection />
 
                 {/* Local Data Backup */}
                 <DataBackupSection />

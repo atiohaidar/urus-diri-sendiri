@@ -1,0 +1,115 @@
+name: Build iOS (Capacitor)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, master ]
+
+jobs:
+  build:
+    runs-on: macos-latest
+    env:
+      VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+      VITE_API_URL: ${{ secrets.VITE_API_URL }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Cache node modules
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build web (Vite)
+        run: npm run build
+
+      - name: Install CocoaPods
+        run: sudo gem install cocoapods -v '1.11.3' || true
+
+      - name: Install Capacitor CLI
+        run: npm install -g @capacitor/cli
+
+      - name: Sync iOS with Capacitor
+        run: npx cap sync ios
+
+      - name: Pod install
+        working-directory: ios/App
+        run: pod install --repo-update
+
+      - name: Decode signing assets
+        env:
+          APPLE_CERT_BASE64: ${{ secrets.APPLE_CERT_BASE64 }}
+          APPLE_PROV_PROFILE_BASE64: ${{ secrets.APPLE_PROV_PROFILE_BASE64 }}
+        run: |
+          echo "$APPLE_CERT_BASE64" | base64 --decode > certificate.p12
+          echo "$APPLE_PROV_PROFILE_BASE64" | base64 --decode > profile.mobileprovision
+
+      - name: Setup keychain and import certificate
+        env:
+          APPLE_CERT_PASSWORD: ${{ secrets.APPLE_CERT_PASSWORD }}
+        run: |
+          security create-keychain -p "" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "" build.keychain
+          security import certificate.p12 -k ~/Library/Keychains/build.keychain -P "$APPLE_CERT_PASSWORD" -T /usr/bin/codesign || true
+
+      - name: Install provisioning profile
+        run: |
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          cp profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/
+
+      - name: Create exportOptions.plist
+        env:
+          EXPORT_METHOD: ${{ secrets.EXPORT_METHOD }}
+        run: |
+          cat > exportOptions.plist <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>${{ secrets.EXPORT_METHOD }}</string>
+            <key>teamID</key>
+            <string>${{ secrets.APPLE_TEAM_ID }}</string>
+          </dict>
+          </plist>
+          EOF
+
+      - name: Build archive
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          IOS_SCHEME: ${{ secrets.IOS_SCHEME }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+        run: |
+          set -o pipefail
+          mkdir -p build
+          # Adjust workspace path if your ios project structure differs
+          xcworkspace=$(ls ios | while read d; do if [ -d "ios/$d" ] && [ -f "ios/$d.xcworkspace" ]; then echo "ios/$d.xcworkspace"; fi; done | head -n1)
+          if [ -z "$xcworkspace" ]; then xcworkspace="ios/App/App.xcworkspace"; fi
+          echo "Using workspace: $xcworkspace"
+          xcodebuild -workspace "$xcworkspace" -scheme "$IOS_SCHEME" -configuration Release -archivePath $PWD/build/App.xcarchive archive DEVELOPMENT_TEAM=$APPLE_TEAM_ID CODE_SIGN_IDENTITY="$APPLE_SIGNING_IDENTITY"
+
+      - name: Export IPA
+        run: |
+          xcodebuild -exportArchive -archivePath $PWD/build/App.xcarchive -exportPath $PWD/build -exportOptionsPlist exportOptions.plist
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-ipa
+          path: build/*.ipa
+
+# NOTES:
+# - Set these GitHub Secrets: APPLE_CERT_BASE64 (base64 .p12), APPLE_CERT_PASSWORD, APPLE_PROV_PROFILE_BASE64 (base64 .mobileprovision),
+#   APPLE_TEAM_ID, IOS_SCHEME (Xcode scheme name, e.g., App), APPLE_SIGNING_IDENTITY (e.g., "iPhone Distribution"), EXPORT_METHOD (app-store or ad-hoc).
+# - Ensure VITE_* secrets are set (VITE_API_URL or VITE_SUPABASE_URL & VITE_SUPABASE_ANON_KEY).
+# - Adjust ios workspace path or scheme if different in your project.

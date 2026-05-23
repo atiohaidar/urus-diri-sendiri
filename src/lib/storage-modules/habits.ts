@@ -29,7 +29,7 @@ export const getHabitLogByDate = (habitId: string, date: string): HabitLog | und
 
 // --- CRUD Operations ---
 
-export const addHabit = (habit: Omit<Habit, 'id' | 'createdAt' | 'updatedAt'>): Habit[] => {
+export const addHabit = async (habit: Omit<Habit, 'id' | 'createdAt' | 'updatedAt'>): Promise<Habit[]> => {
     const now = new Date().toISOString();
     const newHabit: Habit = {
         ...habit,
@@ -40,19 +40,18 @@ export const addHabit = (habit: Omit<Habit, 'id' | 'createdAt' | 'updatedAt'>): 
     };
 
     cache.habits = [...(cache.habits || []), newHabit];
+    notifyListeners();
 
-    // Persist - only send the new habit, not the entire list
     try {
-        provider.saveHabits?.([newHabit]);
+        await provider.saveHabits?.([newHabit]);
     } catch (error) {
         handleSaveError(error, 'addHabit', () => addHabit(habit));
     }
 
-    notifyListeners();
     return getHabits();
 };
 
-export const updateHabit = (id: string, updates: Partial<Habit>): Habit[] => {
+export const updateHabit = async (id: string, updates: Partial<Habit>): Promise<Habit[]> => {
     const now = new Date().toISOString();
 
     cache.habits = (cache.habits || []).map(h => {
@@ -63,18 +62,18 @@ export const updateHabit = (id: string, updates: Partial<Habit>): Habit[] => {
     });
 
     const updatedHabit = (cache.habits || []).find(h => h.id === id);
+    notifyListeners();
 
     try {
-        if (updatedHabit) provider.saveHabits?.([updatedHabit]);
+        if (updatedHabit) await provider.saveHabits?.([updatedHabit]);
     } catch (error) {
         handleSaveError(error, 'updateHabit', () => updateHabit(id, updates));
     }
 
-    notifyListeners();
     return getHabits();
 };
 
-export const deleteHabit = (id: string): Habit[] => {
+export const deleteHabit = async (id: string): Promise<Habit[]> => {
     const now = new Date().toISOString();
 
     // Soft delete
@@ -86,27 +85,26 @@ export const deleteHabit = (id: string): Habit[] => {
     });
 
     const deletedHabit = (cache.habits || []).find(h => h.id === id);
+    notifyListeners();
 
     try {
-        if (deletedHabit) provider.saveHabits?.([deletedHabit]);
+        if (deletedHabit) await provider.saveHabits?.([deletedHabit]);
     } catch (error) {
         handleSaveError(error, 'deleteHabit', () => deleteHabit(id));
     }
 
-    notifyListeners();
     return getHabits();
 };
 
-export const archiveHabit = (id: string, archived: boolean = true): Habit[] => {
+export const archiveHabit = (id: string, archived: boolean = true): Promise<Habit[]> => {
     return updateHabit(id, { isArchived: archived });
 };
 
 // --- Habit Logs ---
 
-export const logHabitCompletion = (habitId: string, date: string, note?: string): HabitLog[] => {
+export const logHabitCompletion = async (habitId: string, date: string, note?: string): Promise<HabitLog[]> => {
     const now = new Date().toISOString();
 
-    // Check if log already exists for this date
     const existingLog = getHabitLogByDate(habitId, date);
 
     let logToSave: HabitLog;
@@ -127,42 +125,40 @@ export const logHabitCompletion = (habitId: string, date: string, note?: string)
         cache.habitLogs = [...(cache.habitLogs || []), logToSave];
     }
 
+    notifyListeners();
+
     try {
-        provider.saveHabitLogs?.([logToSave]);
+        await provider.saveHabitLogs?.([logToSave]);
     } catch (error) {
         handleSaveError(error, 'logHabitCompletion', () => logHabitCompletion(habitId, date, note));
     }
 
-    notifyListeners();
     return getHabitLogs();
 };
 
-export const unlogHabitCompletion = (habitId: string, date: string): HabitLog[] => {
+export const unlogHabitCompletion = async (habitId: string, date: string): Promise<HabitLog[]> => {
     const now = new Date().toISOString();
     const existingLog = getHabitLogByDate(habitId, date);
 
     if (existingLog) {
         const updatedLog = { ...existingLog, completed: false, deletedAt: now, updatedAt: now };
-        cache.habitLogs = (cache.habitLogs || []).map(l => {
-            if (l.id === existingLog.id) {
-                return updatedLog;
-            }
-            return l;
-        });
+        cache.habitLogs = (cache.habitLogs || []).map(l =>
+            l.id === existingLog.id ? updatedLog : l
+        );
+
+        notifyListeners();
 
         try {
-            provider.saveHabitLogs?.([updatedLog]);
+            await provider.saveHabitLogs?.([updatedLog]);
         } catch (error) {
             handleSaveError(error, 'unlogHabitCompletion', () => unlogHabitCompletion(habitId, date));
         }
-
-        notifyListeners();
     }
 
     return getHabitLogs();
 };
 
-export const toggleHabitCompletion = (habitId: string, date: string, note?: string): HabitLog[] => {
+export const toggleHabitCompletion = (habitId: string, date: string, note?: string): Promise<HabitLog[]> => {
     const existingLog = getHabitLogByDate(habitId, date);
 
     if (existingLog && existingLog.completed) {

@@ -25,24 +25,24 @@ export const useNotes = () => {
         return () => { unsubscribe(); };
     }, [refreshNotes]);
 
-    const saveNote = useCallback((title: string, content: string, category: string | null = null, metadata?: Partial<Note>) => {
+    const saveNote = useCallback(async (title: string, content: string, category: string | null = null, metadata?: Partial<Note>) => {
         // saveNoteStorage updates cache synchronously before async save
-        const newNote = saveNoteStorage({ title, content, category, ...metadata });
+        const newNote = await saveNoteStorage({ title, content, category, ...metadata });
         // Refresh from cache to get updated list
         refreshNotes();
         return newNote;
     }, [refreshNotes]);
 
-    const updateNote = useCallback((id: string, updates: Partial<Pick<Note, 'title' | 'content' | 'category' | 'isEncrypted' | 'encryptionSalt' | 'encryptionIv' | 'passwordHash'>>) => {
+    const updateNote = useCallback(async (id: string, updates: Partial<Pick<Note, 'title' | 'content' | 'category' | 'isEncrypted' | 'encryptionSalt' | 'encryptionIv' | 'passwordHash'>>) => {
         // updateNoteStorage returns the updated list and already updates cache
-        const updated = updateNoteStorage(id, updates);
+        const updated = await updateNoteStorage(id, updates);
         setNotes(updated);
         return updated;
     }, []);
 
-    const deleteNote = useCallback((id: string) => {
+    const deleteNote = useCallback(async (id: string) => {
         // deleteNoteStorage returns the filtered list and already updates cache
-        const updated = deleteNoteStorage(id);
+        const updated = await deleteNoteStorage(id);
         setNotes(updated);
         return updated;
     }, []);

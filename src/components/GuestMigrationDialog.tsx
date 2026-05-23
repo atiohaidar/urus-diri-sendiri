@@ -69,31 +69,33 @@ export const GuestMigrationDialog = () => {
                     <AlertDialogTitle className="font-handwriting text-2xl text-center text-ink mt-2">
                         Data Sesi Tamu Ditemukan! ☁️
                     </AlertDialogTitle>
-                    <AlertDialogDescription className="font-handwriting text-base text-pencil text-center space-y-4 pt-2">
-                        <p>
-                            Kami menemukan data dari sesi tamu Anda. Agar tidak hilang, data berikut telah didekatkan ke akun Anda:
-                        </p>
+                    <AlertDialogDescription asChild>
+                        <div className="font-handwriting text-base text-pencil text-center space-y-4 pt-2">
+                            <p>
+                                Kami menemukan data dari sesi tamu Anda. Agar tidak hilang, data berikut telah didekatkan ke akun Anda:
+                            </p>
 
-                        <div className="grid grid-cols-2 gap-2 my-4">
-                            {statSpecs.map(stat => (
-                                <div key={stat.label} className="flex items-center gap-2 p-2 rounded-sm border-2 border-dashed border-paper-lines/20 bg-paper-lines/5">
-                                    <stat.icon className={`w-4 h-4 ${stat.color}`} />
-                                    <div className="text-left leading-none">
-                                        <div className="text-[10px] text-pencil uppercase font-bold">{stat.label}</div>
-                                        <div className="text-sm font-bold text-ink">{stat.count} item</div>
+                            <div className="grid grid-cols-2 gap-2 my-4">
+                                {statSpecs.map(stat => (
+                                    <div key={stat.label} className="flex items-center gap-2 p-2 rounded-sm border-2 border-dashed border-paper-lines/20 bg-paper-lines/5">
+                                        <stat.icon className={`w-4 h-4 ${stat.color}`} />
+                                        <div className="text-left leading-none">
+                                            <div className="text-[10px] text-pencil uppercase font-bold">{stat.label}</div>
+                                            <div className="text-sm font-bold text-ink">{stat.count} item</div>
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
-                        </div>
+                                ))}
+                            </div>
 
-                        <div className="text-sm border-2 border-dashed border-paper-lines/30 p-4 rounded-sm bg-paper-lines/5 text-left">
-                            <p className="font-bold text-ink mb-1 flex items-center gap-2">
-                                <Sparkles className="w-4 h-4 text-sticky-yellow" />
-                                Keputusan Anda?
-                            </p>
-                            <p className="text-xs text-pencil italic">
-                                Anda bisa menyimpan data ini atau menghapusnya jika ini bukan milik Anda.
-                            </p>
+                            <div className="text-sm border-2 border-dashed border-paper-lines/30 p-4 rounded-sm bg-paper-lines/5 text-left">
+                                <p className="font-bold text-ink mb-1 flex items-center gap-2">
+                                    <Sparkles className="w-4 h-4 text-sticky-yellow" />
+                                    Keputusan Anda?
+                                </p>
+                                <p className="text-xs text-pencil italic">
+                                    Anda bisa menyimpan data ini atau menghapusnya jika ini bukan milik Anda.
+                                </p>
+                            </div>
                         </div>
                     </AlertDialogDescription>
                 </AlertDialogHeader>

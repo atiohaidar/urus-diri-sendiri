@@ -15,11 +15,25 @@ import habits from './routes/habits';
 import habitLogs from './routes/habit-logs';
 import personalNotes from './routes/personal-notes';
 
+// Unified page-data endpoint (business logic moved from frontend to backend)
+import pageData from './routes/page-data';
+
 const app = new OpenAPIHono<{ Bindings: Env }>();
 
 // CORS middleware - allow requests from the frontend
 app.use('*', cors({
-  origin: '*', // In production, set to specific domains
+  origin: (origin) => {
+    // Allow requests with no origin (mobile apps, Capacitor, curl)
+    if (!origin) return '*';
+    // Allow localhost for development
+    if (origin.includes('localhost') || origin.includes('127.0.0.1')) return origin;
+    // Allow capacitor origin
+    if (origin.includes('capacitor://') || origin.includes('ionic://')) return origin;
+    // Allow your production domain(s) - update these when deployed
+    if (origin.includes('urusdirisendiri') || origin.includes('pages.dev')) return origin;
+    // Fallback: allow all (you can restrict this further in production)
+    return origin;
+  },
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowHeaders: ['Content-Type', 'Authorization'],
   exposeHeaders: ['Content-Length'],
@@ -78,7 +92,9 @@ const routes = app
   .route('/api/habits', habits)
   .route('/api/habit-logs', habitLogs)
   .route('/api/personal-notes', personalNotes)
-  .route('/api/sync', sync);
+  .route('/api/sync', sync)
+  // Unified page-data endpoint (1 request per page instead of N requests)
+  .route('/api/page-data', pageData);
 
 export type AppType = typeof routes;
 

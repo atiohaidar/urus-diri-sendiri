@@ -1,6 +1,7 @@
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
 import type { Env } from '../types';
 import { generateId, createToken, hashPassword, verifyPassword } from '../utils';
+import { rateLimiter } from '../middleware/rate-limiter';
 
 const auth = new OpenAPIHono<{ Bindings: Env }>();
 
@@ -49,6 +50,7 @@ const meResponseSchema = z.object({
 const registerRoute = createRoute({
   method: 'post',
   path: '/register',
+  middleware: [rateLimiter({ windowMs: 15 * 60 * 1000, max: 10 })] as any,
   request: {
     body: {
       content: {
@@ -135,6 +137,7 @@ auth.openapi(registerRoute, async (c) => {
 const loginRoute = createRoute({
   method: 'post',
   path: '/login',
+  middleware: [rateLimiter({ windowMs: 5 * 60 * 1000, max: 20 })] as any,
   request: {
     body: {
       content: {
@@ -176,6 +179,14 @@ auth.openapi(loginRoute, async (c) => {
     const validPassword = await verifyPassword(password, user.password_hash);
     if (!validPassword) {
       return c.json({ success: false, error: 'Invalid email or password' }, 401);
+    }
+
+    // Upgrade legacy SHA-256 hash to PBKDF2 transparently
+    if (!user.password_hash.startsWith('pbkdf2$')) {
+      const upgradedHash = await hashPassword(password);
+      await c.env.DB.prepare(
+        'UPDATE users SET password_hash = ? WHERE id = ?'
+      ).bind(upgradedHash, user.id).run();
     }
 
     // Create token

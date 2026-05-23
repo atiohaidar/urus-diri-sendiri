@@ -85,163 +85,72 @@ export const authApi = {
 };
 
 
-// Generic Data API - REPLACED with Typed wrappers
-// We keep the structure but implement using specific RPC calls where we can.
-// Generic Data API - REPLACED with Typed wrappers
-// dataApi has been removed in favor of specific typed APIs
+// Generic Data API - Factory pattern eliminates repetitive CRUD boilerplate
+// ============================================================
+interface CrudApi<T = any> {
+    get: (since?: string) => Promise<T[]>;
+    save: (data: T | T[]) => Promise<void>;
+    delete: (id: string) => Promise<void>;
+}
 
-// Specific API endpoints
-// Specific API endpoints
-export const prioritiesApi = {
-    get: async (since?: string) => {
-        const res = await client.api.priorities.$get({ query: { since } });
-        const json = await res.json();
-        if (!json.success) throw new Error(json.error);
-        return json.data || [];
-    },
-    save: async (data: any[]) => {
-        const res = await client.api.priorities.$put({ json: data });
-        const json = await res.json();
-        if (!json.success) throw new Error(json.error);
-    },
-    delete: async (id: string) => {
-        const res = await client.api.priorities[':id'].$delete({ param: { id } });
-        const json = await res.json();
-        if (!json.success) throw new Error(json.error);
-    },
-};
+function createCrudApi<T = any>(
+    endpoint: any,
+    options?: { hasDelete?: boolean }
+): CrudApi<T> {
+    const { hasDelete = true } = options || {};
 
-export const routinesApi = {
-    get: async (since?: string) => {
-        const res = await client.api.routines.$get({ query: { since } });
-        const json = await res.json();
-        if (!json.success) throw new Error(json.error || "Failed");
-        return json.data || [];
-    },
-    save: async (data: any[]) => {
-        const res = await client.api.routines.$put({ json: data });
-        const json = await res.json();
-        if (!json.success) throw new Error(json.error || "Failed");
-    },
-    delete: async (id: string) => {
-        const res = await client.api.routines[':id'].$delete({ param: { id } });
-        const json = await res.json();
-        if (!json.success) throw new Error(json.error || "Failed");
-    },
-};
+    return {
+        get: async (since?: string) => {
+            const res = await endpoint.$get({ query: { since } });
+            const json = await res.json() as any;
+            if (!json.success) throw new Error(json.error || 'Failed');
+            return json.data || [];
+        },
+        save: async (data: T | T[]) => {
+            const res = await endpoint.$put({ json: data });
+            const json = await res.json() as any;
+            if (!json.success) throw new Error(json.error || 'Failed');
+        },
+        delete: hasDelete
+            ? async (id: string) => {
+                const res = await endpoint[':id'].$delete({ param: { id } });
+                const json = await res.json() as any;
+                if (!json.success) throw new Error(json.error || 'Failed');
+            }
+            : async () => { throw new Error('Delete not supported'); },
+    };
+}
 
+// Entity APIs — created via factory
+export const prioritiesApi = createCrudApi(client.api.priorities);
+export const routinesApi = createCrudApi(client.api.routines);
+export const logsApi = createCrudApi(client.api.logs);
+export const habitsApi = createCrudApi(client.api.habits, { hasDelete: false });
+export const habitLogsApi = createCrudApi(client.api['habit-logs'], { hasDelete: false });
+export const reflectionsApi = createCrudApi(client.api.reflections, { hasDelete: false });
+export const noteHistoriesApi = createCrudApi(client.api['note-histories'], { hasDelete: false });
+
+// Notes — has extra `saveSingle` + `delete`
 export const notesApi = {
-    get: async (since?: string) => {
-        const res = await client.api.notes.$get({ query: { since } });
-        const json = await res.json();
-        if (!json.success) throw new Error(json.error);
-        return json.data || [];
-    },
-    save: async (data: any | any[]) => {
-        // Handle array vs single object if backend supports it, backend expects generic save usually handles both or typed
-        // Based on routes usually accepts array or object depending on implementation.
-        // Assuming /api/notes PUT accepts data
-        const res = await client.api.notes.$put({ json: data });
-        const json = await res.json();
-        if (!json.success) throw new Error(json.error);
-    },
+    ...createCrudApi(client.api.notes),
     saveSingle: async (data: any) => {
         const res = await client.api.notes.single.$put({ json: data });
-        const json = await res.json();
-        if (!json.success) throw new Error(json.error);
-    },
-    delete: async (id: string) => {
-        const res = await client.api.notes[':id'].$delete({ param: { id } });
-        const json = await res.json();
-        if (!json.success) throw new Error(json.error);
+        const json = await res.json() as any;
+        if (!json.success) throw new Error(json.error || 'Failed');
     },
 };
 
-export const noteHistoriesApi = {
-    get: async (since?: string) => {
-        const res = await client.api['note-histories'].$get({ query: { since } });
-        const json = await res.json();
-        if (!json.success) throw new Error(json.error);
-        return json.data || [];
-    },
-    save: async (data: any) => {
-        const res = await client.api['note-histories'].$put({ json: data });
-        const json = await res.json();
-        if (!json.success) throw new Error(json.error);
-    },
-};
-
-export const reflectionsApi = {
-    get: async (since?: string) => {
-        const res = await client.api.reflections.$get({ query: { since } });
-        const json = await res.json();
-        if (!json.success) throw new Error(json.error);
-        return json.data || [];
-    },
-    save: async (data: any) => {
-        const res = await client.api.reflections.$put({ json: data });
-        const json = await res.json();
-        if (!json.success) throw new Error(json.error);
-    },
-};
-
-export const logsApi = {
-    get: async (since?: string) => {
-        const res = await client.api.logs.$get({ query: { since } });
-        const json = await res.json();
-        if (!json.success) throw new Error(json.error);
-        return json.data || [];
-    },
-    save: async (data: any) => {
-        const res = await client.api.logs.$put({ json: data });
-        const json = await res.json();
-        if (!json.success) throw new Error(json.error);
-    },
-    delete: async (id: string) => {
-        const res = await client.api.logs[':id'].$delete({ param: { id } });
-        const json = await res.json();
-        if (!json.success) throw new Error(json.error);
-    },
-};
-
-export const habitsApi = {
-    get: async (since?: string) => {
-        const res = await client.api.habits.$get({ query: { since } });
-        const json = await res.json();
-        if (!json.success) throw new Error(json.error);
-        return json.data || [];
-    },
-    save: async (data: any[]) => {
-        const res = await client.api.habits.$put({ json: data });
-        const json = await res.json();
-        if (!json.success) throw new Error(json.error);
-    },
-};
-
-export const habitLogsApi = {
-    get: async (since?: string) => {
-        const res = await client.api['habit-logs'].$get({ query: { since } });
-        const json = await res.json();
-        if (!json.success) throw new Error(json.error);
-        return json.data || [];
-    },
-    save: async (data: any[]) => {
-        const res = await client.api['habit-logs'].$put({ json: data });
-        const json = await res.json();
-        if (!json.success) throw new Error(json.error);
-    },
-};
-
+// Personal Notes — no `since`, no delete, different shape
 export const personalNotesApi = {
     get: async () => {
         const res = await client.api['personal-notes'].$get();
-        const json = await res.json();
+        const json = await res.json() as any;
         if (!json.success) throw new Error(json.error);
         return json.data;
     },
     save: async (data: any) => {
         const res = await client.api['personal-notes'].$put({ json: data });
-        const json = await res.json();
+        const json = await res.json() as any;
         if (!json.success) throw new Error(json.error);
     },
 };
@@ -264,5 +173,70 @@ export const syncApi = {
 
         return json.data;
     }
+};
+
+// --- Unified Page Data API (1 request per page) ---
+// Instead of hitting multiple endpoints, each page calls ONE endpoint
+// that returns all the data it needs.
+
+type PageName = 'home' | 'habits' | 'habit-detail' | 'history' | 'checkin';
+
+export const pageDataApi = {
+    /**
+     * Fetch all data needed for a specific page in a single request.
+     * 
+     * Pages and their returned data:
+     * - 'home': { routines, routineStats, activeIndex, priorities, todayHabits, checkinCompleted }
+     * - 'habits': { habits, todayHabits }
+     * - 'habit-detail': { habit, logs, stats }
+     * - 'history': { reflections } or { logs }
+     * - 'checkin': { todayReflection, routines, priorities }
+     */
+    fetch: async (page: PageName, params?: { habitId?: string; historyTab?: 'reflections' | 'logs' }) => {
+        const res = await client.api['page-data'].$post({
+            json: { page, ...params },
+        });
+        const json = await res.json() as any;
+        if (!json.success) throw new Error(json.error || 'Failed to fetch page data');
+        return json.data;
+    },
+
+    /** Toggle habit completion */
+    toggleHabit: async (habitId: string, date?: string, note?: string) => {
+        const res = await client.api['page-data']['toggle-habit'].$post({
+            json: { habitId, date, note },
+        });
+        const json = await res.json() as any;
+        if (!json.success) throw new Error(json.error);
+        return json.data;
+    },
+
+    /** Toggle routine completion */
+    toggleRoutine: async (routineId: string, note?: string) => {
+        const res = await client.api['page-data']['toggle-routine'].$post({
+            json: { routineId, note },
+        });
+        const json = await res.json() as any;
+        if (!json.success) throw new Error(json.error);
+        return json.data;
+    },
+
+    /** Reset old completed priorities */
+    resetPriorities: async () => {
+        const res = await client.api['page-data']['reset-priorities'].$post();
+        const json = await res.json() as any;
+        if (!json.success) throw new Error(json.error);
+        return json.data;
+    },
+
+    /** Auto-snapshot today's progress */
+    snapshot: async (todayRoutines?: any[], todayPriorities?: any[]) => {
+        const res = await client.api['page-data'].snapshot.$post({
+            json: { todayRoutines, todayPriorities },
+        });
+        const json = await res.json() as any;
+        if (!json.success) throw new Error(json.error);
+        return json.data;
+    },
 };
 

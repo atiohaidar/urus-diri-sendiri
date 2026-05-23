@@ -3,7 +3,7 @@
  * 
  * Modul terpusat untuk mengelola sinkronisasi antara:
  * 1. Auth state (login/logout)
- * 2. Storage provider (Local/Supabase)
+ * 2. Storage provider (Local/Cloud)
  * 3. Data cache hydration
  * 
  * Ini memastikan tidak ada race condition saat login/logout

@@ -1,19 +1,14 @@
 import { PriorityTask, Reflection, Note, NoteHistory, RoutineItem, ActivityLog, Habit, HabitLog } from '../types';
 import { IStorageProvider } from '../storage-interface';
 import { LocalStorageProvider } from '../providers/local-storage-provider';
-import { SupabaseProvider } from '../providers/supabase-provider';
 import { CloudflareD1Provider } from '../providers/cloudflare-d1-provider';
-import { supabase, isSupabaseConfigured } from '../supabase';
 import { onAuthStateChange as onCloudflareAuthChange, isCloudflareConfigured, getCurrentUser as getCloudflareUser } from '../cloudflare-auth';
 import { cleanupImages, clearAllData } from '../idb';
 export { clearAllData };
 import { STORAGE_KEYS } from '../constants';
 import { toast } from 'sonner';
 import { startAuthSync, completeAuthSync, setMigrationFlag } from '../auth-sync-manager';
-
-// Determine which backend to use based on configuration
-const useCloudflareBackend = isCloudflareConfigured;
-const useSupabaseBackend = !useCloudflareBackend && isSupabaseConfigured;
+import { logger } from '../logger';
 
 // Helper for generating IDs
 export const generateId = (prefix: string = 'id'): string => {
@@ -22,7 +17,7 @@ export const generateId = (prefix: string = 'id'): string => {
 
 // --- Error Handling Helper ---
 export const handleSaveError = (error: any, context: string, retryFn?: () => void) => {
-    console.error(`Save error (${context}):`, error);
+    logger.error(`Save error (${context}):`, error);
     const message = error?.message || 'Gagal menyimpan data';
     if (retryFn) {
         toast.error(`${message}`, {
@@ -88,14 +83,15 @@ export const notifyListeners = () => {
 
 
 // --- Sync Token Management ---
+// Not needed in online-first mode, kept for backward compat with local mode
 const getSyncToken = (table: string): string | undefined => {
-    if (!(provider instanceof SupabaseProvider) && !(provider instanceof CloudflareD1Provider)) return undefined;
+    if (provider instanceof CloudflareD1Provider) return undefined; // Online-first: always full fetch
     const key = `sync_token_${currentUserId}_${table}`;
     return localStorage.getItem(key) || undefined;
 };
 
 const setSyncToken = (table: string, timestamp: string) => {
-    if (!(provider instanceof SupabaseProvider) && !(provider instanceof CloudflareD1Provider)) return;
+    if (provider instanceof CloudflareD1Provider) return; // Online-first: not needed
     try {
         const date = new Date(timestamp);
         date.setSeconds(date.getSeconds() - 1);
@@ -128,12 +124,12 @@ function mergeData<T extends { id: string, updatedAt?: string, deletedAt?: strin
 }
 
 /**
- * Perform network sync for a specific table (if applicable)
- * This is the modular "On-Demand" sync part.
+ * Perform network sync for a specific table.
+ * Online-first: directly fetches from provider (which is API when cloud active).
  */
 export async function syncTable(table: keyof typeof cache, force = false): Promise<void> {
     // Only sync for cloud providers
-    if (!(provider instanceof CloudflareD1Provider) && !(provider instanceof SupabaseProvider)) return;
+    if (!(provider instanceof CloudflareD1Provider)) return;
 
     // Check cooldown unless forced
     const now = Date.now();
@@ -142,74 +138,52 @@ export async function syncTable(table: keyof typeof cache, force = false): Promi
     }
 
     try {
-        const lastSync = getSyncToken(table);
-        console.log(`Storage: On-Demand Sync for ${table}...`);
+        logger.log(`Storage: Fetching ${table} from API...`);
 
-        let incoming: any[] = [];
+        let data: any[] = [];
         switch (table) {
-            case 'priorities': incoming = await provider.getPriorities(lastSync); break;
-            case 'reflections': incoming = await provider.getReflections(lastSync); break;
-            case 'notes': incoming = await provider.getNotes(lastSync); break;
-            case 'routines': incoming = await provider.getRoutines(lastSync); break;
-            case 'logs': incoming = await provider.getLogs(lastSync); break;
-            case 'habits': incoming = await provider.getHabits?.(lastSync) ?? []; break;
-            case 'habitLogs': incoming = await provider.getHabitLogs?.(lastSync) ?? []; break;
-            case 'noteHistories': incoming = await provider.getNoteHistories?.(lastSync) ?? []; break;
+            case 'priorities': data = await provider.getPriorities(); break;
+            case 'reflections': data = await provider.getReflections(); break;
+            case 'notes': data = await provider.getNotes(); break;
+            case 'routines': data = await provider.getRoutines(); break;
+            case 'logs': data = await provider.getLogs(); break;
+            case 'habits': data = await provider.getHabits?.() ?? []; break;
+            case 'habitLogs': data = await provider.getHabitLogs?.() ?? []; break;
+            case 'noteHistories': data = await provider.getNoteHistories?.() ?? []; break;
         }
 
-        if (incoming.length > 0) {
-            // Update cache and sync tokens
-            cache[table] = mergeData(cache[table], incoming);
-
-            const maxTime = incoming.reduce((max: string, curr: any) => {
-                return !max || (curr.updatedAt && curr.updatedAt > max) ? curr.updatedAt : max;
-            }, lastSync);
-            if (maxTime) setSyncToken(table, maxTime);
-
-            notifyListeners();
-        }
-
-        lastSyncTime[table] = now;
+        // Replace cache entirely with API data (source of truth)
+        cache[table] = (data || []).filter((i: any) => !i.deletedAt);
+        lastSyncTime[table] = Date.now();
+        notifyListeners();
     } catch (error) {
-        console.warn(`Storage: Failed to sync ${table}:`, error);
+        logger.warn(`Storage: Failed to sync ${table}:`, error);
     }
 }
 
 /**
- * Load data from local IndexedDB into memory (Fast & Offline)
+ * Load data into memory cache.
+ * - Cloud mode: Fetch from API (provider = CloudflareD1Provider)
+ * - Local mode: Load from IndexedDB (provider = LocalStorageProvider)
  */
 export async function hydrateTable(table: keyof typeof cache): Promise<any> {
     if (pendingHydrations[table]) return pendingHydrations[table];
 
     pendingHydrations[table] = (async () => {
         try {
-            // When in cloud mode (D1/Supabase), localProvider is where we persist after fetch.
-            // When in strictly local mode, provider IS LocalStorageProvider.
-
-            const local = (provider instanceof CloudflareD1Provider)
-                ? provider.localProvider
-                : (provider instanceof LocalStorageProvider ? provider : null);
-
-            if (!local) {
-                // Supabase case or fallback - try to call get directly (it handles local internally sometimes)
-                const data = await provider.getNotes?.() || []; // generic placeholder
-                // This is suboptimal for Supabase, but our priority is Cloudflare right now.
-                return cache[table];
-            }
-
             let data: any[] = [];
             switch (table) {
-                case 'priorities': data = await local.getPriorities(); break;
-                case 'reflections': data = await local.getReflections(); break;
-                case 'notes': data = await local.getNotes(); break;
-                case 'routines': data = await local.getRoutines(); break;
-                case 'logs': data = await local.getLogs(); break;
-                case 'habits': data = await local.getHabits?.() ?? []; break;
-                case 'habitLogs': data = await local.getHabitLogs?.() ?? []; break;
-                case 'noteHistories': data = await local.getNoteHistories?.() ?? []; break;
+                case 'priorities': data = await provider.getPriorities(); break;
+                case 'reflections': data = await provider.getReflections(); break;
+                case 'notes': data = await provider.getNotes(); break;
+                case 'routines': data = await provider.getRoutines(); break;
+                case 'logs': data = await provider.getLogs(); break;
+                case 'habits': data = await provider.getHabits?.() ?? []; break;
+                case 'habitLogs': data = await provider.getHabitLogs?.() ?? []; break;
+                case 'noteHistories': data = await provider.getNoteHistories?.() ?? []; break;
             }
 
-            cache[table] = data.filter((i: any) => !i.deletedAt);
+            cache[table] = (data || []).filter((i: any) => !i.deletedAt);
             return cache[table];
         } finally {
             pendingHydrations[table] = null;
@@ -219,42 +193,53 @@ export async function hydrateTable(table: keyof typeof cache): Promise<any> {
 }
 
 /**
- * Initial cache hydration - strictly LOCAL and FAST.
- * Modular sync happens later per feature.
+ * Initial cache hydration.
+ * - Cloud mode: Fetches all data from API via provider
+ * - Local mode: Loads from IndexedDB
  */
 export const hydrateCache = async (force = false) => {
     if (pendingHydrations.all && !force) return pendingHydrations.all;
 
     pendingHydrations.all = (async () => {
         try {
-            // If forced and cloud active, sync with network first
-            if (force && (provider instanceof CloudflareD1Provider || provider instanceof SupabaseProvider)) {
-                console.log("Storage: Forced Cache Hydration - Syncing with Cloud first...");
+            const isCloud = provider instanceof CloudflareD1Provider;
+            logger.log("Storage: Hydrating cache from", isCloud ? "API" : "IndexedDB", "...");
 
-                // Use unified sync for D1 if available, otherwise fallback to per-table sync
-                if (provider instanceof CloudflareD1Provider) {
-                    await (provider as CloudflareD1Provider).syncAll();
-                } else {
-                    const tables: (keyof typeof cache)[] = ['priorities', 'reflections', 'notes', 'routines', 'logs', 'habits', 'habitLogs', 'noteHistories'];
-                    await Promise.allSettled(tables.map(t => syncTable(t, true)));
+            if (isCloud && provider.syncAll) {
+                // Unified Sync: Fetch all main tables in a single HTTP request!
+                const allData = await provider.syncAll();
+                if (allData) {
+                    const now = Date.now();
+                    const tables: Array<keyof typeof cache> = [
+                        'priorities', 'reflections', 'notes', 'routines',
+                        'logs', 'habits', 'habitLogs'
+                    ];
+                    
+                    tables.forEach(table => {
+                        cache[table] = (allData[table] || []).filter((i: any) => !i.deletedAt);
+                        lastSyncTime[table] = now; // Set cooldown to prevent immediate redundant individual fetches
+                    });
                 }
+                
+                // Hydrate noteHistories separately since it's not in syncAll
+                await hydrateTable('noteHistories');
+            } else {
+                // Fallback to loading individually (Local/IndexedDB)
+                await Promise.all([
+                    hydrateTable('priorities'),
+                    hydrateTable('reflections'),
+                    hydrateTable('notes'),
+                    hydrateTable('routines'),
+                    hydrateTable('logs'),
+                    hydrateTable('habits'),
+                    hydrateTable('habitLogs'),
+                    hydrateTable('noteHistories'),
+                ]);
             }
 
-            console.log("Storage: Hydrating memory cache from IndexedDB...");
-
-            // Load everything from local storage in parallel
-            await Promise.all([
-                hydrateTable('priorities'),
-                hydrateTable('reflections'),
-                hydrateTable('notes'),
-                hydrateTable('routines'),
-                hydrateTable('logs'),
-                hydrateTable('habits'),
-                hydrateTable('habitLogs'),
-                hydrateTable('noteHistories'),
-            ]);
-
             notifyListeners();
+        } catch (error) {
+            logger.error("Storage: Hydration failed:", error);
         } finally {
             pendingHydrations.all = null;
         }
@@ -285,9 +270,9 @@ export const initializeStorage = () => {
                     const data = JSON.parse(oldData);
                     await task.save(data);
                     localStorage.removeItem(task.key);
-                    console.log(`Storage: Migrated ${task.table} to IndexedDB`);
+                    logger.log(`Storage: Migrated ${task.table} to IndexedDB`);
                 } catch (e) {
-                    console.error(`Storage: Failed to migrate ${task.table}:`, e);
+                    logger.error(`Storage: Failed to migrate ${task.table}:`, e);
                 }
             }
         }
@@ -298,35 +283,24 @@ export const initializeStorage = () => {
         try {
             const { resetOldCompletions } = await import('./priorities');
             await resetOldCompletions();
-        } catch (err) { console.warn("Storage: Failed to reset old completions:", err); }
+        } catch (err) { logger.warn("Storage: Failed to reset old completions:", err); }
     })();
     return initPromise;
 };
 
-// --- Chunked Migration Helper ---
+// --- Guest-to-Cloud Migration Helper ---
+// When a guest user logs in, push their local IndexedDB data to the cloud API.
 const chunkArray = <T>(array: T[], size: number): T[][] => {
     const chunks: T[][] = [];
     for (let i = 0; i < array.length; i += size) { chunks.push(array.slice(i, i + size)); }
     return chunks;
 };
 
-const syncLocalToCloud = async (cloudData?: any): Promise<any> => {
+const migrateLocalToCloud = async (): Promise<any> => {
     if (!(provider instanceof CloudflareD1Provider)) return null;
-    console.log("Storage: Starting optimized migration sync...");
-    const d1Provider = provider as CloudflareD1Provider;
-    const local = d1Provider.localProvider;
+    logger.log("Storage: Migrating local IndexedDB data to cloud...");
+    const local = new LocalStorageProvider();
     const CHUNK_SIZE = 50;
-
-    const filterNewOrUpdated = (locals: any[], cloudBatch: any[] | undefined) => {
-        if (!cloudBatch || cloudBatch.length === 0) return locals;
-        const cloudMap = new Map((cloudBatch as any[]).map(i => [i.id, i]));
-        return locals.filter(localItem => {
-            const cloudItem = cloudMap.get(localItem.id);
-            if (!cloudItem) return true;
-            if (localItem.updatedAt && cloudItem.updatedAt) return localItem.updatedAt > cloudItem.updatedAt;
-            return false;
-        });
-    };
 
     const batchSave = async (items: any[], saveFn: (batch: any[]) => Promise<any>) => {
         if (items.length === 0) return;
@@ -341,73 +315,46 @@ const syncLocalToCloud = async (cloudData?: any): Promise<any> => {
             local.getNoteHistories ? local.getNoteHistories() : Promise.resolve([])
         ]);
 
-        const syncGroups = [
-            { key: 'priorities', name: 'Priorities', items: filterNewOrUpdated(pLocal, cloudData?.priorities), fn: (b: any) => d1Provider.savePriorities(b, 'Migration') },
-            { key: 'routines', name: 'Routines', items: filterNewOrUpdated(rLocal, cloudData?.routines), fn: (b: any) => d1Provider.saveRoutines(b) },
-            { key: 'notes', name: 'Notes', items: filterNewOrUpdated(nLocal, cloudData?.notes), fn: (b: any) => d1Provider.saveNotes(b) },
-            { key: 'habits', name: 'Habits', items: filterNewOrUpdated(hLocal, cloudData?.habits), fn: (b: any) => d1Provider.saveHabits(b) },
-            { key: 'habitLogs', name: 'HabitLogs', items: filterNewOrUpdated(hlLocal, cloudData?.habitLogs), fn: (b: any) => d1Provider.saveHabitLogs(b) },
-            { key: 'noteHistories', name: 'NoteHistories', items: filterNewOrUpdated(nhLocal || [], cloudData?.noteHistories), fn: (b: any) => d1Provider.saveNoteHistories?.(b) },
-        ];
-
         const stats = {
-            priorities: 0,
-            routines: 0,
-            notes: 0,
-            habits: 0,
-            habitLogs: 0,
-            reflections: 0,
-            logs: 0,
-            noteHistories: 0
+            priorities: 0, routines: 0, notes: 0, habits: 0,
+            habitLogs: 0, reflections: 0, logs: 0, noteHistories: 0
         };
 
-        // Parallel execution for distinct tables to speed up migration
-        const migrationTasks = [
-            // Standard groups (Batchable)
-            ...syncGroups.map(async (group) => {
-                if (group.items.length > 0) {
-                    console.log(`Storage: Syncing ${group.name} (${group.items.length} items)...`);
-                    await batchSave(group.items, group.fn);
-                    // @ts-ignore
-                    stats[group.key] = group.items.length;
-                }
-            }),
-            // Reflections (Single save per item)
-            (async () => {
-                const refSync = filterNewOrUpdated(refLocal, cloudData?.reflections);
-                for (const r of refSync) {
-                    try {
-                        await d1Provider.saveReflection(r, 'Migration');
-                        stats.reflections++;
-                    } catch (e) {
-                        console.error("Storage: Failed to migrate reflection", r.id, e);
-                    }
-                }
-            })(),
-            // Logs (Chunked Single save)
-            (async () => {
-                const logSync = filterNewOrUpdated(lLocal, cloudData?.logs);
-                const logChunks = chunkArray(logSync, CHUNK_SIZE);
-                for (const chunk of logChunks) {
-                    for (const l of chunk) {
-                        try {
-                            await d1Provider.saveLog(l);
-                            stats.logs++;
-                        } catch (e) {
-                            console.error("Storage: Failed to migrate log", l.id, e);
-                        }
-                    }
-                }
-            })()
+        const syncGroups = [
+            { key: 'priorities', items: pLocal, fn: (b: any) => provider.savePriorities(b, 'Migration') },
+            { key: 'routines', items: rLocal, fn: (b: any) => provider.saveRoutines(b) },
+            { key: 'notes', items: nLocal, fn: (b: any) => provider.saveNotes(b) },
+            { key: 'habits', items: hLocal, fn: (b: any) => provider.saveHabits?.(b) },
+            { key: 'habitLogs', items: hlLocal, fn: (b: any) => provider.saveHabitLogs?.(b) },
+            { key: 'noteHistories', items: nhLocal || [], fn: (b: any) => provider.saveNoteHistories?.(b) },
         ];
 
-        await Promise.all(migrationTasks);
+        await Promise.all([
+            ...syncGroups.map(async (group) => {
+                if (group.items.length > 0) {
+                    await batchSave(group.items, group.fn);
+                    (stats as any)[group.key] = group.items.length;
+                }
+            }),
+            (async () => {
+                for (const r of refLocal) {
+                    try { await provider.saveReflection(r, 'Migration'); stats.reflections++; }
+                    catch (e) { logger.error("Migration: reflection failed", r.id, e); }
+                }
+            })(),
+            (async () => {
+                for (const l of lLocal) {
+                    try { await provider.saveLog(l); stats.logs++; }
+                    catch (e) { logger.error("Migration: log failed", l.id, e); }
+                }
+            })(),
+        ]);
 
         const totalPushed = Object.values(stats).reduce((a, b) => a + b, 0);
-        console.log(`Storage: Migration completed. Total items: ${totalPushed}`, stats);
+        logger.log(`Storage: Migration completed. Total items: ${totalPushed}`, stats);
         return stats;
     } catch (e) {
-        console.error("Storage: Migration failed:", e);
+        logger.error("Storage: Migration failed:", e);
         return null;
     }
 };
@@ -421,13 +368,13 @@ const handleAuthStateChange = (user: { id: string; email?: string } | null, isIn
 
     if (isInitial || identityChanged) {
         currentUserId = newUserId;
-        if ((previousProvider instanceof SupabaseProvider || previousProvider instanceof CloudflareD1Provider) && !user) {
+        if (previousProvider instanceof CloudflareD1Provider && !user) {
             try { localStorage.removeItem(STORAGE_KEYS.OFFLINE_QUEUE); } catch (e) { }
         }
 
         const isCloud = !!user;
         if (user) {
-            provider = useCloudflareBackend ? new CloudflareD1Provider() : new SupabaseProvider();
+            provider = new CloudflareD1Provider();
         } else {
             provider = new LocalStorageProvider();
         }
@@ -450,16 +397,15 @@ const handleAuthStateChange = (user: { id: string; email?: string } | null, isIn
             try {
                 const isGuestToUser = !previousUserId && newUserId;
 
-                // One-time Sync for Guest -> User Migration or Login
+                // One-time migration: push local IndexedDB data to cloud
                 if (isGuestToUser && provider instanceof CloudflareD1Provider) {
-                    const unifiedResult = await provider.syncAll();
-                    const stats = await syncLocalToCloud(unifiedResult);
+                    const stats = await migrateLocalToCloud();
 
                     // Trigger Modal in UI with stats
                     if (stats && Object.values(stats).some(v => (v as number) > 0)) {
                         setMigrationFlag(true, stats);
                     }
-                    console.log("Storage: Guest-to-User migration completed. Flagging UI for dialog.");
+                    logger.log("Storage: Guest-to-User migration completed.");
                 }
 
                 await hydrateCache();
@@ -472,14 +418,10 @@ const handleAuthStateChange = (user: { id: string; email?: string } | null, isIn
 };
 
 // Listeners
-if (useCloudflareBackend) {
+if (isCloudflareConfigured) {
     onCloudflareAuthChange((user: any) => handleAuthStateChange(user, false));
     const cfUser = getCloudflareUser();
     if (cfUser) handleAuthStateChange(cfUser, true);
-} else if (useSupabaseBackend) {
-    supabase.auth.onAuthStateChange((event: string, session: any) => {
-        handleAuthStateChange(session?.user ? { id: session.user.id, email: session.user.email } : null, event === 'INITIAL_SESSION');
-    });
 }
 
 export const setStorageProvider = (newProvider: IStorageProvider) => {
@@ -487,4 +429,4 @@ export const setStorageProvider = (newProvider: IStorageProvider) => {
     hydrateCache(true);
 };
 
-export const getIsCloudActive = () => provider instanceof SupabaseProvider || provider instanceof CloudflareD1Provider;
+export const getIsCloudActive = () => provider instanceof CloudflareD1Provider;

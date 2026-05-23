@@ -44,6 +44,7 @@ export interface IStorageProvider {
 
     // Generic/Config
     clearAll?(): Promise<void>;
+    syncAll?(since?: string): Promise<any>;
 
     // Personal Notes (Encrypted Blob)
     getPersonalNotes?(): Promise<any>; // Returns PersonalNotesData | null

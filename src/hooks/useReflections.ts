@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { getReflectionsAsync, initializeStorage, registerListener, syncTable, type Reflection } from '@/lib/storage';
+import { getReflectionsAsync, initializeStorage, registerListener, syncTable, getIsCloudActive, type Reflection } from '@/lib/storage';
+import { pageDataApi } from '@/lib/api/cloudflare-api';
 
 export const useReflections = () => {
     const [reflections, setReflections] = useState<Reflection[]>([]);
@@ -9,6 +10,17 @@ export const useReflections = () => {
         const load = async () => {
             setIsLoading(true);
             try {
+                if (getIsCloudActive()) {
+                    // Use backend unified page-data endpoint
+                    try {
+                        const data = await pageDataApi.fetch('history', { historyTab: 'reflections' });
+                        setReflections(data.reflections || []);
+                        return;
+                    } catch (err) {
+                        console.warn("Backend page-data failed, falling back to local:", err);
+                    }
+                }
+                // Fallback: local logic with deduplication
                 const data = await getReflectionsAsync();
                 setReflections(data);
             } finally {
@@ -25,8 +37,13 @@ export const useReflections = () => {
 
         // Subscribe to changes
         const unsubscribe = registerListener(() => {
-            // Re-fetch with deduplication on any storage change
-            getReflectionsAsync().then(setReflections);
+            if (getIsCloudActive()) {
+                pageDataApi.fetch('history', { historyTab: 'reflections' })
+                    .then((data: any) => setReflections(data.reflections || []))
+                    .catch(() => getReflectionsAsync().then(setReflections));
+            } else {
+                getReflectionsAsync().then(setReflections);
+            }
         });
 
         return () => { unsubscribe(); };
@@ -35,6 +52,15 @@ export const useReflections = () => {
     const refreshReflections = async () => {
         setIsLoading(true);
         try {
+            if (getIsCloudActive()) {
+                try {
+                    const data = await pageDataApi.fetch('history', { historyTab: 'reflections' });
+                    setReflections(data.reflections || []);
+                    return;
+                } catch (err) {
+                    console.warn("Backend page-data failed, falling back to local:", err);
+                }
+            }
             const data = await getReflectionsAsync();
             setReflections(data);
         } finally {

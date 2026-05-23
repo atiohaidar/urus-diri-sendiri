@@ -1,7 +1,6 @@
 // Cloudflare Auth Module
-// Replaces supabase.ts for authentication
+// Handles all authentication with the Hono backend
 
-import { Capacitor } from '@capacitor/core';
 import {
     authApi,
     getStoredToken,
@@ -103,6 +102,40 @@ export const signOut = async () => {
 // Check if user is authenticated
 export const isAuthenticated = () => {
     return authApi.isAuthenticated();
+};
+
+/**
+ * Verify the stored session token with the server.
+ * Called during app init to ensure token is still valid BEFORE auth listeners fire.
+ * - Token valid → do nothing (onAuthStateChange will pick up user from localStorage)
+ * - Token invalid → clear stored auth so onAuthStateChange fires with null
+ * - Network error → keep token (offline mode, trust cached session)
+ */
+export const verifySession = async (): Promise<void> => {
+    const token = getStoredToken();
+    if (!token) return;
+
+    if (!isCloudflareConfigured) return;
+
+    try {
+        const response = await authApi.getCurrentUser();
+        if (!response.success) {
+            // Server explicitly rejects the token
+            console.warn('verifySession: Token rejected by server, clearing stored auth.');
+            clearStoredToken();
+            // Don't notifyAuthListeners here — onAuthStateChange in core.ts 
+            // will read null from getStoredUser() on its own
+        }
+    } catch (error: any) {
+        // Distinguish network error from auth error
+        if (error?.message?.includes('Unauthorized') || error?.message?.includes('401')) {
+            console.warn('verifySession: Token expired/invalid (401), clearing stored auth.');
+            clearStoredToken();
+        } else {
+            // Network error — keep token, assume offline
+            console.warn('verifySession: Network error, proceeding with cached session.');
+        }
+    }
 };
 
 // Get current user

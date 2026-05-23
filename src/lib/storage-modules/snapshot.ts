@@ -1,5 +1,5 @@
 import { Reflection, PriorityTask } from '../types';
-import { cache, provider, generateId, isSnapshotSuppressed } from './core';
+import { cache, provider, generateId, isSnapshotSuppressed, getIsCloudActive } from './core';
 import { getReflectionsAsync } from './reflections';
 import { getRoutines } from './routines';
 import { getPriorities } from './priorities';
@@ -19,6 +19,14 @@ export const updateDailySnapshot = async () => {
             // Avoid saving if core data isn't loaded yet
             if (!provider || !cache.routines || !cache.priorities || !cache.reflections) return;
 
+            // If cloud is active, delegate snapshot entirely to backend
+            if (getIsCloudActive()) {
+                const { pageDataApi } = await import('../api/cloudflare-api');
+                await pageDataApi.snapshot();
+                return;
+            }
+
+            // Local-only snapshot logic (guest mode)
             const reflections = await getReflectionsAsync();
             const todayDate = new Date();
             const todayStr = todayDate.toDateString();
