@@ -31,7 +31,31 @@ export const handleSaveError = (error: any, context: string, retryFn?: () => voi
 };
 
 // --- State Management ---
-export let provider: IStorageProvider = new LocalStorageProvider();
+export let rawProvider: IStorageProvider = new LocalStorageProvider();
+
+export const provider = new Proxy({} as IStorageProvider, {
+    get(target, prop, receiver) {
+        const method = Reflect.get(rawProvider, prop, receiver);
+        if (typeof method === 'function') {
+            return async (...args: any[]) => {
+                const propStr = String(prop);
+                const isMutation = propStr.startsWith('save') || propStr.startsWith('delete') || propStr.startsWith('clear');
+                
+                if (isMutation && !navigator.onLine) {
+                    const errorMsg = "Anda sedang offline. Penyuntingan data dinonaktifkan dalam Mode Baca-Saja.";
+                    toast.error("Mode Baca-Saja (Offline) 🔌", {
+                        description: "Hubungkan kembali perangkat Anda ke internet untuk menyimpan perubahan.",
+                        duration: 5000
+                    });
+                    throw new Error(errorMsg);
+                }
+                return method.apply(rawProvider, args);
+            };
+        }
+        return method;
+    }
+});
+
 export let currentUserId: string | null = null;
 
 // Flag and logic to suppress automatic snapshot updates after a manual save
@@ -85,13 +109,13 @@ export const notifyListeners = () => {
 // --- Sync Token Management ---
 // Not needed in online-first mode, kept for backward compat with local mode
 const getSyncToken = (table: string): string | undefined => {
-    if (provider instanceof CloudflareD1Provider) return undefined; // Online-first: always full fetch
+    if (rawProvider instanceof CloudflareD1Provider) return undefined; // Online-first: always full fetch
     const key = `sync_token_${currentUserId}_${table}`;
     return localStorage.getItem(key) || undefined;
 };
 
 const setSyncToken = (table: string, timestamp: string) => {
-    if (provider instanceof CloudflareD1Provider) return; // Online-first: not needed
+    if (rawProvider instanceof CloudflareD1Provider) return; // Online-first: not needed
     try {
         const date = new Date(timestamp);
         date.setSeconds(date.getSeconds() - 1);
@@ -129,7 +153,7 @@ function mergeData<T extends { id: string, updatedAt?: string, deletedAt?: strin
  */
 export async function syncTable(table: keyof typeof cache, force = false): Promise<void> {
     // Only sync for cloud providers
-    if (!(provider instanceof CloudflareD1Provider)) return;
+    if (!(rawProvider instanceof CloudflareD1Provider)) return;
 
     // Check cooldown unless forced
     const now = Date.now();
@@ -142,14 +166,14 @@ export async function syncTable(table: keyof typeof cache, force = false): Promi
 
         let data: any[] = [];
         switch (table) {
-            case 'priorities': data = await provider.getPriorities(); break;
-            case 'reflections': data = await provider.getReflections(); break;
-            case 'notes': data = await provider.getNotes(); break;
-            case 'routines': data = await provider.getRoutines(); break;
-            case 'logs': data = await provider.getLogs(); break;
-            case 'habits': data = await provider.getHabits?.() ?? []; break;
-            case 'habitLogs': data = await provider.getHabitLogs?.() ?? []; break;
-            case 'noteHistories': data = await provider.getNoteHistories?.() ?? []; break;
+            case 'priorities': data = await rawProvider.getPriorities(); break;
+            case 'reflections': data = await rawProvider.getReflections(); break;
+            case 'notes': data = await rawProvider.getNotes(); break;
+            case 'routines': data = await rawProvider.getRoutines(); break;
+            case 'logs': data = await rawProvider.getLogs(); break;
+            case 'habits': data = await rawProvider.getHabits?.() ?? []; break;
+            case 'habitLogs': data = await rawProvider.getHabitLogs?.() ?? []; break;
+            case 'noteHistories': data = await rawProvider.getNoteHistories?.() ?? []; break;
         }
 
         // Replace cache entirely with API data (source of truth)
@@ -173,14 +197,14 @@ export async function hydrateTable(table: keyof typeof cache): Promise<any> {
         try {
             let data: any[] = [];
             switch (table) {
-                case 'priorities': data = await provider.getPriorities(); break;
-                case 'reflections': data = await provider.getReflections(); break;
-                case 'notes': data = await provider.getNotes(); break;
-                case 'routines': data = await provider.getRoutines(); break;
-                case 'logs': data = await provider.getLogs(); break;
-                case 'habits': data = await provider.getHabits?.() ?? []; break;
-                case 'habitLogs': data = await provider.getHabitLogs?.() ?? []; break;
-                case 'noteHistories': data = await provider.getNoteHistories?.() ?? []; break;
+                case 'priorities': data = await rawProvider.getPriorities(); break;
+                case 'reflections': data = await rawProvider.getReflections(); break;
+                case 'notes': data = await rawProvider.getNotes(); break;
+                case 'routines': data = await rawProvider.getRoutines(); break;
+                case 'logs': data = await rawProvider.getLogs(); break;
+                case 'habits': data = await rawProvider.getHabits?.() ?? []; break;
+                case 'habitLogs': data = await rawProvider.getHabitLogs?.() ?? []; break;
+                case 'noteHistories': data = await rawProvider.getNoteHistories?.() ?? []; break;
             }
 
             cache[table] = (data || []).filter((i: any) => !i.deletedAt);
@@ -202,12 +226,12 @@ export const hydrateCache = async (force = false) => {
 
     pendingHydrations.all = (async () => {
         try {
-            const isCloud = provider instanceof CloudflareD1Provider;
+            const isCloud = rawProvider instanceof CloudflareD1Provider;
             logger.log("Storage: Hydrating cache from", isCloud ? "API" : "IndexedDB", "...");
 
-            if (isCloud && provider.syncAll) {
+            if (isCloud && rawProvider.syncAll) {
                 // Unified Sync: Fetch all main tables in a single HTTP request!
-                const allData = await provider.syncAll();
+                const allData = await rawProvider.syncAll();
                 if (allData) {
                     const now = Date.now();
                     const tables: Array<keyof typeof cache> = [
@@ -297,7 +321,7 @@ const chunkArray = <T>(array: T[], size: number): T[][] => {
 };
 
 const migrateLocalToCloud = async (): Promise<any> => {
-    if (!(provider instanceof CloudflareD1Provider)) return null;
+    if (!(rawProvider instanceof CloudflareD1Provider)) return null;
     logger.log("Storage: Migrating local IndexedDB data to cloud...");
     const local = new LocalStorageProvider();
     const CHUNK_SIZE = 50;
@@ -321,12 +345,12 @@ const migrateLocalToCloud = async (): Promise<any> => {
         };
 
         const syncGroups = [
-            { key: 'priorities', items: pLocal, fn: (b: any) => provider.savePriorities(b, 'Migration') },
-            { key: 'routines', items: rLocal, fn: (b: any) => provider.saveRoutines(b) },
-            { key: 'notes', items: nLocal, fn: (b: any) => provider.saveNotes(b) },
-            { key: 'habits', items: hLocal, fn: (b: any) => provider.saveHabits?.(b) },
-            { key: 'habitLogs', items: hlLocal, fn: (b: any) => provider.saveHabitLogs?.(b) },
-            { key: 'noteHistories', items: nhLocal || [], fn: (b: any) => provider.saveNoteHistories?.(b) },
+            { key: 'priorities', items: pLocal, fn: (b: any) => rawProvider.savePriorities(b, 'Migration') },
+            { key: 'routines', items: rLocal, fn: (b: any) => rawProvider.saveRoutines(b) },
+            { key: 'notes', items: nLocal, fn: (b: any) => rawProvider.saveNotes(b) },
+            { key: 'habits', items: hLocal, fn: (b: any) => rawProvider.saveHabits?.(b) },
+            { key: 'habitLogs', items: hlLocal, fn: (b: any) => rawProvider.saveHabitLogs?.(b) },
+            { key: 'noteHistories', items: nhLocal || [], fn: (b: any) => rawProvider.saveNoteHistories?.(b) },
         ];
 
         await Promise.all([
@@ -338,13 +362,13 @@ const migrateLocalToCloud = async (): Promise<any> => {
             }),
             (async () => {
                 for (const r of refLocal) {
-                    try { await provider.saveReflection(r, 'Migration'); stats.reflections++; }
+                    try { await rawProvider.saveReflection(r, 'Migration'); stats.reflections++; }
                     catch (e) { logger.error("Migration: reflection failed", r.id, e); }
                 }
             })(),
             (async () => {
                 for (const l of lLocal) {
-                    try { await provider.saveLog(l); stats.logs++; }
+                    try { await rawProvider.saveLog(l); stats.logs++; }
                     catch (e) { logger.error("Migration: log failed", l.id, e); }
                 }
             })(),
@@ -363,7 +387,7 @@ const migrateLocalToCloud = async (): Promise<any> => {
 const handleAuthStateChange = (user: { id: string; email?: string } | null, isInitial: boolean = false) => {
     const newUserId = user?.id || null;
     const identityChanged = newUserId !== currentUserId;
-    const previousProvider = provider;
+    const previousProvider = rawProvider;
     const previousUserId = currentUserId;
 
     if (isInitial || identityChanged) {
@@ -374,9 +398,9 @@ const handleAuthStateChange = (user: { id: string; email?: string } | null, isIn
 
         const isCloud = !!user;
         if (user) {
-            provider = new CloudflareD1Provider();
+            rawProvider = new CloudflareD1Provider();
         } else {
-            provider = new LocalStorageProvider();
+            rawProvider = new LocalStorageProvider();
         }
 
         if (identityChanged) {
@@ -398,7 +422,7 @@ const handleAuthStateChange = (user: { id: string; email?: string } | null, isIn
                 const isGuestToUser = !previousUserId && newUserId;
 
                 // One-time migration: push local IndexedDB data to cloud
-                if (isGuestToUser && provider instanceof CloudflareD1Provider) {
+                if (isGuestToUser && rawProvider instanceof CloudflareD1Provider) {
                     const stats = await migrateLocalToCloud();
 
                     // Trigger Modal in UI with stats
@@ -425,8 +449,8 @@ if (isCloudflareConfigured) {
 }
 
 export const setStorageProvider = (newProvider: IStorageProvider) => {
-    provider = newProvider;
+    rawProvider = newProvider;
     hydrateCache(true);
 };
 
-export const getIsCloudActive = () => provider instanceof CloudflareD1Provider;
+export const getIsCloudActive = () => rawProvider instanceof CloudflareD1Provider;

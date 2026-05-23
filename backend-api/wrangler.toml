@@ -12,7 +12,7 @@ port = 8787
 [[d1_databases]]
 binding = "DB"
 database_name = "urus-diri-db"
-database_id = "placeholder-run-wrangler-d1-create" # Replace after running: wrangler d1 create urus-diri-db
+database_id = "a9bf53c5-02c1-473f-8cf1-1c9df7d8f8eb" # Replace after running: wrangler d1 create urus-diri-db
 migrations_dir = "migrations"
 
 [vars]
