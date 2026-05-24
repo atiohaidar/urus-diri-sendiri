@@ -42,13 +42,16 @@ export const getRoutines = (): RoutineItem[] => {
 
     return sortByStartTime(routines);
 };
-
 export const saveRoutines = async (routines: RoutineItem[]) => {
+    const original = cache.routines || [];
     cache.routines = routines;
+    notifyListeners();
     try {
         await provider.saveRoutines(routines);
     } catch (error) {
-        handleSaveError(error, 'Menyimpan rutinitas', () => saveRoutines(routines));
+        cache.routines = original;
+        notifyListeners();
+        handleSaveError(error, 'Menyimpan rutinitas');
     }
 };
 
@@ -60,12 +63,15 @@ export const deleteRoutine = async (id: string) => {
     try {
         await provider.deleteRoutine(id);
     } catch (error) {
-        handleSaveError(error, 'Menghapus rutinitas', () => deleteRoutine(id));
+        cache.routines = routines;
+        notifyListeners();
+        handleSaveError(error, 'Menghapus rutinitas');
     }
-    return updated;
+    return cache.routines || [];
 };
 
 export const toggleRoutineCompletion = async (id: string, routines: RoutineItem[], note?: string) => {
+    const original = [...routines];
     const updated = toggleRoutineHelper(id, routines, note);
     cache.routines = updated;
     notifyListeners();
@@ -74,9 +80,10 @@ export const toggleRoutineCompletion = async (id: string, routines: RoutineItem[
         try {
             await provider.saveRoutines([updatedItem]);
         } catch (error) {
+            cache.routines = original;
+            notifyListeners();
             handleSaveError(error, 'Update status rutinitas');
         }
     }
-    return updated;
+    return cache.routines || [];
 };
-

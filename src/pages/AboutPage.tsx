@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Globe, Github, Linkedin, Heart, Sparkles, Rocket, Coffee, ShieldCheck, Monitor, Atom, FileCode2, Palette, Layers, Zap, PenLine } from 'lucide-react';
+import { ArrowLeft, Globe, Github, Linkedin, Heart, Sparkles, Rocket, Coffee, ShieldCheck, Monitor, Atom, FileCode2, Palette, Layers, Zap, PenLine, Link2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/i18n/LanguageContext';
 import { cn } from '@/lib/utils';
@@ -59,8 +59,8 @@ const AboutPage = () => {
                             <Sparkles className="w-3 h-3" />
                             <span>v1.0.0</span>
                         </div>
-                        <h1 className="text-4xl md:text-5xl font-handwriting text-ink">
-                            UrusDiri<span className="text-doodle-primary">Sendiri</span> 📝
+                        <h1 className="text-4xl md:text-5xl font-handwriting text-ink flex items-center gap-2">
+                            UrusDiri<span className="text-doodle-primary">Sendiri</span> <PenLine className="w-8 h-8 text-doodle-primary" />
                         </h1>
                     </div>
                 </div>
@@ -173,7 +173,10 @@ const AboutPage = () => {
                     {/* Sidebar / Socials - Sticky note style */}
                     <div className="space-y-6">
                         <section className="bg-card rounded-sm p-6 border-2 border-paper-lines/50 shadow-notebook sticky top-24">
-                            <h2 className="font-handwriting text-lg text-ink mb-4">{t.about.social_links_title} 🔗</h2>
+                            <h2 className="font-handwriting text-lg text-ink mb-4 flex items-center gap-2">
+                                <Link2 className="w-5 h-5 text-ink shrink-0" />
+                                {t.about.social_links_title}
+                            </h2>
                             <div className="space-y-3">
                                 {socialLinks.map((link, idx) => (
                                     <a

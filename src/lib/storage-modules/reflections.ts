@@ -56,6 +56,9 @@ export const saveReflection = async (reflection: Omit<Reflection, 'id'>, reason:
     const today = new Date().toDateString();
     const todayIndex = reflections.findIndex(r => new Date(r.date).toDateString() === today);
 
+    const originalReflections = cache.reflections ? [...cache.reflections] : null;
+    const originalPriorities = cache.priorities ? [...cache.priorities] : null;
+
     let savedItem: Reflection;
 
     if (todayIndex !== -1) {
@@ -78,45 +81,51 @@ export const saveReflection = async (reflection: Omit<Reflection, 'id'>, reason:
         cache.reflections = [savedItem, ...reflections];
     }
 
-    await provider.saveReflection(savedItem, reason);
-
     // Suppress automatic snapshot for 5 seconds to avoid double-firing
     suppressSnapshot(5000);
 
+    try {
+        await provider.saveReflection(savedItem, reason);
 
-    // Add tomorrow's priorities from reflection (MERGE, not replace!)
-    if (reflection.priorities && reflection.priorities.length > 0) {
-        const { getPriorities } = await import('./priorities');
-        const existingPriorities = getPriorities('Reflections');
-        const existingTexts = new Set(existingPriorities.map(p => p.text.toLowerCase().trim()));
+        // Add tomorrow's priorities from reflection (MERGE, not replace!)
+        if (reflection.priorities && reflection.priorities.length > 0) {
+            const { getPriorities } = await import('./priorities');
+            const existingPriorities = getPriorities('Reflections');
+            const existingTexts = new Set(existingPriorities.map(p => p.text.toLowerCase().trim()));
 
-        const newPriorityTexts = reflection.priorities
-            .filter(p => p.trim())
-            .filter(text => !existingTexts.has(text.toLowerCase().trim()));
+            const newPriorityTexts = reflection.priorities
+                .filter(p => p.trim())
+                .filter(text => !existingTexts.has(text.toLowerCase().trim()));
 
-        if (newPriorityTexts.length > 0) {
-            const tomorrowStr = getTomorrowDateString();
-            const now = new Date().toISOString();
+            if (newPriorityTexts.length > 0) {
+                const tomorrowStr = getTomorrowDateString();
+                const now = new Date().toISOString();
 
-            const newPriorities = newPriorityTexts.map(text => ({
-                id: generateId('priority'),
-                text,
-                completed: false,
-                scheduledFor: tomorrowStr,
-                updatedAt: now,
-            }));
+                const newPriorities = newPriorityTexts.map(text => ({
+                    id: generateId('priority'),
+                    text,
+                    completed: false,
+                    scheduledFor: tomorrowStr,
+                    updatedAt: now,
+                }));
 
-            cache.priorities = [...(cache.priorities || []), ...newPriorities];
+                cache.priorities = [...(cache.priorities || []), ...newPriorities];
 
-            try {
                 // Batch save new priorities
                 await provider.savePriorities?.(newPriorities, 'From Reflection');
-            } catch (error) {
-                console.error("Failed to save priorities from reflection", error);
             }
         }
+
+        notifyListeners();
+    } catch (error) {
+        if (originalReflections) cache.reflections = originalReflections;
+        if (originalPriorities) cache.priorities = originalPriorities;
+        notifyListeners();
+
+        const { handleSaveError } = await import('./core');
+        handleSaveError(error, 'Menyimpan refleksi harian');
+        throw error;
     }
 
-    notifyListeners();
     return savedItem;
 };

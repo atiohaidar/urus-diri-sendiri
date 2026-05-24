@@ -5,10 +5,10 @@ import { toast } from 'sonner';
 export const OfflinePage = () => {
     const handleRetry = () => {
         if (navigator.onLine) {
-            toast.success("Koneksi internet terhubung kembali! ✨");
+            toast.success("Koneksi internet terhubung kembali!");
             window.location.reload();
         } else {
-            toast.error("Masih offline 🔌 Periksa kembali koneksi Wi-Fi atau data seluler Anda.");
+            toast.error("Masih offline. Periksa kembali koneksi Wi-Fi atau data seluler Anda.");
         }
     };
 
@@ -24,8 +24,8 @@ export const OfflinePage = () => {
                         <WifiOff className="w-12 h-12 text-doodle-red animate-pulse" />
                     </div>
                     
-                    <h1 className="font-handwriting text-2xl text-ink font-bold">
-                        Koneksi Terputus 🔌
+                    <h1 className="font-handwriting text-2xl text-ink font-bold flex items-center justify-center gap-2">
+                        Koneksi Terputus <WifiOff className="w-6 h-6 text-doodle-red shrink-0" />
                     </h1>
                     
                     <p className="text-sm font-handwriting text-pencil mt-4 max-w-xs leading-relaxed">

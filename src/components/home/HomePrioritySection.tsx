@@ -77,18 +77,20 @@ export const HomePrioritySection = ({
 
             {priorities.length > 0 ? (
                 <div className="space-y-4">
-                    <div className={`grid ${isDesktop ? 'grid-cols-1 gap-3' : 'grid-cols-1 lg:grid-cols-2 gap-3'}`}>
-                        {priorities.map((priority, index) => (
-                            <PriorityItem
-                                key={`${variant}-${priority.id}`}
-                                priority={priority}
-                                index={index}
-                                onToggle={onToggle}
-                                onDelete={onDelete}
-                                onUpdate={onUpdate}
-                                onUpdateSchedule={onUpdateSchedule}
-                            />
-                        ))}
+                    <div className="max-h-[380px] overflow-y-auto pr-2 custom-scrollbar scroll-smooth p-1">
+                        <div className={`grid ${isDesktop ? 'grid-cols-1 gap-3' : 'grid-cols-1 lg:grid-cols-2 gap-3'}`}>
+                            {priorities.map((priority, index) => (
+                                <PriorityItem
+                                    key={`${variant}-${priority.id}`}
+                                    priority={priority}
+                                    index={index}
+                                    onToggle={onToggle}
+                                    onDelete={onDelete}
+                                    onUpdate={onUpdate}
+                                    onUpdateSchedule={onUpdateSchedule}
+                                />
+                            ))}
+                        </div>
                     </div>
 
                     {/* Add Priority Input - Notebook style */}

@@ -121,3 +121,25 @@
 | Refactored Files | 8      |
 | i18n Keys Added  | 25+    |
 | Lines Removed    | ~120   |
+
+---
+
+# Changelog - Session 24 Mei 2026 (Pembersihan Sisa Sesi Tamu)
+
+## 🧹 Pembersihan Kode Legacy (Sesi Tamu)
+Seiring transisi aplikasi ke mode **full online-first** di mana semua data langsung disimpan ke Cloudflare Workers / D1 Database dan mewajibkan otentikasi login, fitur migrasi dari sesi tamu lokal (guest session) tidak lagi diperlukan dan telah dihapus sepenuhnya untuk menjaga kualitas dan performa basis kode.
+
+### Perubahan yang Dilakukan:
+1. **`AppLayout.tsx`**:
+   - Menghapus komponen `<GuestMigrationDialog />` dari render layout utama.
+   - Menghapus impor yang tidak terpakai untuk komponen dialog migrasi tersebut.
+2. **`GuestMigrationDialog.tsx`**:
+   - Mengosongkan file dialog migrasi untuk menghentikan ekspor komponen lama, mencegah kesalahan impor, serta menandainya sebagai tidak terpakai lagi.
+3. **`auth-sync-manager.ts`**:
+   - Menghapus `MigrationStats` interface.
+   - Menghapus status `showMigrationDialog` dan data `migrationStats` dari `AuthSyncStatus` interface serta status internal.
+   - Menghapus fungsi `setMigrationFlag` dan `dismissMigrationDialog` yang memicu pemunculan dialog migrasi.
+4. **`core.ts`**:
+   - Menghapus fungsi `migrateLocalToCloud` yang bertugas mendesak migrasi data dari IndexedDB lokal ke cloud.
+   - Menyederhanakan penanganan perubahan sesi di `handleAuthStateChange` sehingga langsung melakukan sinkronisasi cache murni saat otentikasi siap, tanpa melalui pemicu migrasi lokal.
+
