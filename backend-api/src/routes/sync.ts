@@ -98,6 +98,29 @@ sync.openapi(getSyncRoute, async (c) => {
         const userId = c.get('userId');
         const { since } = c.req.valid('query');
 
+        // --- D1 READ LIMIT OPTIMIZATION: Early change detection query ---
+        if (since) {
+            const checkQuery = `
+                SELECT MAX(
+                    COALESCE((SELECT MAX(COALESCE(updated_at, ''), COALESCE(deleted_at, '')) FROM priorities WHERE user_id = ?), ''),
+                    COALESCE((SELECT MAX(COALESCE(updated_at, ''), COALESCE(deleted_at, '')) FROM routines WHERE user_id = ?), ''),
+                    COALESCE((SELECT MAX(COALESCE(updated_at, ''), COALESCE(deleted_at, '')) FROM notes WHERE user_id = ?), ''),
+                    COALESCE((SELECT MAX(COALESCE(updated_at, ''), COALESCE(deleted_at, '')) FROM reflections WHERE user_id = ?), ''),
+                    COALESCE((SELECT MAX(COALESCE(updated_at, ''), COALESCE(deleted_at, '')) FROM habits WHERE user_id = ?), ''),
+                    COALESCE((SELECT MAX(COALESCE(updated_at, ''), COALESCE(deleted_at, '')) FROM habit_logs WHERE user_id = ?), ''),
+                    COALESCE((SELECT MAX(COALESCE(updated_at, ''), COALESCE(deleted_at, '')) FROM logs WHERE user_id = ?), '')
+                ) as max_val
+            `;
+            const checkParams = Array(7).fill(userId);
+            const checkResultRow = await c.env.DB.prepare(checkQuery).bind(...checkParams).first() as any;
+            const maxVal = checkResultRow?.max_val;
+
+            if (maxVal && maxVal !== '' && maxVal <= since) {
+                console.log(`♻️ Sync Backend: Quick check query confirmed no changes (${maxVal} <= ${since}). Returning 304!`);
+                return c.body(null, 304);
+            }
+        }
+
         let timeCondition = '';
         const params: any[] = [userId];
 

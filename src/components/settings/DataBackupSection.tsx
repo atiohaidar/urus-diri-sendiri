@@ -10,8 +10,9 @@ export const DataBackupSection = () => {
     const { t } = useLanguage();
     const [importing, setImporting] = useState(false);
 
-    const handleExport = () => {
-        if (exportData()) {
+    const handleExport = async () => {
+        const success = await exportData();
+        if (success) {
             toast.success(t.settings.backup_success);
         } else {
             toast.error(t.settings.backup_error);

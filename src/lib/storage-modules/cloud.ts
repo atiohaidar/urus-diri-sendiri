@@ -25,6 +25,8 @@ export const getAllAppDataAsync = async () => {
         notes: await provider.getNotes(),
         routines: await provider.getRoutines(),
         logs: await provider.getLogs(),
+        habits: provider.getHabits ? await provider.getHabits() : [],
+        habitLogs: provider.getHabitLogs ? await provider.getHabitLogs() : [],
     };
 };
 
@@ -115,6 +117,14 @@ export const pullFromCloud = async (overrideSheetUrl?: string) => {
             }
         }
 
+        if (data.habits && provider.saveHabits) {
+            await provider.saveHabits(data.habits);
+        }
+
+        if (data.habitLogs && provider.saveHabitLogs) {
+            await provider.saveHabitLogs(data.habitLogs);
+        }
+
         // Refresh cache
         await hydrateCache();
 
@@ -141,6 +151,14 @@ export const restoreData = async (data: any) => {
         for (const l of data.logs) {
             await provider.saveLog(l);
         }
+    }
+
+    if (data.habits && provider.saveHabits) {
+        await provider.saveHabits(data.habits);
+    }
+
+    if (data.habitLogs && provider.saveHabitLogs) {
+        await provider.saveHabitLogs(data.habitLogs);
     }
 
     // Refresh cache

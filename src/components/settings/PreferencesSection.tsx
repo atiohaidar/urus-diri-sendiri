@@ -1,4 +1,4 @@
-import { Moon, Sun, Monitor } from 'lucide-react';
+import { Moon, Sun, Monitor, Globe, Palette } from 'lucide-react';
 import { useTheme } from '@/components/theme-provider';
 import { useLanguage } from '@/i18n/LanguageContext';
 import { cn } from '@/lib/utils';
@@ -11,7 +11,10 @@ export const PreferencesSection = () => {
         <div className="space-y-6">
             {/* Language Section - Sticky note style */}
             <section className="bg-card rounded-sm p-6 border-2 border-paper-lines/50 shadow-notebook">
-                <h2 className="font-handwriting text-xl text-ink mb-4">{t.settings.language} 🌍</h2>
+                <h2 className="font-handwriting text-xl text-ink mb-4 flex items-center gap-2">
+                    <Globe className="w-5 h-5 text-ink shrink-0" />
+                    {t.settings.language}
+                </h2>
                 <div className="grid grid-cols-2 gap-3">
                     <button
                         onClick={() => setLanguage("id")}
@@ -42,7 +45,10 @@ export const PreferencesSection = () => {
 
             {/* Theme Section - Sticky note style */}
             <section className="bg-card rounded-sm p-6 border-2 border-paper-lines/50 shadow-notebook">
-                <h2 className="font-handwriting text-xl text-ink mb-4">{t.settings.theme} 🎨</h2>
+                <h2 className="font-handwriting text-xl text-ink mb-4 flex items-center gap-2">
+                    <Palette className="w-5 h-5 text-ink shrink-0" />
+                    {t.settings.theme}
+                </h2>
                 <div className="grid grid-cols-3 gap-3">
                     <button
                         onClick={() => setTheme("light")}

@@ -3,11 +3,11 @@ import { IStorageProvider } from '../storage-interface';
 import { LocalStorageProvider } from '../providers/local-storage-provider';
 import { CloudflareD1Provider } from '../providers/cloudflare-d1-provider';
 import { onAuthStateChange as onCloudflareAuthChange, isCloudflareConfigured, getCurrentUser as getCloudflareUser } from '../cloudflare-auth';
-import { cleanupImages, clearAllData } from '../idb';
+import { cleanupImages, clearAllData, clearStore, putItems, deleteItem, IDB_STORES } from '../idb';
 export { clearAllData };
 import { STORAGE_KEYS } from '../constants';
 import { toast } from 'sonner';
-import { startAuthSync, completeAuthSync, setMigrationFlag } from '../auth-sync-manager';
+import { startAuthSync, completeAuthSync } from '../auth-sync-manager';
 import { logger } from '../logger';
 
 // Helper for generating IDs
@@ -230,23 +230,161 @@ export const hydrateCache = async (force = false) => {
             logger.log("Storage: Hydrating cache from", isCloud ? "API" : "IndexedDB", "...");
 
             if (isCloud && rawProvider.syncAll) {
-                // Unified Sync: Fetch all main tables in a single HTTP request!
-                const allData = await rawProvider.syncAll();
+                // --- STRATEGY A: Offline-First / Cache-First + Conditional Sync ---
+                
+                // 1. Load data from local IndexedDB instantly to prevent empty UI
+                const local = new LocalStorageProvider();
+                const [pLocal, rLocal, nLocal, hLocal, hlLocal, refLocal, lLocal] = await Promise.all([
+                    local.getPriorities(),
+                    local.getRoutines(),
+                    local.getNotes(),
+                    local.getHabits(),
+                    local.getHabitLogs(),
+                    local.getReflections(),
+                    local.getLogs()
+                ]);
+
+                // Populate cache from IndexedDB if in-memory is currently empty or has less data
+                if (cache.priorities === null) cache.priorities = pLocal;
+                if (cache.routines === null) cache.routines = rLocal;
+                if (cache.notes === null) cache.notes = nLocal;
+                if (cache.habits === null) cache.habits = hLocal;
+                if (cache.habitLogs === null) cache.habitLogs = hlLocal;
+                if (cache.reflections === null) cache.reflections = refLocal;
+                if (cache.logs === null) cache.logs = lLocal;
+
+                // Notify UI immediately so that cached data renders instantly
+                notifyListeners();
+
+                // 2. Perform background incremental/conditional sync with sync token
+                const tokenKey = currentUserId ? `sync_token_${currentUserId}_all` : 'sync_token_guest_all';
+                const since = localStorage.getItem(tokenKey) || undefined;
+
+                logger.log(`Storage: Syncing changes from cloud since: ${since || 'Beginning'}...`);
+                const allData = await rawProvider.syncAll(since);
+
                 if (allData) {
                     const now = Date.now();
                     const tables: Array<keyof typeof cache> = [
                         'priorities', 'reflections', 'notes', 'routines',
                         'logs', 'habits', 'habitLogs'
                     ];
-                    
-                    tables.forEach(table => {
-                        cache[table] = (allData[table] || []).filter((i: any) => !i.deletedAt);
-                        lastSyncTime[table] = now; // Set cooldown to prevent immediate redundant individual fetches
-                    });
+
+                    const idbMapping: Record<string, string> = {
+                        priorities: IDB_STORES.PRIORITIES,
+                        reflections: IDB_STORES.REFLECTIONS,
+                        notes: IDB_STORES.NOTES,
+                        routines: IDB_STORES.ROUTINES,
+                        logs: IDB_STORES.LOGS,
+                        habits: IDB_STORES.HABITS,
+                        habitLogs: IDB_STORES.HABIT_LOGS,
+                    };
+
+                    if (since) {
+                        logger.log("Storage: Processing incremental changes from backend...");
+                        // Incremental Sync: Merge incoming changes into existing cache
+                        for (const table of tables) {
+                            const incoming = allData[table] || [];
+                            if (incoming.length > 0) {
+                                const current = cache[table] || [];
+                                const merged = mergeData(current, incoming);
+                                
+                                // In-memory cache should exclude soft-deleted items
+                                cache[table] = merged.filter((i: any) => !i.deletedAt);
+                                lastSyncTime[table] = now;
+
+                                // Sync updates to local IndexedDB
+                                const storeName = idbMapping[table];
+                                if (storeName) {
+                                    const toPut = incoming.filter((i: any) => !i.deletedAt);
+                                    const toDelete = incoming.filter((i: any) => i.deletedAt).map((i: any) => i.id);
+                                    
+                                    if (toPut.length > 0) {
+                                        await putItems(storeName, toPut);
+                                    }
+                                    for (const id of toDelete) {
+                                        await deleteItem(storeName, id);
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        logger.log("Storage: Processing full database refresh from backend...");
+                        // Full Sync: Replace local cache and IndexedDB entirely with API truth
+                        for (const table of tables) {
+                            const incoming = (allData[table] || []).filter((i: any) => !i.deletedAt);
+                            cache[table] = incoming;
+                            lastSyncTime[table] = now;
+
+                            const storeName = idbMapping[table];
+                            if (storeName) {
+                                await clearStore(storeName);
+                                await putItems(storeName, incoming);
+                            }
+                        }
+                    }
+
+                    // Save new serverTime token
+                    if (allData.serverTime) {
+                        localStorage.setItem(tokenKey, allData.serverTime);
+                    }
+
+                    notifyListeners();
+                    logger.log("Storage: Cache and IndexedDB updated with cloud changes.");
+                } else {
+                    // allData is null, representing 304 Not Modified
+                    logger.log("Storage: ♻️ Server returned 304 Not Modified. Cache is fully up-to-date.");
                 }
+
+                // --- Optimize Note Histories: Cache-First + Incremental Cloud Sync ---
                 
-                // Hydrate noteHistories separately since it's not in syncAll
-                await hydrateTable('noteHistories');
+                // 1. Load initial noteHistories from local IndexedDB instantly first if empty in-memory
+                if (cache.noteHistories === null) {
+                    cache.noteHistories = await local.getNoteHistories();
+                    notifyListeners();
+                }
+
+                // 2. Perform background incremental/conditional sync for noteHistories
+                const nhTokenKey = currentUserId ? `sync_token_${currentUserId}_noteHistories` : 'sync_token_guest_noteHistories';
+                const nhSince = localStorage.getItem(nhTokenKey) || undefined;
+
+                logger.log(`Storage: Syncing note histories since: ${nhSince || 'Beginning'}...`);
+                if (rawProvider.getNoteHistories) {
+                    const nhData = await rawProvider.getNoteHistories(nhSince);
+
+                    if (nhData && nhData.length > 0) {
+                        if (nhSince) {
+                            logger.log("Storage: Processing incremental note histories from backend...");
+                            const currentNH = cache.noteHistories || [];
+                            const mergedNH = mergeData(currentNH, nhData);
+                            cache.noteHistories = mergedNH.filter((i: any) => !i.deletedAt);
+                            
+                            // Sync updates to local IndexedDB note_histories store
+                            const toPutNH = nhData.filter((i: any) => !i.deletedAt);
+                            const toDeleteNH = nhData.filter((i: any) => i.deletedAt).map((i: any) => i.id);
+                            
+                            if (toPutNH.length > 0) {
+                                await putItems(IDB_STORES.NOTE_HISTORIES, toPutNH);
+                            }
+                            for (const id of toDeleteNH) {
+                                await deleteItem(IDB_STORES.NOTE_HISTORIES, id);
+                            }
+                        } else {
+                            logger.log("Storage: Processing full note histories refresh from backend...");
+                            const cleanNH = nhData.filter((i: any) => !i.deletedAt);
+                            cache.noteHistories = cleanNH;
+                            await clearStore(IDB_STORES.NOTE_HISTORIES);
+                            await putItems(IDB_STORES.NOTE_HISTORIES, cleanNH);
+                        }
+
+                        // Save new token time (using current timestamp as sync time)
+                        localStorage.setItem(nhTokenKey, new Date().toISOString());
+                        notifyListeners();
+                        logger.log("Storage: Note histories cache and IndexedDB updated with cloud changes.");
+                    } else {
+                        logger.log("Storage: ♻️ Note histories cache is already fully up-to-date (no new records).");
+                    }
+                }
             } else {
                 // Fallback to loading individually (Local/IndexedDB)
                 await Promise.all([
@@ -312,77 +450,6 @@ export const initializeStorage = () => {
     return initPromise;
 };
 
-// --- Guest-to-Cloud Migration Helper ---
-// When a guest user logs in, push their local IndexedDB data to the cloud API.
-const chunkArray = <T>(array: T[], size: number): T[][] => {
-    const chunks: T[][] = [];
-    for (let i = 0; i < array.length; i += size) { chunks.push(array.slice(i, i + size)); }
-    return chunks;
-};
-
-const migrateLocalToCloud = async (): Promise<any> => {
-    if (!(rawProvider instanceof CloudflareD1Provider)) return null;
-    logger.log("Storage: Migrating local IndexedDB data to cloud...");
-    const local = new LocalStorageProvider();
-    const CHUNK_SIZE = 50;
-
-    const batchSave = async (items: any[], saveFn: (batch: any[]) => Promise<any>) => {
-        if (items.length === 0) return;
-        const chunks = chunkArray(items, CHUNK_SIZE);
-        for (const chunk of chunks) { await saveFn(chunk); }
-    };
-
-    try {
-        const [pLocal, rLocal, nLocal, hLocal, hlLocal, refLocal, lLocal, nhLocal] = await Promise.all([
-            local.getPriorities(), local.getRoutines(), local.getNotes(),
-            local.getHabits(), local.getHabitLogs(), local.getReflections(), local.getLogs(),
-            local.getNoteHistories ? local.getNoteHistories() : Promise.resolve([])
-        ]);
-
-        const stats = {
-            priorities: 0, routines: 0, notes: 0, habits: 0,
-            habitLogs: 0, reflections: 0, logs: 0, noteHistories: 0
-        };
-
-        const syncGroups = [
-            { key: 'priorities', items: pLocal, fn: (b: any) => rawProvider.savePriorities(b, 'Migration') },
-            { key: 'routines', items: rLocal, fn: (b: any) => rawProvider.saveRoutines(b) },
-            { key: 'notes', items: nLocal, fn: (b: any) => rawProvider.saveNotes(b) },
-            { key: 'habits', items: hLocal, fn: (b: any) => rawProvider.saveHabits?.(b) },
-            { key: 'habitLogs', items: hlLocal, fn: (b: any) => rawProvider.saveHabitLogs?.(b) },
-            { key: 'noteHistories', items: nhLocal || [], fn: (b: any) => rawProvider.saveNoteHistories?.(b) },
-        ];
-
-        await Promise.all([
-            ...syncGroups.map(async (group) => {
-                if (group.items.length > 0) {
-                    await batchSave(group.items, group.fn);
-                    (stats as any)[group.key] = group.items.length;
-                }
-            }),
-            (async () => {
-                for (const r of refLocal) {
-                    try { await rawProvider.saveReflection(r, 'Migration'); stats.reflections++; }
-                    catch (e) { logger.error("Migration: reflection failed", r.id, e); }
-                }
-            })(),
-            (async () => {
-                for (const l of lLocal) {
-                    try { await rawProvider.saveLog(l); stats.logs++; }
-                    catch (e) { logger.error("Migration: log failed", l.id, e); }
-                }
-            })(),
-        ]);
-
-        const totalPushed = Object.values(stats).reduce((a, b) => a + b, 0);
-        logger.log(`Storage: Migration completed. Total items: ${totalPushed}`, stats);
-        return stats;
-    } catch (e) {
-        logger.error("Storage: Migration failed:", e);
-        return null;
-    }
-};
-
 // --- Auth State Logic ---
 const handleAuthStateChange = (user: { id: string; email?: string } | null, isInitial: boolean = false) => {
     const newUserId = user?.id || null;
@@ -419,19 +486,6 @@ const handleAuthStateChange = (user: { id: string; email?: string } | null, isIn
 
         (async () => {
             try {
-                const isGuestToUser = !previousUserId && newUserId;
-
-                // One-time migration: push local IndexedDB data to cloud
-                if (isGuestToUser && rawProvider instanceof CloudflareD1Provider) {
-                    const stats = await migrateLocalToCloud();
-
-                    // Trigger Modal in UI with stats
-                    if (stats && Object.values(stats).some(v => (v as number) > 0)) {
-                        setMigrationFlag(true, stats);
-                    }
-                    logger.log("Storage: Guest-to-User migration completed.");
-                }
-
                 await hydrateCache();
                 completeAuthSync();
             } catch (error) {

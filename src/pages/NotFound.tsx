@@ -1,6 +1,6 @@
 import { useLocation, Link } from "react-router-dom";
 import { useEffect } from "react";
-import { PenLine, Home } from "lucide-react";
+import { PenLine, Home, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const NotFound = () => {
@@ -18,8 +18,8 @@ const NotFound = () => {
           <span className="font-handwriting text-5xl text-doodle-red">404</span>
         </div>
 
-        <h1 className="font-handwriting text-3xl text-ink mb-3">
-          Halaman tidak ditemukan 📝
+        <h1 className="font-handwriting text-3xl text-ink mb-3 flex items-center justify-center gap-2">
+          Halaman tidak ditemukan <FileText className="w-7 h-7 text-ink shrink-0" />
         </h1>
 
         <p className="font-handwriting text-lg text-pencil mb-8">

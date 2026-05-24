@@ -93,7 +93,7 @@ export const LoginPage = () => {
                             onClick={() => setIsRegisterMode(false)}
                             className={cn(
                                 "flex-1 py-2.5 font-handwriting text-sm rounded-sm transition-all duration-200",
-                                !isRegisterMode ? "bg-white text-ink shadow-tape rotate-1 font-bold" : "text-pencil hover:text-ink"
+                                !isRegisterMode ? "bg-white dark:bg-paper-lines text-ink shadow-tape rotate-1 font-bold" : "text-pencil hover:text-ink"
                             )}
                         >
                             Masuk (Login)
@@ -103,7 +103,7 @@ export const LoginPage = () => {
                             onClick={() => setIsRegisterMode(true)}
                             className={cn(
                                 "flex-1 py-2.5 font-handwriting text-sm rounded-sm transition-all duration-200",
-                                isRegisterMode ? "bg-white text-ink shadow-tape -rotate-1 font-bold" : "text-pencil hover:text-ink"
+                                isRegisterMode ? "bg-white dark:bg-paper-lines text-ink shadow-tape -rotate-1 font-bold" : "text-pencil hover:text-ink"
                             )}
                         >
                             Buat Akun

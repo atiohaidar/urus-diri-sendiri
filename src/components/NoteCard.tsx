@@ -58,7 +58,9 @@ const NoteCard = ({ note, onClick, index, title, content }: NoteCardProps) => {
             {note.isEncrypted && (
               <div className="flex items-center gap-1 px-2 py-0.5 bg-doodle-primary/10 border border-dashed border-doodle-primary/30 rounded-sm flex-shrink-0">
                 <Lock className="w-3 h-3 text-doodle-primary" />
-                <span className="text-xs text-doodle-primary font-medium">🔒</span>
+                <span className="text-xs text-doodle-primary font-medium">
+                  {language === 'id' ? 'Terkunci' : 'Locked'}
+                </span>
               </div>
             )}
           </div>

@@ -62,6 +62,132 @@ export const resetOldCompletions = async (): Promise<void> => {
     }
 };
 
+export const savePriorities = async (priorities: PriorityTask[], reason: string = 'UI Update') => {
+    const original = cache.priorities || [];
+    cache.priorities = priorities;
+    notifyListeners();
+    try {
+        await provider.savePriorities(priorities, reason);
+    } catch (error) {
+        cache.priorities = original;
+        notifyListeners();
+        handleSaveError(error, 'Menyimpan prioritas');
+    }
+};
+
+export const updatePriorityCompletion = async (id: string, completed: boolean, note?: string) => {
+    const priorities = getAllPriorities();
+    const now = new Date().toISOString();
+    const updated = priorities.map(p =>
+        p.id === id ? {
+            ...p,
+            completed,
+            completionNote: note !== undefined ? note : p.completionNote,
+            updatedAt: now
+        } : p
+    );
+    const updatedItem = updated.find(p => p.id === id);
+    cache.priorities = updated;
+    notifyListeners();
+    if (updatedItem) {
+        try {
+            await provider.savePriorities([updatedItem], `Update Completion (${completed})`);
+        } catch (error) {
+            cache.priorities = priorities;
+            notifyListeners();
+            handleSaveError(error, 'Update status prioritas');
+        }
+    }
+    return cache.priorities || [];
+};
+
+export const addPriority = async (text: string, scheduledFor?: string) => {
+    const priorities = getAllPriorities();
+    const newPriority: PriorityTask = {
+        id: generateId('priority'),
+        text,
+        completed: false,
+        scheduledFor,
+        updatedAt: new Date().toISOString(),
+    };
+    const updated = [...priorities, newPriority];
+    cache.priorities = updated;
+    notifyListeners();
+    try {
+        await provider.savePriorities([newPriority], 'Add Priority');
+    } catch (error) {
+        cache.priorities = priorities;
+        notifyListeners();
+        handleSaveError(error, 'Menambah prioritas');
+    }
+    return cache.priorities || [];
+};
+
+export const deletePriority = async (id: string) => {
+    const priorities = getAllPriorities();
+    const updated = priorities.filter(p => p.id !== id);
+    cache.priorities = updated;
+    notifyListeners();
+    try {
+        await provider.deletePriority(id);
+    } catch (error) {
+        cache.priorities = priorities;
+        notifyListeners();
+        handleSaveError(error, 'Menghapus prioritas');
+    }
+    return cache.priorities || [];
+};
+
+export const updatePriorityText = async (id: string, text: string) => {
+    const priorities = getAllPriorities();
+    const now = new Date().toISOString();
+    const updated = priorities.map(p =>
+        p.id === id ? { ...p, text, updatedAt: now } : p
+    );
+    cache.priorities = updated;
+    notifyListeners();
+    const updatedItem = updated.find(p => p.id === id);
+    if (updatedItem) {
+        try {
+            await provider.savePriorities([updatedItem], 'Update Text');
+        } catch (error) {
+            cache.priorities = priorities;
+            notifyListeners();
+            handleSaveError(error, 'Update teks prioritas');
+        }
+    }
+    return cache.priorities || [];
+};
+
+/**
+ * Update the scheduledFor date of a priority.
+ */
+export const updatePrioritySchedule = async (id: string, scheduledFor: string | undefined) => {
+    const priorities = getAllPriorities();
+    const now = new Date().toISOString();
+    const updated = priorities.map(p =>
+        p.id === id ? {
+            ...p,
+            scheduledFor,
+            completed: scheduledFor && scheduledFor > getTodayDateString() ? false : p.completed,
+            updatedAt: now
+        } : p
+    );
+    cache.priorities = updated;
+    notifyListeners();
+    const updatedItem = updated.find(p => p.id === id);
+    if (updatedItem) {
+        try {
+            await provider.savePriorities([updatedItem], 'Update Schedule');
+        } catch (error) {
+            cache.priorities = priorities;
+            notifyListeners();
+            handleSaveError(error, 'Update jadwal prioritas');
+        }
+    }
+    return cache.priorities || [];
+};
+
 export const getPriorities = (caller: string = 'Unknown'): PriorityTask[] => {
     console.log(`Storage: getPriorities called by [${caller}]`);
     const priorities = getAllPriorities();
@@ -106,114 +232,4 @@ export const getPriorities = (caller: string = 'Unknown'): PriorityTask[] => {
         });
 };
 
-export const savePriorities = async (priorities: PriorityTask[], reason: string = 'UI Update') => {
-    cache.priorities = priorities;
-    try {
-        await provider.savePriorities(priorities, reason);
-    } catch (error) {
-        handleSaveError(error, 'Menyimpan prioritas', () => savePriorities(priorities, reason));
-    }
-};
 
-export const updatePriorityCompletion = async (id: string, completed: boolean, note?: string) => {
-    const priorities = getAllPriorities();
-    const now = new Date().toISOString();
-    const updated = priorities.map(p =>
-        p.id === id ? {
-            ...p,
-            completed,
-            completionNote: note !== undefined ? note : p.completionNote,
-            updatedAt: now
-        } : p
-    );
-    const updatedItem = updated.find(p => p.id === id);
-    cache.priorities = updated;
-    notifyListeners();
-    if (updatedItem) {
-        try {
-            await provider.savePriorities([updatedItem], `Update Completion (${completed})`);
-        } catch (error) {
-            handleSaveError(error, 'Update status prioritas');
-        }
-    }
-    return updated;
-};
-
-export const addPriority = async (text: string, scheduledFor?: string) => {
-    const priorities = getAllPriorities();
-    const newPriority: PriorityTask = {
-        id: generateId('priority'),
-        text,
-        completed: false,
-        scheduledFor,
-        updatedAt: new Date().toISOString(),
-    };
-    const updated = [...priorities, newPriority];
-    cache.priorities = updated;
-    notifyListeners();
-    try {
-        await provider.savePriorities([newPriority], 'Add Priority');
-    } catch (error) {
-        handleSaveError(error, 'Menambah prioritas');
-    }
-    return updated;
-};
-
-export const deletePriority = async (id: string) => {
-    const priorities = getAllPriorities();
-    const updated = priorities.filter(p => p.id !== id);
-    cache.priorities = updated;
-    notifyListeners();
-    try {
-        await provider.deletePriority(id);
-    } catch (error) {
-        handleSaveError(error, 'Menghapus prioritas', () => deletePriority(id));
-    }
-    return updated;
-};
-
-export const updatePriorityText = async (id: string, text: string) => {
-    const priorities = getAllPriorities();
-    const now = new Date().toISOString();
-    const updated = priorities.map(p =>
-        p.id === id ? { ...p, text, updatedAt: now } : p
-    );
-    cache.priorities = updated;
-    notifyListeners();
-    const updatedItem = updated.find(p => p.id === id);
-    if (updatedItem) {
-        try {
-            await provider.savePriorities([updatedItem], 'Update Text');
-        } catch (error) {
-            handleSaveError(error, 'Update teks prioritas');
-        }
-    }
-    return updated;
-};
-
-/**
- * Update the scheduledFor date of a priority.
- */
-export const updatePrioritySchedule = async (id: string, scheduledFor: string | undefined) => {
-    const priorities = getAllPriorities();
-    const now = new Date().toISOString();
-    const updated = priorities.map(p =>
-        p.id === id ? {
-            ...p,
-            scheduledFor,
-            completed: scheduledFor && scheduledFor > getTodayDateString() ? false : p.completed,
-            updatedAt: now
-        } : p
-    );
-    cache.priorities = updated;
-    notifyListeners();
-    const updatedItem = updated.find(p => p.id === id);
-    if (updatedItem) {
-        try {
-            await provider.savePriorities([updatedItem], 'Update Schedule');
-        } catch (error) {
-            handleSaveError(error, 'Update jadwal prioritas');
-        }
-    }
-    return updated;
-};

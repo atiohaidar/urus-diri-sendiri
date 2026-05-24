@@ -91,8 +91,8 @@ export const UnlockNoteDialog = ({ open, onClose, onUnlock, noteTitle }: UnlockN
                     {/* Error Message */}
                     {error && (
                         <div className="bg-doodle-red/10 border-2 border-dashed border-doodle-red/30 rounded-sm p-3">
-                            <p className="text-sm text-doodle-red font-handwriting">
-                                🔒 {error}
+                            <p className="text-sm text-doodle-red font-handwriting flex items-center gap-1.5">
+                                <Lock className="w-4 h-4 shrink-0 text-doodle-red" /> {error}
                             </p>
                         </div>
                     )}

@@ -5,13 +5,14 @@ export const exportData = async () => {
     try {
         await initializeStorage();
         const appData = await getAllAppDataAsync();
-
         const data = {
             priorities: appData.priorities,
             reflections: appData.reflections,
             notes: appData.notes,
             routines: appData.routines,
             logs: appData.logs,
+            habits: appData.habits || [],
+            habitLogs: appData.habitLogs || [],
             version: 1,
             timestamp: new Date().toISOString(),
         };

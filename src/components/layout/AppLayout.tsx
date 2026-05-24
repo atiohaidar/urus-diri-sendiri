@@ -1,7 +1,6 @@
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import BottomNav from '@/components/BottomNav';
 import { Toaster } from '@/components/ui/toaster';
-import { GuestMigrationDialog } from '@/components/GuestMigrationDialog';
 
 const AppLayout = () => {
     const location = useLocation();
@@ -37,7 +36,6 @@ const AppLayout = () => {
             <BottomNav activeTab={activeTab} />
 
             {/* Kotak Notifikasi */}
-            <GuestMigrationDialog />
             <Toaster />
         </div>
     );
