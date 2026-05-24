@@ -11,6 +11,13 @@ export function rateLimiter(options: { windowMs: number; max: number }): Middlew
 
   return async (c, next) => {
     const ip = c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For') || 'unknown';
+    
+    // Bypass rate limiting untuk local development/testing
+    if (ip === '127.0.0.1' || ip === '::1' || ip === 'unknown') {
+      await next();
+      return;
+    }
+
     const now = Date.now();
 
     let record = rateLimitMap.get(ip);
